@@ -267,6 +267,9 @@ dependencies {
     implementation(libs.openid.appauth)
 
     implementation(libs.linphone)
+
+    // Loquace Integration Module
+    implementation(project(":loquace-integration"))
 }
 
 configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {

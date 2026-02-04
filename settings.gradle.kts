@@ -48,3 +48,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Linphone"
 include(":app")
+include(":loquace-integration")

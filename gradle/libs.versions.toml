@@ -32,6 +32,9 @@ dotsIndicator = "5.1.0"
 photoview = "2.3.0"
 openidAppauth = "0.11.1"
 linphone = "5.5.+"
+junit = "4.13.2"
+junitVersion = "1.1.5"
+espressoCore = "3.5.1"
 
 [libraries]
 androidx-annotations = { group = "androidx.annotation", name = "annotation", version.ref = "annotations" }
@@ -68,6 +71,9 @@ photoview = { group = "com.github.chrisbanes", name = "PhotoView", version.ref =
 openid-appauth = { group = "net.openid", name = "appauth", version.ref = "openidAppauth" }
 
 linphone = { group = "org.linphone", name = "linphone-sdk-android", version.ref = "linphone" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
+androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
@@ -77,3 +83,4 @@ navigation = { id = "androidx.navigation.safeargs.kotlin", version.ref = "naviga
 crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebaseCrashlytics" }
 googleGmsServices = { id = "com.google.gms.google-services", version.ref = "gmsGoogleServices" }
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint" }
+androidLibrary = { id = "com.android.library", version.ref = "agp" }
