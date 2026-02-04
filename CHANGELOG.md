@@ -55,8 +55,14 @@ Group changes to describe their impact on the project, as follows:
 - Updated password forgotten procedure, will use online account manager platform
 
 ### Fixed
+- Prevent crash & background mode from turning on when doing a remote provisioning if an account is already configured
 - Copy raw message content instead of modified one when it contains a participant mention ("@username")
 - Do not apply Crashlytics plugin if it's not enabled
+
+## [6.0.23] - 2026-02-02
+
+### Fixed
+- Fixed Telecom Manager not used on devices running Android < 13
 
 ## [6.0.22] - 2026-01-20
 
