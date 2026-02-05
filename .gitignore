@@ -1,14 +1,29 @@
+# IntelliJ / Android Studio
+.idea/
 *.iml
-.gradle
-/local.properties
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+
+# Gradle
+.gradle/
+build/
+**/build/
+
+# Local config
 local.properties
+
+# OS
+.DS_Store
+
+# Android artifacts
+/captures
+.externalNativeBuild/
+.cxx/
+
+# Kotlin
+.kotlin/
+
+# App outputs
 app/debug/
 app/release/
-.idea/
-app/bc-android.keystore
-.kotlin/
+
+# Keystore
+*.keystore
