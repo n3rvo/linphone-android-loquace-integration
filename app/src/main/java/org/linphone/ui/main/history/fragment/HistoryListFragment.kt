@@ -20,15 +20,12 @@
 package org.linphone.ui.main.history.fragment
 
 import android.os.Bundle
-import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
-import android.widget.PopupWindow
 import androidx.annotation.UiThread
-import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.findNavController
 import androidx.navigation.fragment.findNavController
@@ -36,10 +33,13 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import org.linphone.LinphoneApplication.Companion.coreContext
 import org.linphone.R
+import org.linphone.contacts.getListOfSipAddressesAndPhoneNumbers
 import org.linphone.core.tools.Log
 import org.linphone.databinding.HistoryListFragmentBinding
-import org.linphone.databinding.HistoryListPopupMenuBinding
 import org.linphone.ui.GenericActivity
+import org.linphone.ui.main.contacts.model.ContactNumberOrAddressClickListener
+import org.linphone.ui.main.contacts.model.ContactNumberOrAddressModel
+import org.linphone.ui.main.contacts.model.NumberOrAddressPickerDialogModel
 import org.linphone.ui.main.fragment.AbstractMainFragment
 import org.linphone.ui.main.history.adapter.HistoryListAdapter
 import org.linphone.utils.ConfirmationDialogModel
@@ -47,6 +47,8 @@ import org.linphone.ui.main.history.viewmodel.HistoryListViewModel
 import org.linphone.utils.AppUtils
 import org.linphone.utils.DialogUtils
 import org.linphone.utils.Event
+import org.linphone.utils.LinphoneUtils
+import org.linphone.utils.RecyclerViewHeaderDecoration
 
 @UiThread
 class HistoryListFragment : AbstractMainFragment() {
@@ -62,11 +64,26 @@ class HistoryListFragment : AbstractMainFragment() {
 
     private var bottomSheetDialog: BottomSheetDialogFragment? = null
 
+    private val numberOrAddressClickListener = object : ContactNumberOrAddressClickListener {
+        @UiThread
+        override fun onClicked(model: ContactNumberOrAddressModel) {
+            coreContext.postOnCoreThread {
+                val address = model.address
+                if (address != null) {
+                    Log.i("$TAG Starting call to [${address.asStringUriOnly()}]")
+                    coreContext.startAudioCall(address)
+                }
+            }
+        }
+
+        override fun onLongPress(model: ContactNumberOrAddressModel) { }
+    }
+
     override fun onDefaultAccountChanged() {
         Log.i(
             "$TAG Default account changed, updating avatar in top bar & re-computing call logs"
         )
-        listViewModel.applyFilter()
+        listViewModel.filter()
     }
 
     override fun onCreateAnimation(transit: Int, enter: Boolean, nextAnim: Int): Animation? {
@@ -108,6 +125,9 @@ class HistoryListFragment : AbstractMainFragment() {
         binding.historyList.outlineProvider = outlineProvider
         binding.historyList.clipToOutline = true
 
+        val headerItemDecoration = RecyclerViewHeaderDecoration(requireContext(), adapter)
+        binding.historyList.addItemDecoration(headerItemDecoration)
+
         adapter.callLogLongClickedEvent.observe(viewLifecycleOwner) {
             it.consume { model ->
                 val modalBottomSheet = HistoryMenuDialogFragment(
@@ -146,7 +166,7 @@ class HistoryListFragment : AbstractMainFragment() {
                     { // onDeleteCallLog
                         Log.i("$TAG Deleting call log with ref key or call ID [${model.id}]")
                         model.delete()
-                        listViewModel.applyFilter()
+                        listViewModel.filter()
                     }
                 )
                 modalBottomSheet.show(parentFragmentManager, HistoryMenuDialogFragment.TAG)
@@ -186,6 +206,35 @@ class HistoryListFragment : AbstractMainFragment() {
             }
         }
 
+        adapter.callFriendClickedEvent.observe(viewLifecycleOwner) {
+            it.consume { friend ->
+                coreContext.postOnCoreThread {
+                    val singleAvailableAddress = LinphoneUtils.getSingleAvailableAddressForFriend(friend)
+                    if (singleAvailableAddress != null) {
+                        Log.i(
+                            "$TAG Only 1 SIP address or phone number found for contact [${friend.name}], using it"
+                        )
+                        coreContext.startAudioCall(singleAvailableAddress)
+                    } else {
+                        val list = friend.getListOfSipAddressesAndPhoneNumbers(numberOrAddressClickListener)
+                        Log.i(
+                            "$TAG [${list.size}] numbers or addresses found for contact [${friend.name}], showing selection dialog"
+                        )
+                        coreContext.postOnMainThread {
+                            showNumbersOrAddressesDialog(list)
+                        }
+                    }
+                }
+            }
+        }
+
+        adapter.callAddressClickedEvent.observe(viewLifecycleOwner) {
+            it.consume { address ->
+                Log.i("$TAG Starting call to [${address.asStringUriOnly()}]")
+                coreContext.startAudioCall(address)
+            }
+        }
+
         listViewModel.callLogs.observe(viewLifecycleOwner) {
             adapter.submitList(it)
 
@@ -218,7 +267,8 @@ class HistoryListFragment : AbstractMainFragment() {
 
         sharedViewModel.forceRefreshCallLogsListEvent.observe(viewLifecycleOwner) {
             it.consume {
-                listViewModel.applyFilter()
+                Log.i("$TAG Re-compute call log history")
+                listViewModel.filter()
             }
         }
 
@@ -235,8 +285,8 @@ class HistoryListFragment : AbstractMainFragment() {
             }
         }
 
-        binding.setMenuClickListener {
-            showPopupMenu()
+        binding.setDeleteAllClickListener {
+            showDeleteConfirmationDialog()
         }
 
         binding.setStartCallClickListener {
@@ -289,30 +339,6 @@ class HistoryListFragment : AbstractMainFragment() {
         }
     }
 
-    private fun showPopupMenu() {
-        val popupView: HistoryListPopupMenuBinding = DataBindingUtil.inflate(
-            LayoutInflater.from(requireContext()),
-            R.layout.history_list_popup_menu,
-            null,
-            false
-        )
-        val popupWindow = PopupWindow(
-            popupView.root,
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            true
-        )
-
-        popupView.setDeleteAllHistoryClickListener {
-            showDeleteConfirmationDialog()
-            popupWindow.dismiss()
-        }
-
-        // Elevation is for showing a shadow around the popup
-        popupWindow.elevation = 20f
-        popupWindow.showAsDropDown(binding.topBar.extraAction, 0, 0, Gravity.BOTTOM)
-    }
-
     private fun showDeleteConfirmationDialog() {
         val model = ConfirmationDialogModel()
         val dialog = DialogUtils.getRemoveAllCallLogsConfirmationDialog(
@@ -330,6 +356,23 @@ class HistoryListFragment : AbstractMainFragment() {
             it.consume {
                 Log.w("$TAG Removing all call entries from database")
                 listViewModel.removeAllCallLogs()
+                dialog.dismiss()
+            }
+        }
+
+        dialog.show()
+    }
+
+    private fun showNumbersOrAddressesDialog(list: List<ContactNumberOrAddressModel>) {
+        val numberOrAddressModel = NumberOrAddressPickerDialogModel(list)
+        val dialog =
+            DialogUtils.getNumberOrAddressPickerDialog(
+                requireActivity(),
+                numberOrAddressModel
+            )
+
+        numberOrAddressModel.dismissEvent.observe(viewLifecycleOwner) { event ->
+            event.consume {
                 dialog.dismiss()
             }
         }

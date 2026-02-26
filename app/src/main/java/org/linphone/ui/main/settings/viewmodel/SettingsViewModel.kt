@@ -66,11 +66,11 @@ class SettingsViewModel
     val isTunnelAvailable = MutableLiveData<Boolean>()
 
     val recreateActivityEvent: MutableLiveData<Event<Boolean>> by lazy {
-        MutableLiveData<Event<Boolean>>()
+        MutableLiveData()
     }
 
     val keepAliveServiceSettingChangedEvent: MutableLiveData<Event<Boolean>> by lazy {
-        MutableLiveData<Event<Boolean>>()
+        MutableLiveData()
     }
 
     // Security settings
@@ -92,7 +92,7 @@ class SettingsViewModel
 
     val autoRecordCalls = MutableLiveData<Boolean>()
 
-    val goToIncomingCallNotificationChannelSettingsEvent = MutableLiveData<Event<Uri?>>()
+    val showRingtonePickerEvent = MutableLiveData<Event<Uri?>>()
 
     // Conversations settings
     val showConversationsSettings = MutableLiveData<Boolean>()
@@ -124,18 +124,18 @@ class SettingsViewModel
     val presenceSubscribe = MutableLiveData<Boolean>()
 
     val addLdapServerEvent: MutableLiveData<Event<Boolean>> by lazy {
-        MutableLiveData<Event<Boolean>>()
+        MutableLiveData()
     }
     val editLdapServerEvent: MutableLiveData<Event<String>> by lazy {
-        MutableLiveData<Event<String>>()
+        MutableLiveData()
     }
 
     val addCardDavServerEvent: MutableLiveData<Event<Boolean>> by lazy {
-        MutableLiveData<Event<Boolean>>()
+        MutableLiveData()
     }
 
     val editCardDavServerEvent: MutableLiveData<Event<String>> by lazy {
-        MutableLiveData<Event<String>>()
+        MutableLiveData()
     }
 
     // Meetings settings
@@ -531,9 +531,10 @@ class SettingsViewModel
                 val coreRingtone = core.ring?.toUri()
                 Log.i("$TAG Currently set ringtone in Core is [$coreRingtone], device default ringtone is [$defaultDeviceRingtone]")
                 val currentRingtone = coreRingtone ?: defaultDeviceRingtone
-                goToIncomingCallNotificationChannelSettingsEvent.postValue(Event(currentRingtone))
+                showRingtonePickerEvent.postValue(Event(currentRingtone))
             } catch (e: Exception) {
-                Log.e("$TAG Failed to get current ringtone: $e")
+                Log.e("$TAG Failed to get current ringtone, opening picker anyway: $e")
+                showRingtonePickerEvent.postValue(Event(null))
             }
         }
     }
@@ -1233,6 +1234,36 @@ class SettingsViewModel
                 Log.i("$TAG Friend list [$NATIVE_ADDRESS_BOOK_FRIEND_LIST] removed")
             }
             showGreenToast(R.string.settings_developer_cleared_native_friends_in_database_toast, R.drawable.trash_simple)
+        }
+    }
+
+    @UiThread
+    fun clearOrphanAuthInfo() {
+        coreContext.postOnCoreThread { core ->
+            var count = 0
+            for (authInfo in core.authInfoList) {
+                val username = authInfo.username
+                if (username == null) {
+                    Log.i("$TAG Removing auth info [$authInfo] without username")
+                    core.removeAuthInfo(authInfo)
+                    count += 1
+                } else {
+                    val account = core.accountList.find {
+                        it.params.identityAddress?.username == username
+                    }
+                    if (account == null) {
+                        Log.i("$TAG Removing auth info [$authInfo] with username [$username] for which no account was found")
+                        core.removeAuthInfo(authInfo)
+                        count += 1
+                    }
+                }
+            }
+            if (count == 0) {
+                showGreenToast(R.string.settings_developer_no_auth_info_removed_toast, R.drawable.trash_simple)
+            } else {
+                val message = AppUtils.getStringWithPlural(R.plurals.settings_developer_cleared_auth_info_toast, count, "$count")
+                showFormattedGreenToast(message, R.drawable.warning_circle)
+            }
         }
     }
 }

@@ -106,7 +106,7 @@ android {
         applicationId = packageName
         minSdk = 28
         targetSdk = 36
-        versionCode = 601004 // 6.01.004
+        versionCode = 601006 // 6.01.006
         versionName = "6.2.0-beta"
 
         manifestPlaceholders["appAuthRedirectScheme"] = packageName
@@ -122,7 +122,7 @@ android {
         variant.outputs
             .map { it as com.android.build.gradle.internal.api.BaseVariantOutputImpl }
             .forEach { output ->
-                output.outputFileName = "linphone-android-${variant.buildType.name}-${project.version}.apk"
+                output.outputFileName = "linphone-android-${variant.buildType.name}-$gitVersion.apk"
             }
     }
 
@@ -172,8 +172,6 @@ android {
                     nativeSymbolUploadEnabled = true
                     unstrippedNativeLibsDir = path
                 }
-            } else {
-                resValue("string", "com.crashlytics.android.build_id", "none")
             }
             buildConfigField("Boolean", "CRASHLYTICS_ENABLED", crashlyticsAvailable.toString())
         }
@@ -201,8 +199,6 @@ android {
                     nativeSymbolUploadEnabled = true
                     unstrippedNativeLibsDir = path
                 }
-            } else {
-                resValue("string", "com.crashlytics.android.build_id", "none")
             }
             buildConfigField("Boolean", "CRASHLYTICS_ENABLED", crashlyticsAvailable.toString())
         }
@@ -252,7 +248,11 @@ dependencies {
 
     implementation(platform(libs.google.firebase.bom))
     implementation(libs.google.firebase.messaging)
-    implementation(libs.google.firebase.crashlytics)
+    if (crashlyticsAvailable) {
+        implementation(libs.google.firebase.crashlytics)
+    } else {
+        compileOnly(libs.google.firebase.crashlytics)
+    }
 
     // https://github.com/coil-kt/coil/blob/main/LICENSE.txt Apache v2.0
     implementation(libs.coil)

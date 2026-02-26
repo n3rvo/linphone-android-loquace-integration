@@ -89,7 +89,7 @@ class AccountProfileViewModel
     val showDeviceId = MutableLiveData<Boolean>()
 
     val accountRemovedEvent: MutableLiveData<Event<Boolean>> by lazy {
-        MutableLiveData<Event<Boolean>>()
+        MutableLiveData()
     }
 
     private lateinit var account: Account
@@ -353,6 +353,7 @@ class AccountProfileViewModel
             registerEnabled.postValue(account.params.isRegisterEnabled)
 
             if (!core.isNetworkReachable) {
+                Log.w("$TAG Network is not reachable, updating registration state to reflect that")
                 // To reflect the difference between Disabled & Disconnected
                 accountModel.value?.updateRegistrationState()
             }

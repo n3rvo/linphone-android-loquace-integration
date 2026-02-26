@@ -305,7 +305,7 @@
     <string name="history_call_start_no_suggestion_nor_contact">Kein Vorschlag und im Moment kein Kontakt…</string>
     <string name="history_group_call_start_dialog_set_subject">Betreff für Gruppenanruf festlegen</string>
     <string name="history_group_call_start_dialog_subject_hint">Betreff des Gruppenanrufs</string>
-    <string name="history_list_empty_history">Im Moment kein Anruf…</string>
+    <string name="history_list_empty_history">Kein Anruf von/zu diesem Konto gefunden…</string>
     <string name="history_group_call_go_to_conversation">Chat</string>
     <string name="history_dialog_delete_all_call_logs_title">Möchten Sie wirklich den gesamten Anrufverlauf löschen?</string>
     <string name="history_dialog_delete_all_call_logs_message">Alle Anrufe werden aus dem Verlauf gelöscht</string>
@@ -551,7 +551,7 @@
     <string name="call_action_change_layout">Layout</string>
     <string name="call_state_outgoing_progress">Im Gange</string>
     <string name="call_state_outgoing_ringing">Klingeln</string>
-    <string name="call_state_incoming_received">Eingehend</string>
+    <string name="call_state_incoming_received">Eingehender</string>
     <string name="call_state_connected">Aktiv</string>
     <string name="call_state_paused">Pausieren</string>
     <string name="call_state_paused_by_remote">Fern pausiert</string>
@@ -819,8 +819,6 @@
     <string name="conversation_event_security_event_level_downgraded">Sicherheitsstufe verringert wegen %s</string>
     <string name="conversation_event_security_event_max_participant_count_exceeded">Maximale Teilnehmerzahl um %s überschritten</string>
     <string name="meeting_cancel_action_label">Besprechung absagen</string>
-    <string name="meeting_schedule_delete_dialog_title">Besprechung löschen?</string>
-    <string name="meeting_schedule_delete_dialog_message">Möchten Sie die Besprechung löschen?</string>
     <string name="assistant_forgotten_password_title">Passwort vergessen</string>
     <string name="assistant_forgotten_password_message">Sie haben Ihren Account erstellt mit:</string>
     <string name="assistant_account_register_unavailable_no_push_warning">Benachrichtigungen scheinen auf Ihrem Gerät nicht verfügbar zu sein, sind allerdings nötig um einen Account in der App zu erstellen.\n\nWir laden Sie ein, stattdessen einen Account auf unserer Webplattform zu erstellen:</string>
@@ -898,4 +896,12 @@
     <string name="call_audio_device_type_microphone">Mikrofon</string>
     <string name="call_audio_device_type_hdmi">HDMI</string>
     <string name="call_stats_ice_label">ICE: %s</string>
+    <string name="settings_calls_change_ringtone_picker_unavailable_toast">Der Klingelton-Auswähler ist nicht verfügbar!</string>
+    <string name="settings_developer_no_auth_info_removed_toast">Keine verwaisten Authentifizierungsinformationen gefunden</string>
+    <string name="manage_account_status_registration_status_title">Verbindungsstatus</string>
+    <string name="settings_developer_clear_orphan_auth_info_title">Authentifizierungsinformationen löschen, die nicht mehr mit einem Konto verknüpft sind</string>
+    <plurals name="settings_developer_cleared_auth_info_toast">
+        <item quantity="one">%s verwaiste Anmeldeinformation entfernt</item>
+        <item quantity="other">%s verwaiste Anmeldeinformationen entfernt</item>
+    </plurals>
 </resources>

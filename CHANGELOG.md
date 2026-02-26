@@ -17,6 +17,7 @@ Group changes to describe their impact on the project, as follows:
 - Added keyboard shortcuts on IncomingCallFragment: Ctrl + Shift + A to answer the call, Ctrl + Shift + D to decline it
 - Added seeking feature to recordings & media player within app
 - Added PDF preview in conversation (message bubble & documents list)
+- Added media/documents access from contact page if a 1-1 conversation with any of the contact SIP addresses is found
 - Added hover effect when using a mouse (useful for tablets or devices with desktop mode)
 - Support right click on some items to open bottom sheet/menu
 - Added toggle speaker action in active call notification
@@ -36,6 +37,7 @@ Group changes to describe their impact on the project, as follows:
 
 ### Changed
 - No longer follow TelecomManager audio endpoint during calls, using our own routing policy
+- Show matching contacts & suggestions when filtering call history list & conversations list, allowing to quickly call someone without opening the start call/conversation fragment
 - Join a conference using default layout instead of audio only when clicking on a meeting SIP URI
 - Removing an account will also remove all related data in the local database (auth info, call logs, conversations, meetings, etc...)
 - Hide SIP address/phone number picker dialog if contact has exactly one SIP address matching both the app default domain & the currently selected account domain
@@ -43,8 +45,10 @@ Group changes to describe their impact on the project, as follows:
 - Improved UI on tablets with screen sw600dp and higher, will look more like our desktop app
 - Improved navigation within app when using a keyboard
 - Now loading media/documents contents in conversation by chunks (instead of all of them at once)
+- If in-call foreground service doesn't start, show an error notification and clicking on it will fix the issue (by bringing Linphone in foreground and re-starting the foreground service)
 - Simplified audio device name in settings
 - Reworked some settings (moved calls related ones from advanced settings to advanced calls settings)
+- Removed menu to access account profile, button is now directly available from drawer menu
 - Increased shared media preview size in chat
 - Un-encrypted conversation warning will be more visible for accounts that support end-to-end encrypted conversations
 - Made numpad buttons larger by changing their shape

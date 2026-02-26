@@ -43,6 +43,7 @@ import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.findNavController
+import androidx.navigation.fragment.findNavController
 import androidx.window.layout.FoldingFeature
 import androidx.window.layout.WindowInfoTracker
 import androidx.window.layout.WindowLayoutInfo
@@ -264,6 +265,18 @@ class CallActivity : GenericActivity() {
             coreContext.enableProximitySensor(enabled)
         }
 
+        callViewModel.goToCallEvent.observe(this) {
+            it.consume {
+                navigateToActiveCall(true)
+            }
+        }
+
+        callViewModel.goToConferenceEvent.observe(this) {
+            it.consume {
+                navigateToActiveCall(false)
+            }
+        }
+
         callsViewModel.showIncomingCallEvent.observe(this) {
             it.consume {
                 val action = IncomingCallFragmentDirections.actionGlobalIncomingCallFragment()
@@ -362,6 +375,16 @@ class CallActivity : GenericActivity() {
         Log.i("$TAG onResume: is in PiP mode? [$isInPipMode]")
         if (::callViewModel.isInitialized) {
             callViewModel.pipMode.value = isInPipMode
+        }
+
+        if (callsViewModel.callsCount.value == 0) {
+            Log.w("$TAG Call activity is being resumed but no call was found, finishing activity")
+            finish()
+        }
+
+        coreContext.postOnCoreThread {
+            coreContext.notificationsManager.showInCallForegroundServiceNotificationIfNeeded()
+            callViewModel.updateProximitySensor()
         }
     }
 

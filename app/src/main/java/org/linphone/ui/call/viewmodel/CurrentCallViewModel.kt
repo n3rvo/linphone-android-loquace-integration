@@ -151,7 +151,7 @@ class CurrentCallViewModel
     }
 
     val incomingCallTitle: MutableLiveData<String> by lazy {
-        MutableLiveData<String>()
+        MutableLiveData()
     }
 
     val qualityValue = MutableLiveData<Float>()
@@ -163,23 +163,23 @@ class CurrentCallViewModel
     var terminatedByUser = false
 
     val isRemoteRecordingEvent: MutableLiveData<Event<Pair<Boolean, String>>> by lazy {
-        MutableLiveData<Event<Pair<Boolean, String>>>()
+        MutableLiveData()
     }
 
     val goToEndedCallEvent: MutableLiveData<Event<String>> by lazy {
-        MutableLiveData<Event<String>>()
+        MutableLiveData()
     }
 
     val finishActivityEvent: MutableLiveData<Event<Boolean>> by lazy {
-        MutableLiveData<Event<Boolean>>()
+        MutableLiveData()
     }
 
     val requestRecordAudioPermission: MutableLiveData<Event<Boolean>> by lazy {
-        MutableLiveData<Event<Boolean>>()
+        MutableLiveData()
     }
 
     val requestCameraPermission: MutableLiveData<Event<Boolean>> by lazy {
-        MutableLiveData<Event<Boolean>>()
+        MutableLiveData()
     }
 
     val proximitySensorEnabled = MutableLiveData<Boolean>()
@@ -188,21 +188,21 @@ class CurrentCallViewModel
     val callDuration = MutableLiveData<Int>()
 
     val showAudioDevicesListEvent: MutableLiveData<Event<ArrayList<AudioDeviceModel>>> by lazy {
-        MutableLiveData<Event<ArrayList<AudioDeviceModel>>>()
+        MutableLiveData()
     }
 
     // ZRTP related
 
     val showZrtpSasDialogEvent: MutableLiveData<Event<Pair<String, List<String>>>> by lazy {
-        MutableLiveData<Event<Pair<String, List<String>>>>()
+        MutableLiveData()
     }
 
     val showZrtpSasCacheMismatchDialogEvent: MutableLiveData<Event<Pair<String, List<String>>>> by lazy {
-        MutableLiveData<Event<Pair<String, List<String>>>>()
+        MutableLiveData()
     }
 
     val zrtpAuthTokenVerifiedEvent: MutableLiveData<Event<Boolean>> by lazy {
-        MutableLiveData<Event<Boolean>>()
+        MutableLiveData()
     }
 
     var isZrtpDialogVisible: Boolean = false
@@ -217,7 +217,7 @@ class CurrentCallViewModel
     val operationInProgress = MutableLiveData<Boolean>()
 
     val goToConversationEvent: MutableLiveData<Event<String>> by lazy {
-        MutableLiveData<Event<String>>()
+        MutableLiveData()
     }
 
     // Conference
@@ -225,39 +225,39 @@ class CurrentCallViewModel
     val conferenceModel = ConferenceViewModel()
 
     val goToConferenceEvent: MutableLiveData<Event<Boolean>> by lazy {
-        MutableLiveData<Event<Boolean>>()
+        MutableLiveData()
     }
 
     val goToCallEvent: MutableLiveData<Event<Boolean>> by lazy {
-        MutableLiveData<Event<Boolean>>()
+        MutableLiveData()
     }
 
     // Extras actions
 
     val toggleExtraActionsBottomSheetEvent: MutableLiveData<Event<Boolean>> by lazy {
-        MutableLiveData<Event<Boolean>>()
+        MutableLiveData()
     }
 
     val showNumpadBottomSheetEvent: MutableLiveData<Event<Boolean>> by lazy {
-        MutableLiveData<Event<Boolean>>()
+        MutableLiveData()
     }
 
     val transferInProgressEvent: MutableLiveData<Event<Boolean>> by lazy {
-        MutableLiveData<Event<Boolean>>()
+        MutableLiveData()
     }
 
     val transferFailedEvent: MutableLiveData<Event<Boolean>> by lazy {
-        MutableLiveData<Event<Boolean>>()
+        MutableLiveData()
     }
 
     val numpadModel: NumpadModel
 
     val appendDigitToSearchBarEvent: MutableLiveData<Event<String>> by lazy {
-        MutableLiveData<Event<String>>()
+        MutableLiveData()
     }
 
     val removedCharacterAtCurrentPositionEvent: MutableLiveData<Event<Boolean>> by lazy {
-        MutableLiveData<Event<Boolean>>()
+        MutableLiveData()
     }
 
     // Sliding answer/decline button
@@ -392,6 +392,13 @@ class CurrentCallViewModel
                         }
                         else -> {}
                     }
+
+                    if (call.conference != null && !conferenceModel.conferenceConfigured) {
+                        Log.i("$TAG Found conference on call but not conference model, initializing it now")
+                        conferenceModel.configureFromCall(call)
+                        updateMicrophoneMutedIcon()
+                        goToConferenceEvent.postValue(Event(true))
+                    }
                 }
             }
 
@@ -414,7 +421,7 @@ class CurrentCallViewModel
             if (state == ChatRoom.State.Instantiated) return
 
             val id = LinphoneUtils.getConversationId(chatRoom)
-            Log.i("$TAG Conversation [$id] (${chatRoom.subject}) state changed: [$state]")
+            Log.i("$TAG Conversation [$id] (${chatRoom.subjectUtf8}) state changed: [$state]")
 
             if (state == ChatRoom.State.Created) {
                 Log.i("$TAG Conversation [$id] successfully created")
@@ -695,21 +702,7 @@ class CurrentCallViewModel
     @UiThread
     fun refreshMicrophoneState() {
         coreContext.postOnCoreThread {
-            if (::currentCall.isInitialized) {
-                val micMuted = if (currentCall.conference != null) {
-                    currentCall.conference?.microphoneMuted == true
-                } else {
-                    currentCall.microphoneMuted
-                }
-                if (micMuted != isMicrophoneMuted.value) {
-                    if (micMuted) {
-                        Log.w("$TAG Microphone is muted, updating button state accordingly")
-                    } else {
-                        Log.i("$TAG Microphone is not muted, updating button state accordingly")
-                    }
-                    isMicrophoneMuted.postValue(micMuted)
-                }
-            }
+            updateMicrophoneMutedIcon()
         }
     }
 
@@ -1097,6 +1090,7 @@ class CurrentCallViewModel
             conferenceModel.configureFromCall(call)
             goToConferenceEvent.postValue(Event(true))
         } else {
+            Log.i("$TAG No conference attached to this call, going to call fragment")
             conferenceModel.destroy()
             goToCallEvent.postValue(Event(true))
         }
@@ -1259,6 +1253,25 @@ class CurrentCallViewModel
     fun updateCallDuration() {
         if (::currentCall.isInitialized) {
             callDuration.postValue(currentCall.duration)
+        }
+    }
+
+    @WorkerThread
+    private fun updateMicrophoneMutedIcon() {
+        if (::currentCall.isInitialized) {
+            val micMuted = if (currentCall.conference != null) {
+                currentCall.conference?.microphoneMuted == true
+            } else {
+                currentCall.microphoneMuted
+            }
+            if (micMuted != isMicrophoneMuted.value) {
+                if (micMuted) {
+                    Log.w("$TAG Microphone is muted, updating button state accordingly")
+                } else {
+                    Log.i("$TAG Microphone is not muted, updating button state accordingly")
+                }
+                isMicrophoneMuted.postValue(micMuted)
+            }
         }
     }
 
@@ -1540,27 +1553,39 @@ class CurrentCallViewModel
     }
 
     @WorkerThread
-    private fun updateProximitySensor() {
+    fun updateProximitySensor() {
         if (::currentCall.isInitialized) {
             val callState = currentCall.state
+            Log.i("$TAG Call is in state [$callState], enabling/disabling proximity sensor if needed")
+
             if (LinphoneUtils.isCallIncoming(callState)) {
+                Log.i("$TAG Call is incoming, disabling proximity sensor")
                 proximitySensorEnabled.postValue(false)
             } else if (LinphoneUtils.isCallOutgoing(callState)) {
                 val videoEnabled = currentCall.params.isVideoEnabled
+                if (videoEnabled) {
+                    Log.i("$TAG Call is outgoing and video is enabled, disabling proximity sensor")
+                } else {
+                    Log.i("$TAG Call is outgoing and video is disabled, enabling proximity sensor")
+                }
                 proximitySensorEnabled.postValue(!videoEnabled)
             } else {
                 if (isSendingVideo.value == true || isReceivingVideo.value == true) {
+                    Log.i("$TAG Video is being sent and/or received, disabling proximity sensor")
                     proximitySensorEnabled.postValue(false)
                 } else {
                     val outputAudioDevice = currentCall.outputAudioDevice ?: coreContext.core.outputAudioDevice
                     if (outputAudioDevice != null && outputAudioDevice.type == AudioDevice.Type.Earpiece) {
+                        Log.i("$TAG Audio device is earpiece, enabling proximity sensor")
                         proximitySensorEnabled.postValue(true)
                     } else {
+                        Log.i("$TAG Audio device is [${outputAudioDevice?.type}], disabling proximity sensor")
                         proximitySensorEnabled.postValue(false)
                     }
                 }
             }
         } else {
+            Log.w("$TAG No current call, disabling proximity sensor")
             proximitySensorEnabled.postValue(false)
         }
     }
