@@ -64,7 +64,6 @@ import org.linphone.compatibility.Compatibility
 import org.linphone.core.tools.Log
 import org.linphone.databinding.MainActivityBinding
 import org.linphone.ui.GenericActivity
-import org.linphone.ui.assistant.AssistantActivity
 import org.linphone.ui.main.chat.fragment.ConversationsListFragmentDirections
 import org.linphone.utils.PasswordDialogModel
 import org.linphone.ui.main.sso.fragment.SingleSignOnFragmentDirections
@@ -77,6 +76,7 @@ import org.linphone.utils.Event
 import org.linphone.utils.FileUtils
 import org.linphone.utils.LinphoneUtils
 import androidx.core.content.edit
+import org.linphone.loquace_integration.ui.LoquaceLoginActivity
 
 @UiThread
 class MainActivity : GenericActivity() {
@@ -245,7 +245,7 @@ class MainActivity : GenericActivity() {
 
         viewModel.lastAccountRemovedEvent.observe(this) {
             it.consume {
-                startActivity(Intent(this, AssistantActivity::class.java))
+                startActivity(Intent(this, LoquaceLoginActivity::class.java))
             }
         }
 
@@ -592,7 +592,7 @@ class MainActivity : GenericActivity() {
                 Log.w("$TAG No account found, showing Assistant activity")
                 coreContext.postOnMainThread {
                     try {
-                        startActivity(Intent(this, AssistantActivity::class.java))
+                        startActivity(Intent(this, LoquaceLoginActivity::class.java))
                     } catch (ise: IllegalStateException) {
                         Log.e("$TAG Can't start activity: $ise")
                     }

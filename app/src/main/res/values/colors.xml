@@ -10,11 +10,11 @@
     <color name="background_color_dark_mode">#191919</color>
     <color name="background_color_alt_dark_mode">#303030</color>
 
-    <color name="orange_main_100">#FFEACB</color>
-    <color name="orange_main_100_alpha_50">#80FFEACB</color>
-    <color name="orange_main_300">#FFB266</color>
-    <color name="orange_main_500">#FF5E00</color>
-    <color name="orange_main_700">#B72D00</color>
+    <color name="orange_main_100">#D6E5E8</color>
+    <color name="orange_main_100_alpha_50">#80D6E5E8</color>
+    <color name="orange_main_300">#6F9AA3</color>
+    <color name="orange_main_500">#183a42</color>
+    <color name="orange_main_700">#0F262C</color>
 
     <color name="gray_main2_100">#EEF6F8</color>
     <color name="gray_main2_200">#DFECF2</color>
