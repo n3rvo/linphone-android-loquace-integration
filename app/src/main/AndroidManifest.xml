@@ -137,6 +137,10 @@
             android:resizeableActivity="true" />
 
         <activity
+            android:name="org.linphone.loquace_integration.ui.LoquaceLoginActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ui.fileviewer.MediaViewerActivity"
             android:windowSoftInputMode="adjustResize"
             android:launchMode="singleTask"

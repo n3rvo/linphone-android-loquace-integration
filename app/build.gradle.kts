@@ -1,3 +1,4 @@
+import com.android.build.gradle.api.ApkVariantOutput
 import com.android.build.gradle.internal.tasks.factory.dependsOn
 import com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension
 import com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsPlugin
@@ -8,10 +9,10 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.androidApplication)
-    alias(libs.plugins.kapt)
+    alias(libs.plugins.legacyKapt)
     alias(libs.plugins.ktlint)
-    alias(libs.plugins.jetbrainsKotlinAndroid)
     alias(libs.plugins.navigation)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 val packageName = "org.linphone"
@@ -117,15 +118,6 @@ android {
         }
     }
 
-    applicationVariants.all {
-        val variant = this
-        variant.outputs
-            .map { it as com.android.build.gradle.internal.api.BaseVariantOutputImpl }
-            .forEach { output ->
-                output.outputFileName = "linphone-android-${variant.buildType.name}-$gitVersion.apk"
-            }
-    }
-
     val keystorePropertiesFile = rootProject.file("keystore.properties")
     val keystoreProperties = Properties()
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
@@ -217,6 +209,17 @@ android {
 
     lint {
         abortOnError = false
+    }
+}
+
+androidComponents {
+    onVariants { variant ->
+        variant.outputs
+            .filterIsInstance<ApkVariantOutput>()
+            .forEach { output ->
+                output.outputFileName =
+                    "linphone-android-${variant.buildType}-$gitVersion.apk"
+            }
     }
 }
 
