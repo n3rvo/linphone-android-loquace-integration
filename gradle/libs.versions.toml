@@ -7,8 +7,8 @@ firebaseBomVersion = "34.8.0"
 #noinspection NewerVersionAvailable
 ktlint = "12.3.0"
 room = "2.7.0"
-sqlcipher = "4.5.4"
-sqlite = "2.4.0"
+sqlcipher = "4.6.1"
+androidxSqlite = "2.4.0"
 
 annotations = "1.9.1"
 appcompat = "1.7.1"
@@ -38,6 +38,7 @@ linphone = "5.5.+"
 junit = "4.13.2"
 junitVersion = "1.1.5"
 espressoCore = "3.5.1"
+gson = "2.10.1"
 
 [libraries]
 androidx-annotations = { group = "androidx.annotation", name = "annotation", version.ref = "annotations" }
@@ -84,8 +85,10 @@ room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "
 room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 
-sqlcipher = { group = "net.zetetic", name = "android-database-sqlcipher", version.ref = "sqlcipher" }
-sqlite-ktx = { group = "androidx.sqlite", name = "sqlite-ktx", version.ref = "sqlite" }
+sqlcipher = { group = "net.zetetic", name = "sqlcipher-android", version.ref = "sqlcipher" }
+androidx-sqlite = { group = "androidx.sqlite", name = "sqlite", version.ref = "androidxSqlite" }
+
+gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
 
 
 [plugins]

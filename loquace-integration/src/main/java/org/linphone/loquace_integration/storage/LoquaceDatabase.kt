@@ -4,8 +4,8 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import net.sqlcipher.database.SQLiteDatabase
-import net.sqlcipher.database.SupportFactory
+import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
+import net.zetetic.database.sqlcipher.SQLiteDatabase
 import org.linphone.loquace_integration.storage.dao.*
 import org.linphone.loquace_integration.storage.entity.*
 
@@ -32,15 +32,17 @@ abstract class LoquaceDatabase : RoomDatabase() {
 
         fun getInstance(context: Context): LoquaceDatabase {
             return INSTANCE ?: synchronized(this) {
-                val passphrase = SQLiteDatabase.getBytes(getDatabaseKey(context).toCharArray())
-                val factory = SupportFactory(passphrase)
+                System.loadLibrary("sqlcipher") // Add this line
+
+                val passphrase = getDatabaseKey(context).toByteArray(Charsets.UTF_8)
+                val factory = SupportOpenHelperFactory(passphrase)
 
                 Room.databaseBuilder(
                     context.applicationContext,
                     LoquaceDatabase::class.java,
                     "loquace_db"
                 )
-                    .openHelperFactory(factory) // Comment this when we want to see the db data trough App Inspection tool
+                    .openHelperFactory(factory)
                     .build()
                     .also { INSTANCE = it }
             }

@@ -1,5 +1,6 @@
 package org.linphone.loquace_integration.ui
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import androidx.activity.viewModels
@@ -44,7 +45,11 @@ class LoquaceLoginActivity : AppCompatActivity() {
                         binding.txtError.visibility = View.GONE
                     }
                     is LoginState.Success -> {
-                        // TODO: navigate to main screen
+                        val intent = Intent().apply {
+                            putExtra(SHOW_PERMISSIONS, true)
+                        }
+                        setResult(RESULT_OK, intent)
+                        finish()
                     }
                     is LoginState.Error -> {
                         binding.btnLogin.isEnabled = true
@@ -57,5 +62,9 @@ class LoquaceLoginActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    companion object {
+        const val SHOW_PERMISSIONS = "show_permissions"
     }
 }

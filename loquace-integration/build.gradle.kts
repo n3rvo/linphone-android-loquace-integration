@@ -56,7 +56,7 @@ dependencies {
     kapt(libs.room.compiler)
     // DB Encryption
     implementation(libs.sqlcipher)
-    implementation(libs.sqlite.ktx)
+    implementation(libs.androidx.sqlite)
     //LinphoneSDK
     implementation(libs.linphone)
 }

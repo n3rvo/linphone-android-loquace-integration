@@ -1043,4 +1043,9 @@
         <item>50e603d333c6049a37bd751375d08f3bd0abebd33facd30bd17b64b89658b421,
             com.google.android.apps.automotive.templates.host</item>
         </string-array>
+
+    <!-- Loquace Strings -->
+    <string name="contacts_tab_phone">Contacts</string>
+    <string name="contacts_tab_pbx">PBX</string>
+    <string name="contacts_tab_user">User</string>
 </resources>

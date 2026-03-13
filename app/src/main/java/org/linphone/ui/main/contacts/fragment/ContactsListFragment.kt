@@ -60,12 +60,36 @@ import org.linphone.ui.main.fragment.AbstractMainFragment
 import org.linphone.utils.ConfirmationDialogModel
 import org.linphone.utils.DialogUtils
 import org.linphone.utils.Event
+import android.content.Context
+import android.os.Build
+import android.provider.Settings
+import androidx.recyclerview.widget.RecyclerView
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import com.google.android.material.tabs.TabLayout
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.linphone.core.Factory
+import org.linphone.loquace_integration.network.ContactResponse
+import org.linphone.loquace_integration.network.LoquaceConfig
+import org.linphone.loquace_integration.network.LoquaceContactsRepository
+import org.linphone.loquace_integration.storage.SessionManager
+import org.linphone.ui.main.contacts.viewmodel.ContactsListViewModel.ContactTab
+import org.linphone.utils.FileUtils
 
 @UiThread
 class ContactsListFragment : AbstractMainFragment() {
     companion object {
         private const val TAG = "[Contacts List Fragment]"
     }
+
+    private val contactsRepository = LoquaceContactsRepository()
+    private var currentOffset = 0
+    private var isLoadingMore = false
+    private var hasMoreContacts = true
+    private lateinit var domain: String
+    private lateinit var token: String
+    private lateinit var userAgent: String
 
     private lateinit var binding: ContactsListFragmentBinding
 
@@ -156,6 +180,7 @@ class ContactsListFragment : AbstractMainFragment() {
         listViewModel.contactsList.observe(
             viewLifecycleOwner
         ) {
+            listViewModel.isContactsEmpty.value = it.isEmpty()
             adapter.submitList(it)
 
             // Wait for adapter to have items before setting it in the RecyclerView,
@@ -166,6 +191,14 @@ class ContactsListFragment : AbstractMainFragment() {
 
             Log.i("$TAG Contacts list updated with [${it.size}] items")
             listViewModel.fetchInProgress.value = false
+        }
+
+        listViewModel.searchFilter.observe(viewLifecycleOwner) { query ->
+            when (listViewModel.currentTab.value) {
+                ContactTab.PBX  -> resetAndLoadContacts(LoquaceContactsRepository.TYPE_PBX, query)
+                ContactTab.USER -> resetAndLoadContacts(LoquaceContactsRepository.TYPE_USER, query)
+                else -> { /* handled by existing MagicSearch */ }
+            }
         }
 
         listViewModel.favouritesList.observe(
@@ -281,6 +314,66 @@ class ContactsListFragment : AbstractMainFragment() {
             Log.w("$TAG READ_CONTACTS permission wasn't granted yet, asking for it now")
             requestPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
         }
+
+        // Load credentials
+        val sessionManager = SessionManager(requireContext())
+        domain = sessionManager.getDomain() ?: ""
+        token = sessionManager.getToken() ?: ""
+        userAgent = buildUserAgent(requireContext())
+
+        // Setup tabs
+        val tabLayout = binding.contactsTabLayout ?: return
+        tabLayout.addTab(tabLayout.newTab().setText(getString(R.string.contacts_tab_phone)))
+        tabLayout.addTab(tabLayout.newTab().setText(getString(R.string.contacts_tab_pbx)))
+        tabLayout.addTab(tabLayout.newTab().setText(getString(R.string.contacts_tab_user)))
+        tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab?) {
+                when (tab?.position) {
+                    0 -> listViewModel.switchTab(ContactTab.PHONE)
+                    1 -> {
+                        listViewModel.switchTab(ContactTab.PBX)
+                        resetAndLoadContacts(LoquaceContactsRepository.TYPE_PBX)
+                    }
+                    2 -> {
+                        listViewModel.switchTab(ContactTab.USER)
+                        resetAndLoadContacts(LoquaceContactsRepository.TYPE_USER)
+                    }
+                }
+            }
+            override fun onTabUnselected(tab: TabLayout.Tab?) {}
+            override fun onTabReselected(tab: TabLayout.Tab?) {}
+        })
+
+        // Infinite scroll
+        binding.contactsList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                if (!hasMoreContacts || isLoadingMore) return
+                val layoutManager = recyclerView.layoutManager as LinearLayoutManager
+                val lastVisible = layoutManager.findLastVisibleItemPosition()
+                val total = layoutManager.itemCount
+                if (lastVisible >= total - 5) {
+                    val currentType = when (listViewModel.currentTab.value) {
+                        ContactTab.PBX  -> LoquaceContactsRepository.TYPE_PBX
+                        ContactTab.USER -> LoquaceContactsRepository.TYPE_USER
+                        else            -> return
+                    }
+                    loadMoreContacts(currentType)
+                }
+            }
+        })
+
+        // Observe Loquace contacts
+        listViewModel.loquaceContactsList.observe(viewLifecycleOwner) {
+            listViewModel.isContactsEmpty.value = it.isEmpty()
+            if (listViewModel.currentTab.value != ContactTab.PHONE) {
+                adapter.submitList(it)
+                if (binding.contactsList.adapter != adapter) {
+                    binding.contactsList.adapter = adapter
+                }
+                Log.i("$TAG Loquace contacts list updated with [${it.size}] items")
+            }
+        }
+
     }
 
     override fun onPause() {
@@ -306,6 +399,15 @@ class ContactsListFragment : AbstractMainFragment() {
             coreContext.postOnMainThread {
                 binding.contactsListSwipeRefresh.isEnabled = cardDavFriendListFound
             }
+        }
+
+        // Force contacts load if permission is granted
+        if (ContextCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.READ_CONTACTS
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            (requireActivity() as MainActivity).loadContacts()
         }
     }
 
@@ -443,5 +545,126 @@ class ContactsListFragment : AbstractMainFragment() {
         }
 
         dialog.show()
+    }
+
+    private fun resetAndLoadContacts(type: String, query: String = "") {
+        currentOffset = 0
+        hasMoreContacts = true
+        listViewModel.loquaceContactsList.value = arrayListOf()
+        loadMoreContacts(type, query)
+    }
+
+    private fun loadMoreContacts(type: String, query: String = "") {
+        if (isLoadingMore || !hasMoreContacts) return
+        isLoadingMore = true
+        listViewModel.fetchInProgress.value = true
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            val contacts = contactsRepository.fetchContacts(
+                domain    = domain,
+                token     = token,
+                userAgent = userAgent,
+                type      = type,
+                offset    = currentOffset,
+                query     = query        // pass query to repository
+            )
+
+            if (contacts.isEmpty() || contacts.size < LoquaceConfig.CONTACTS_PAGE_SIZE) {
+                hasMoreContacts = false
+            }
+
+            val avatarPaths = mutableMapOf<String, String>()
+            for (contact in contacts) {
+                val path = fetchAndSaveAvatar(contact, requireContext().filesDir)
+                if (path != null) avatarPaths[contact.id] = path
+            }
+
+            val friends = arrayListOf<ContactAvatarModel>()
+            coreContext.postOnCoreThread { core ->
+                for (contact in contacts) {
+                    val friend = core.createFriend()
+                    friend.name = contact.fullName?.ifEmpty {
+                        "${contact.firstName} ${contact.lastName}".trim()
+                    } ?: "${contact.firstName} ${contact.lastName}".trim()
+                    friend.refKey = contact.id
+
+                    if (!contact.account.isNullOrEmpty()) {
+                        val address = Factory.instance().createAddress("sip:${contact.account}")
+                        if (address != null) friend.addAddress(address)
+                    }
+
+                    contact.phones?.forEach { phone ->
+                        friend.addPhoneNumber(phone.number)
+                    }
+
+                    // Use pre-fetched avatar path
+                    avatarPaths[contact.id]?.let {
+                        friend.photo = FileUtils.getProperFilePath(it)
+                    }
+
+                    val model = coreContext.contactsManager.getContactAvatarModelForFriend(friend)
+                    friends.add(model)
+                }
+
+                coreContext.postOnMainThread {
+                    val existing = listViewModel.loquaceContactsList.value ?: arrayListOf()
+                    val newList = arrayListOf<ContactAvatarModel>()
+                    newList.addAll(existing)
+                    newList.addAll(friends)
+                    listViewModel.loquaceContactsList.value = newList
+                    currentOffset += contacts.size
+                    isLoadingMore = false
+                    listViewModel.fetchInProgress.value = false
+                }
+            }
+        }
+    }
+
+    private fun buildUserAgent(context: Context): String {
+        val appName = context.getString(org.linphone.loquace_integration.R.string.app_name_agent)
+        val osVersion = Build.VERSION.RELEASE
+        val versionName = context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        val deviceModel = Build.MODEL
+        val androidId = Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.ANDROID_ID
+        )
+        return "$appName/Android-$osVersion/$versionName/$deviceModel/$androidId"
+    }
+
+    private suspend fun fetchAndSaveAvatar(
+        contact: ContactResponse,
+        cacheDir: File
+    ): String? {
+        val pictureUrl = contact.pictureUrl ?: return null
+        if (pictureUrl.isEmpty()) return null
+
+        Log.d("$TAG Fetching avatar for ${contact.fullName} at $pictureUrl")
+
+        val cacheFile = File(cacheDir, "avatar_${contact.id}.jpg")
+        if (cacheFile.exists()) {
+            Log.d("$TAG Avatar already cached at ${cacheFile.absolutePath}")
+            return cacheFile.absolutePath
+        }
+
+        // after saving:
+        Log.d("$TAG Avatar saved to ${cacheFile.absolutePath}, size: ${cacheFile.length()} bytes")
+
+        val bytes = contactsRepository.fetchContactPhoto(
+            domain    = domain,
+            token     = token,
+            userAgent = userAgent,
+            photoPath = pictureUrl
+        ) ?: return null
+
+        return try {
+            withContext<Unit>(Dispatchers.IO) {
+                cacheFile.writeBytes(bytes)
+            }
+            cacheFile.absolutePath
+        } catch (e: Exception) {
+            Log.e("$TAG Failed to save avatar for ${contact.fullName}: ${e.message}")
+            null
+        }
     }
 }

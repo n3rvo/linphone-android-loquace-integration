@@ -51,6 +51,14 @@ class ContactsListViewModel
         private const val TAG = "[Contacts List ViewModel]"
     }
 
+    enum class ContactTab { PHONE, PBX, USER }
+
+    val currentTab = MutableLiveData<ContactTab>(ContactTab.PHONE)
+
+    val loquaceContactsList = MutableLiveData<ArrayList<ContactAvatarModel>>()
+
+    val isContactsEmpty = MutableLiveData<Boolean>(true)
+
     val contactsList = MutableLiveData<ArrayList<ContactAvatarModel>>()
 
     val favouritesList = MutableLiveData<ArrayList<ContactAvatarModel>>()
@@ -151,13 +159,16 @@ class ContactsListViewModel
     init {
         fetchInProgress.value = true
         showFavourites.value = corePreferences.showFavoriteContacts
-        showFilter.value = !corePreferences.hidePhoneNumbers && !corePreferences.hideSipAddresses
+        showFilter.value = false
         disableAddContact.value = corePreferences.disableAddContact
         isListFiltered.value = false
 
         coreContext.postOnCoreThread { core ->
             domainFilter = corePreferences.contactsFilter
-            areAllContactsDisplayed.postValue(domainFilter.isEmpty())
+            // Force default to show all contacts
+            corePreferences.contactsFilter = ""
+            domainFilter = ""
+            areAllContactsDisplayed.postValue(true)
             checkIfDefaultAccountOnDefaultDomain()
 
             coreContext.contactsManager.addListener(contactsListener)
@@ -186,6 +197,7 @@ class ContactsListViewModel
 
     @UiThread
     override fun filter() {
+        if (currentTab.value != ContactTab.PHONE) return
         isListFiltered.value = currentFilter.isNotEmpty()
         coreContext.postOnCoreThread {
             applyFilter(currentFilter, domainFilter)
@@ -404,5 +416,16 @@ class ContactsListViewModel
         val defaultDomain = corePreferences.defaultDomain
         val isAccountOnDefaultDomain = defaultAccount?.params?.domain == defaultDomain
         isDefaultAccountLinphone.postValue(isAccountOnDefaultDomain)
+    }
+
+    @UiThread
+    fun switchTab(tab: ContactTab) {
+        currentTab.value = tab
+        if (tab == ContactTab.PHONE) {
+            filter()
+        } else {
+            // clear phone contacts search when switching away
+            searchFilter.value = ""
+        }
     }
 }

@@ -38,6 +38,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.UiThread
 import androidx.car.app.connection.CarConnection
 import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.os.bundleOf
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.ViewCompat
@@ -77,11 +78,15 @@ import org.linphone.utils.FileUtils
 import org.linphone.utils.LinphoneUtils
 import androidx.core.content.edit
 import org.linphone.loquace_integration.ui.LoquaceLoginActivity
+import org.linphone.ui.assistant.AssistantActivity
 
 @UiThread
 class MainActivity : GenericActivity() {
     companion object {
         private const val TAG = "[Main Activity]"
+
+        private const val REQUEST_LOGIN = 1001
+        private const val REQUEST_PERMISSIONS = 1002
 
         private const val DEFAULT_FRAGMENT_KEY = "default_fragment"
         private const val CONTACTS_FRAGMENT_ID = 1
@@ -578,21 +583,13 @@ class MainActivity : GenericActivity() {
 
     private fun handleMainIntent(intent: Intent) {
         coreContext.postOnCoreThread { core ->
-            if (corePreferences.firstLaunch) {
-                Log.i("$TAG First time Linphone 6.0 has been started, showing Welcome activity")
-                corePreferences.firstLaunch = false
+            if (core.accountList.isEmpty()) {
                 coreContext.postOnMainThread {
                     try {
-                        startActivity(Intent(this, WelcomeActivity::class.java))
-                    } catch (ise: IllegalStateException) {
-                        Log.e("$TAG Can't start activity: $ise")
-                    }
-                }
-            } else if (core.accountList.isEmpty()) {
-                Log.w("$TAG No account found, showing Assistant activity")
-                coreContext.postOnMainThread {
-                    try {
-                        startActivity(Intent(this, LoquaceLoginActivity::class.java))
+                        startActivityForResult(
+                            Intent(this, LoquaceLoginActivity::class.java),
+                            REQUEST_LOGIN
+                        )
                     } catch (ise: IllegalStateException) {
                         Log.e("$TAG Can't start activity: $ise")
                     }
@@ -847,6 +844,37 @@ class MainActivity : GenericActivity() {
                     Log.e("$TAG Failed to export file [$filePath] to MediaStore!")
                 }
             }
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_LOGIN && resultCode == RESULT_OK) {
+            val showPermissions = data?.getBooleanExtra(
+                LoquaceLoginActivity.SHOW_PERMISSIONS, false
+            ) ?: false
+
+            if (showPermissions) {
+                Log.i("$TAG Login successful, showing permissions screen")
+                val intent = Intent(this, AssistantActivity::class.java).apply {
+                    putExtra(AssistantActivity.SKIP_LANDING_EXTRA, true)
+                }
+                startActivity(intent)
+            } else {
+                Log.i("$TAG Login successful, going to main screen")
+                goToLatestVisitedFragment()
+            }
+        } else if (requestCode == REQUEST_PERMISSIONS) {
+            // Permissions flow completed, load contacts if permission was granted
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.READ_CONTACTS
+                ) == PackageManager.PERMISSION_GRANTED
+            ) {
+                Log.i("$TAG Permissions flow completed, loading contacts")
+                loadContacts()
+            }
+            goToLatestVisitedFragment()
         }
     }
 }

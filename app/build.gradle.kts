@@ -273,6 +273,9 @@ dependencies {
 
     // Loquace Integration Module
     implementation(project(":loquace-integration"))
+
+    // Gson Library
+    implementation(libs.gson)
 }
 
 configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {

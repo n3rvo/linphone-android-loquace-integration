@@ -24,6 +24,7 @@ import android.app.Application
 import android.content.Context
 import android.os.PowerManager
 import androidx.annotation.MainThread
+import androidx.appcompat.app.AppCompatDelegate
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.disk.DiskCache
@@ -58,6 +59,7 @@ class LinphoneApplication : Application(), SingletonImageLoader.Factory {
     }
 
     override fun onCreate() {
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
         super.onCreate()
         val context = applicationContext
 

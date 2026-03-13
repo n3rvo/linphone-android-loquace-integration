@@ -20,4 +20,7 @@ object RetrofitClient {
 
     fun createPresenceApi(domain: String): PresenceApi =
         buildRetrofit(domain).create(PresenceApi::class.java)
+
+    fun createContactsApi(domain: String): ContactsApi =
+        buildRetrofit(domain).create(ContactsApi::class.java)
 }

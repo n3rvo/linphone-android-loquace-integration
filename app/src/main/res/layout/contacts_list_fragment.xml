@@ -34,7 +34,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     app:constraint_referenced_ids="no_contacts_image, no_contacts_label"
-                    android:visibility="@{viewModel.contactsList.empty ? View.VISIBLE : View.GONE}" />
+                    android:visibility="@{viewModel.isContactsEmpty ? View.VISIBLE : View.GONE}" />
 
                 <include
                     android:id="@+id/top_bar"
@@ -70,10 +70,52 @@
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent">
 
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        android:id="@+id/contacts_search"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginEnd="16dp"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginBottom="4dp"
+                        app:hintEnabled="false"
+                        app:boxStrokeWidth="0dp"
+                        app:boxStrokeWidthFocused="0dp"
+                        app:startIconDrawable="@drawable/magnifying_glass"
+                        app:boxCornerRadiusTopStart="10dp"
+                        app:boxCornerRadiusTopEnd="10dp"
+                        app:boxCornerRadiusBottomStart="10dp"
+                        app:boxCornerRadiusBottomEnd="10dp"
+                        app:boxBackgroundColor="@color/gray_200">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:textSize="14sp"
+                            android:paddingVertical="4dp"
+                            android:inputType="text"
+                            android:imeOptions="actionSearch"
+                            android:text="@={viewModel.searchFilter}"
+                            android:hint="@string/search"/>
+
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.tabs.TabLayout
+                        android:id="@+id/contacts_tab_layout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginEnd="16dp"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginBottom="4dp"
+                        app:tabMode="fixed"
+                        app:tabGravity="fill"/>
+
                     <androidx.appcompat.widget.AppCompatTextView
                         style="@style/section_header_style"
                         android:id="@+id/favourites_label"
-                        android:visibility="@{!viewModel.isListFiltered &amp;&amp; viewModel.favouritesList.size() > 0 ? View.VISIBLE : View.GONE}"
+                        android:visibility="gone"
                         onClickListener="@{() -> viewModel.toggleFavouritesVisibility()}"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -89,14 +131,14 @@
 
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/favourites_contacts_list"
-                        android:visibility="@{viewModel.showFavourites &amp;&amp; !viewModel.isListFiltered &amp;&amp; viewModel.favouritesList.size() > 0 ? View.VISIBLE : View.GONE}"
+                        android:visibility="gone"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content" />
 
                     <androidx.appcompat.widget.AppCompatTextView
                         style="@style/section_header_style"
                         android:id="@+id/all_contacts_label"
-                        android:visibility="@{!viewModel.isListFiltered &amp;&amp; viewModel.favouritesList.size() > 0 ? View.VISIBLE : View.GONE}"
+                        android:visibility="gone"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:padding="5dp"
