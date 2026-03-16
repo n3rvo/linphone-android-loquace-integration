@@ -71,6 +71,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.linphone.core.Factory
 import org.linphone.loquace_integration.network.ContactResponse
+import org.linphone.loquace_integration.network.LoquaceAvatarHelper
 import org.linphone.loquace_integration.network.LoquaceConfig
 import org.linphone.loquace_integration.network.LoquaceContactsRepository
 import org.linphone.loquace_integration.storage.SessionManager
@@ -634,37 +635,15 @@ class ContactsListFragment : AbstractMainFragment() {
 
     private suspend fun fetchAndSaveAvatar(
         contact: ContactResponse,
-        cacheDir: File
+        filesDir: File
     ): String? {
-        val pictureUrl = contact.pictureUrl ?: return null
-        if (pictureUrl.isEmpty()) return null
-
-        Log.d("$TAG Fetching avatar for ${contact.fullName} at $pictureUrl")
-
-        val cacheFile = File(cacheDir, "avatar_${contact.id}.jpg")
-        if (cacheFile.exists()) {
-            Log.d("$TAG Avatar already cached at ${cacheFile.absolutePath}")
-            return cacheFile.absolutePath
-        }
-
-        // after saving:
-        Log.d("$TAG Avatar saved to ${cacheFile.absolutePath}, size: ${cacheFile.length()} bytes")
-
-        val bytes = contactsRepository.fetchContactPhoto(
-            domain    = domain,
-            token     = token,
-            userAgent = userAgent,
-            photoPath = pictureUrl
-        ) ?: return null
-
-        return try {
-            withContext<Unit>(Dispatchers.IO) {
-                cacheFile.writeBytes(bytes)
-            }
-            cacheFile.absolutePath
-        } catch (e: Exception) {
-            Log.e("$TAG Failed to save avatar for ${contact.fullName}: ${e.message}")
-            null
-        }
+        return LoquaceAvatarHelper.fetchAndSaveAvatar(
+            contactId  = contact.id,
+            pictureUrl = contact.pictureUrl,
+            domain     = domain,
+            token      = token,
+            userAgent  = userAgent,
+            filesDir   = filesDir
+        )
     }
 }

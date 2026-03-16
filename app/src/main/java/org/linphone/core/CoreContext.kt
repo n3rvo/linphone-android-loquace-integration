@@ -50,6 +50,7 @@ import org.linphone.core.tools.Log
 import org.linphone.notifications.NotificationsManager
 import org.linphone.telecom.TelecomManager
 import org.linphone.ui.call.CallActivity
+import org.linphone.ui.main.history.model.CallLogModelWrapper
 import org.linphone.utils.ActivityMonitor
 import org.linphone.utils.AppUtils
 import org.linphone.utils.AudioUtils

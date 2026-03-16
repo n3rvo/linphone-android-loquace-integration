@@ -1048,4 +1048,7 @@
     <string name="contacts_tab_phone">Contacts</string>
     <string name="contacts_tab_pbx">PBX</string>
     <string name="contacts_tab_user">User</string>
+    <string name="history_tab_all">All</string>
+    <string name="history_tab_missed">Missed</string>
+    <string name="bottom_navigation_dialer_label">Dialer</string>
 </resources>

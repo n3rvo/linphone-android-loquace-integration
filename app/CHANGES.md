@@ -117,200 +117,280 @@ viewModel.lastAccountRemovedEvent.observe(this) {
 
 ---
 
-## `app/src/main/res/layout/contacts_list_fragment.xml`
+## `app/src/main/res/navigation/main_nav_graph.xml`
 
-### Change 1: Add permanent search bar
-**Reason:** Replace the toggled search icon in the top bar with a always-visible
-search bar above the tab layout.
+### Change: Add global action for StartCallFragment
+**Reason:** Makes the dialer accessible from any fragment via the bottom nav bar.
 
-Added as first child inside the `lists` LinearLayout:
+Added alongside other global actions:
 ```xml
-<com.google.android.material.textfield.TextInputLayout
-    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-    android:id="@+id/contacts_search"
-    android:layout_width="match_parent"
-    android:layout_height="40dp"
-    android:layout_marginStart="16dp"
-    android:layout_marginEnd="16dp"
-    android:layout_marginTop="8dp"
-    android:layout_marginBottom="4dp"
-    app:hintEnabled="false"
-    app:boxStrokeWidth="0dp"
-    app:boxStrokeWidthFocused="0dp"
-    app:boxCornerRadiusTopStart="20dp"
-    app:boxCornerRadiusTopEnd="20dp"
-    app:boxCornerRadiusBottomStart="20dp"
-    app:boxCornerRadiusBottomEnd="20dp"
-    app:startIconDrawable="@drawable/magnifying_glass">
-
-    <com.google.android.material.textfield.TextInputEditText
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:textSize="14sp"
-        android:paddingVertical="4dp"
-        android:inputType="text"
-        android:imeOptions="actionSearch"
-        android:text="@={viewModel.searchFilter}"
-        android:hint="@string/search"/>
-
-</com.google.android.material.textfield.TextInputLayout>
+<action
+    android:id="@+id/action_global_startCallFragment"
+    app:destination="@id/startCallFragment"
+    app:enterAnim="@anim/slide_in"
+    app:popExitAnim="@anim/slide_out"
+    app:launchSingleTop="true"/>
 ```
 
-### Change 2: Add TabLayout
-**Reason:** Three contact sources (Contacts, PBX, User) shown as tabs.
+---
 
-Added below the search bar inside the `lists` LinearLayout:
+## `app/src/main/res/layout/bottom_nav_bar.xml`
+
+### Change: Add Dialer tab between Contacts and Calls
+**Reason:** Replaces the floating action button in the history fragment with a
+permanent dialer entry in the bottom navigation bar.
+
+Added between `contacts` and `calls` views:
 ```xml
-<com.google.android.material.tabs.TabLayout
-    android:id="@+id/contacts_tab_layout"
-    android:layout_width="match_parent"
+<androidx.appcompat.widget.AppCompatTextView
+    style="@style/bottom_nav_bar_label_style"
+    android:id="@+id/dialer"
+    android:onClick="@{() -> viewModel.navigateToDialer()}"
+    android:layout_width="0dp"
     android:layout_height="wrap_content"
-    android:layout_marginStart="16dp"
-    android:layout_marginEnd="16dp"
-    android:layout_marginTop="8dp"
-    android:layout_marginBottom="4dp"
-    app:tabMode="fixed"
-    app:tabGravity="fill"/>
+    android:paddingTop="9dp"
+    android:paddingBottom="8dp"
+    android:drawableTop="@drawable/phone_plus"
+    android:background="@drawable/squircle_transparent_button_background"
+    android:drawablePadding="4dp"
+    android:drawableTint="@{viewModel.dialerSelected ? @color/main1_500 : @color/main2_600, default=@color/main2_600}"
+    android:text="@string/bottom_navigation_dialer_label"
+    textFont="@{viewModel.dialerSelected ? NotoSansFont.NotoSansBold : NotoSansFont.NotoSansRegular}"
+    app:layout_constraintBottom_toBottomOf="parent"
+    app:layout_constraintEnd_toStartOf="@id/calls"
+    app:layout_constraintStart_toEndOf="@id/contacts"
+    app:layout_constraintTop_toTopOf="parent" />
 ```
 
-### Change 3: Hide favourites section
-**Reason:** Favourites not used in Loquace. Hidden via `visibility="gone"` rather than
-removed to ease future merges.
-
-Set `android:visibility="gone"` on:
-- `favourites_label`
-- `favourites_contacts_list`
-- `all_contacts_label`
+Updated `calls` start constraint:
+```xml
+app:layout_constraintStart_toEndOf="@id/dialer"
+```
 
 ---
 
-## `app/src/main/java/org/linphone/ui/main/contacts/viewmodel/ContactsListViewModel.kt`
+## `app/src/main/java/org/linphone/ui/main/viewmodel/AbstractMainViewModel.kt`
 
-### Change 1: Force default contact filter to show all contacts
-**Reason:** Phone tab should show all device contacts by default.
+### Change: Add dialer navigation support
+**Reason:** Drive navigation to the dialer from the bottom nav bar.
 
-**Location:** `init` block, inside `coreContext.postOnCoreThread`
-
-**Original:**
+Added alongside existing LiveData:
 ```kotlin
-domainFilter = corePreferences.contactsFilter
-areAllContactsDisplayed.postValue(domainFilter.isEmpty())
+val dialerSelected = MutableLiveData<Boolean>()
+
+val navigateToDialerEvent: MutableLiveData<Event<Boolean>> by lazy {
+    MutableLiveData()
+}
 ```
 
-**Replaced with:**
-```kotlin
-domainFilter = corePreferences.contactsFilter
-corePreferences.contactsFilter = ""
-domainFilter = ""
-areAllContactsDisplayed.postValue(true)
-```
-
-### Change 2: Hide filter icon from top bar
-**Reason:** Replaced by the permanent search bar.
-
-**Location:** `init` block
-```kotlin
-showFilter.value = false
-```
-
-### Change 3: Add tab state, Loquace contacts list and empty state LiveData
-**Reason:** Drive which contact source is displayed based on selected tab, and
-control empty state visibility across all tabs.
-
-Added alongside existing LiveData declarations:
-```kotlin
-enum class ContactTab { PHONE, PBX, USER }
-val currentTab = MutableLiveData<ContactTab>(ContactTab.PHONE)
-val loquaceContactsList = MutableLiveData<ArrayList<ContactAvatarModel>>()
-val isContactsEmpty = MutableLiveData<Boolean>(true)
-```
-
-### Change 4: Add switchTab() method
-**Reason:** Handle tab selection — runs MagicSearch for Phone tab, clears search
-filter when switching to Loquace tabs.
+Added alongside existing navigate methods:
 ```kotlin
 @UiThread
-fun switchTab(tab: ContactTab) {
+fun navigateToDialer() {
+    navigateToDialerEvent.value = Event(true)
+}
+```
+
+---
+
+## `app/src/main/java/org/linphone/ui/main/fragment/AbstractMainFragment.kt`
+
+### Change: Add dialer navigation observer and update tab selection state
+**Reason:** Handle dialer navigation event and highlight dialer tab when active.
+
+Added in `setViewModel()` alongside existing navigation observers:
+```kotlin
+viewModel.navigateToDialerEvent.observe(viewLifecycleOwner) {
+    it.consume {
+        if (findNavController().currentDestination?.id != R.id.startCallFragment) {
+            findNavController().navigate(R.id.action_global_startCallFragment)
+        }
+    }
+}
+```
+
+Updated `currentlyDisplayedFragment` observer:
+```kotlin
+sharedViewModel.currentlyDisplayedFragment.observe(viewLifecycleOwner) {
+    viewModel.contactsSelected.value = it == R.id.contactsListFragment
+    viewModel.callsSelected.value = it == R.id.historyListFragment
+    viewModel.conversationsSelected.value = it == R.id.conversationsListFragment
+    viewModel.meetingsSelected.value = it == R.id.meetingsListFragment
+    viewModel.dialerSelected.value = it == R.id.startCallFragment
+}
+```
+
+---
+
+## `app/src/main/res/layout/history_list_fragment.xml`
+
+### Change 1: Add TabLayout and wrap content in panel with rounded corners
+**Reason:** Two call history tabs (All/Missed) and visual continuity with top bar.
+
+Replaced standalone `RecyclerView` with a `LinearLayout` wrapper:
+```xml
+<LinearLayout
+    android:id="@+id/content_panel"
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:orientation="vertical"
+    android:background="@drawable/shape_squircle_white_r20_top_background"
+    android:layout_marginTop="@dimen/top_bar_height"
+    app:layout_constraintTop_toTopOf="parent"
+    app:layout_constraintBottom_toTopOf="@id/bottom_nav_bar"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintEnd_toEndOf="parent">
+
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/history_tab_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@android:color/transparent"
+        app:tabMode="fixed"
+        app:tabGravity="fill"/>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/history_list"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@android:color/transparent"/>
+
+</LinearLayout>
+```
+
+### Change 2: Fix empty state constraints
+**Reason:** After wrapping RecyclerView in LinearLayout, empty state views lost their
+reference. Updated to constrain to `content_panel` instead of `history_list`.
+```xml
+app:layout_constraintTop_toTopOf="@id/content_panel"
+app:layout_constraintBottom_toBottomOf="@id/content_panel"
+```
+
+### Change 3: Hide FAB
+**Reason:** Replaced by the Dialer tab in the bottom nav bar.
+```xml
+android:visibility="gone"
+```
+
+---
+
+## `app/src/main/java/org/linphone/ui/main/history/viewmodel/HistoryListViewModel.kt`
+
+### Change: Add tab state and Loquace call history LiveData
+**Reason:** Drive which call history source is displayed based on selected tab.
+
+Added alongside existing LiveData:
+```kotlin
+enum class HistoryTab { ALL, MISSED }
+val currentTab = MutableLiveData<HistoryTab>(HistoryTab.ALL)
+val loquaceCallLogs = MutableLiveData<ArrayList<CallLogModelWrapper>>()
+val isHistoryEmpty = MutableLiveData<Boolean>(true)
+```
+
+Added method:
+```kotlin
+@UiThread
+fun switchTab(tab: HistoryTab) {
     currentTab.value = tab
-    if (tab == ContactTab.PHONE) {
-        filter()
-    } else {
-        searchFilter.value = ""
-    }
-}
-```
-
-### Change 5: Prevent MagicSearch on non-Phone tabs
-**Reason:** Without this, typing in the search bar on PBX/User tabs would
-also trigger Linphone's MagicSearch and show device contacts.
-
-**Location:** `filter()` method — add early return at the top:
-```kotlin
-@UiThread
-override fun filter() {
-    if (currentTab.value != ContactTab.PHONE) return
-    isListFiltered.value = currentFilter.isNotEmpty()
-    coreContext.postOnCoreThread {
-        applyFilter(currentFilter, domainFilter)
-    }
 }
 ```
 
 ---
 
-## `app/src/main/java/org/linphone/ui/main/contacts/fragment/ContactsListFragment.kt`
+## `app/src/main/java/org/linphone/ui/main/history/fragment/HistoryListFragment.kt`
 
-### Change 1: Load contacts on first open after permissions
-**Reason:** On first install, native contacts don't load until the second app open
-because `loadContacts()` is never triggered after the permissions flow completes.
+### Change: Replace Linphone call history with Loquace API call history
+**Reason:** Show calls from Loquace backend instead of Linphone's local call logs.
 
-**Location:** `onResume()`
+- Load credentials from `SessionManager`
+- Setup two tabs (All, Missed) on `historyTabLayout`
+- Tab selection calls `listViewModel.switchTab()` and `resetAndLoadCalls()`
+- Infinite scroll listener triggers `loadMoreCalls()`
+- `callLogs.observe` replaced with no-op
+- Added `loquaceCallBackClickedEvent` observer for callback calls
+
+Added methods:
+- `resetAndLoadCalls(missedOnly)` — resets pagination and loads first page
+- `loadMoreCalls(missedOnly)` — fetches page from API, builds `LoquaceCallLogModel`
+  objects with avatars, appends to `loquaceCallLogs`
+- `buildUserAgent(context)` — builds Loquace user agent string
+
+---
+
+## `app/src/main/java/org/linphone/ui/main/history/adapter/HistoryListAdapter.kt`
+
+### Change: Add Loquace call log view type
+**Reason:** Render Loquace API call entries in the same list as Linphone call logs.
+
+- Added `LOQUACE_CALL_TYPE = 3` constant
+- Added `loquaceCallBackClickedEvent` and `loquaceCallClickedEvent` LiveData
+- Added `LoquaceCallLogViewHolder` using `HistoryListCellBinding`
+- Updated `getItemViewType()` to handle `isLoquaceCall`
+- Updated `onCreateViewHolder()` and `onBindViewHolder()` for new type
+- Updated `CallLogDiffCallback` to handle Loquace items
+
+---
+
+## `app/src/main/java/org/linphone/ui/main/history/model/CallLogModelWrapper.kt`
+
+### Change: Add loquaceCallLogModel field
+**Reason:** Support Loquace API call entries alongside Linphone call logs.
 ```kotlin
-if (ContextCompat.checkSelfPermission(
-        requireContext(),
-        Manifest.permission.READ_CONTACTS
-    ) == PackageManager.PERMISSION_GRANTED
+class CallLogModelWrapper(
+    val callLogModel: CallLogModel? = null,
+    val contactModel: ConversationContactOrSuggestionModel? = null,
+    val loquaceCallLogModel: LoquaceCallLogModel? = null
 ) {
-    (requireActivity() as MainActivity).loadContacts()
+    val isCallLog = callLogModel != null
+    val isContactOrSuggestion = contactModel != null
+    val isLoquaceCall = loquaceCallLogModel != null
 }
 ```
 
-### Change 2: Wire up tabs, infinite scroll, Loquace contacts and search
-**Location:** `onViewCreated()`, after all existing Linphone setup code
+---
 
-- Load `domain`, `token`, `userAgent` from `SessionManager`
-- Setup three tabs (Contacts, PBX, User) on `contactsTabLayout`
-- Tab selection calls `listViewModel.switchTab()` and `resetAndLoadContacts()` for Loquace tabs
-- Infinite scroll listener on `contactsList` RecyclerView triggers `loadMoreContacts()`
-- `loquaceContactsList` observer updates adapter when Loquace contacts load
-- `searchFilter` observer triggers `resetAndLoadContacts()` with search term on Loquace tabs
+## `app/src/main/java/org/linphone/ui/main/history/model/LoquaceCallLogModel.kt` *(NEW FILE)*
 
-### Change 3: Update empty state across all tabs
-**Reason:** Empty state visibility was only bound to `contactsList`, so it would
-stay visible when Loquace contacts loaded.
+**Reason:** UI model for Loquace API call entries, mirrors `CallLogModel` interface
+so the same adapter cell layout works for both.
 
-In both `contactsList` and `loquaceContactsList` observers, added at the top:
-```kotlin
-listViewModel.isContactsEmpty.value = it.isEmpty()
+**Location:** `org.linphone.ui.main.history.model`
+
+---
+
+## `app/src/main/res/layout/history_list_cell.xml`
+
+### Change: Add loquaceModel variable and update bindings
+**Reason:** Support rendering both Linphone and Loquace call entries in the same cell.
+
+Added variable:
+```xml
+<variable
+    name="loquaceModel"
+    type="org.linphone.ui.main.history.model.LoquaceCallLogModel" />
 ```
 
-### Change 4: Added methods
-- `resetAndLoadContacts(type, query)` — resets pagination state and loads first page
-- `loadMoreContacts(type, query)` — fetches a page from Loquace API, builds Linphone
-  `Friend` objects with avatars, appends to `loquaceContactsList`
-- `fetchAndSaveAvatar(contact, cacheDir)` — fetches authenticated photo from API,
-  saves to `filesDir`, returns local path for `friend.photo`
-- `buildUserAgent(context)` — builds Loquace user agent string
+Updated bindings to use whichever model is set:
+```xml
+bind:model="@{model != null ? model.avatarModel : loquaceModel.avatarModel}"
+android:text="@{model != null ? model.avatarModel.name : loquaceModel.contactName}"
+android:src="@{model != null ? model.iconResId : loquaceModel.iconResId}"
+android:text="@{model != null ? model.dateTime : loquaceModel.dateTime}"
+```
 
 ---
 
 ## `app/src/main/res/values/strings.xml`
 
-### Change: Add tab label strings
+### Change: Add new string resources
 ```xml
 <string name="contacts_tab_phone">Contacts</string>
 <string name="contacts_tab_pbx">PBX</string>
 <string name="contacts_tab_user">User</string>
+<string name="history_tab_all">All</string>
+<string name="history_tab_missed">Missed</string>
+<string name="bottom_navigation_dialer_label">Dialer</string>
 ```
 
 ---
@@ -330,11 +410,20 @@ implementation(libs.gson)
 Entirely new module — no merge conflicts expected here.
 
 **Contains:**
-- `network/` — Retrofit API clients for auth, settings, presence and contacts
+- `network/` — Retrofit API clients for auth, settings, presence, contacts and call history
 - `storage/` — Room database with SQLCipher encryption, SessionManager
 - `sip/` — Linphone SIP account configurator and Core provider
 - `ui/` — LoquaceLoginActivity
 - `viewmodel/` — LoquaceLoginViewModel
+
+**Key files added during contacts and call history implementation:**
+- `network/ContactResponse.kt`
+- `network/ContactsApi.kt`
+- `network/LoquaceContactsRepository.kt`
+- `network/CallHistoryResponse.kt`
+- `network/CallHistoryApi.kt`
+- `network/LoquaceCallHistoryRepository.kt`
+- `network/LoquaceAvatarHelper.kt`
 
 **Dependencies added (not in original Linphone):**
 - `retrofit2:retrofit`

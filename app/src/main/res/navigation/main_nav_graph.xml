@@ -454,4 +454,11 @@
         android:label="SettingsAdvancedCallFragment"
         tools:layout="@layout/settings_advanced_calls_fragment"/>
 
+    <action
+        android:id="@+id/action_global_startCallFragment"
+        app:destination="@id/startCallFragment"
+        app:enterAnim="@anim/slide_in"
+        app:popExitAnim="@anim/slide_out"
+        app:launchSingleTop="true"/>
+
 </navigation>

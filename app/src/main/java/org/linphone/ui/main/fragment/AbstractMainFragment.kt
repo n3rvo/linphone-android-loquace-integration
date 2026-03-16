@@ -172,6 +172,14 @@ abstract class AbstractMainFragment : GenericMainFragment() {
             }
         }
 
+        viewModel.navigateToDialerEvent.observe(viewLifecycleOwner) {
+            it.consume {
+                if (findNavController().currentDestination?.id != R.id.startCallFragment) {
+                    findNavController().navigate(R.id.action_global_startCallFragment)
+                }
+            }
+        }
+
         viewModel.defaultAccountChangedEvent.observe(viewLifecycleOwner) {
             it.consume {
                 onDefaultAccountChanged()
@@ -183,6 +191,7 @@ abstract class AbstractMainFragment : GenericMainFragment() {
             viewModel.callsSelected.value = it == R.id.historyListFragment
             viewModel.conversationsSelected.value = it == R.id.conversationsListFragment
             viewModel.meetingsSelected.value = it == R.id.meetingsListFragment
+            viewModel.dialerSelected.value = it == R.id.startCallFragment
         }
 
         sharedViewModel.resetMissedCallsCountEvent.observe(viewLifecycleOwner) {

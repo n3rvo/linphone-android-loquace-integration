@@ -19,10 +19,16 @@
  */
 package org.linphone.ui.main.history.model
 
+import org.linphone.loquace_integration.network.CallHistoryResponse
+import org.linphone.ui.main.contacts.model.ContactAvatarModel
 import org.linphone.ui.main.model.ConversationContactOrSuggestionModel
 
-class CallLogModelWrapper(val callLogModel: CallLogModel?, val contactModel: ConversationContactOrSuggestionModel? = null) {
+class CallLogModelWrapper(
+    val callLogModel: CallLogModel? = null,
+    val contactModel: ConversationContactOrSuggestionModel? = null,
+    val loquaceCallLogModel: LoquaceCallLogModel? = null
+) {
     val isCallLog = callLogModel != null
-
     val isContactOrSuggestion = contactModel != null
+    val isLoquaceCall = loquaceCallLogModel != null
 }

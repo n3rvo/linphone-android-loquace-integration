@@ -23,4 +23,7 @@ object RetrofitClient {
 
     fun createContactsApi(domain: String): ContactsApi =
         buildRetrofit(domain).create(ContactsApi::class.java)
+
+    fun createCallHistoryApi(domain: String): CallHistoryApi =
+        buildRetrofit(domain).create(CallHistoryApi::class.java)
 }

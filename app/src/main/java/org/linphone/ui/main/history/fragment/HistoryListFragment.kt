@@ -19,7 +19,11 @@
  */
 package org.linphone.ui.main.history.fragment
 
+import android.annotation.SuppressLint
+import android.content.Context
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -27,9 +31,11 @@ import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import androidx.annotation.UiThread
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.findNavController
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import org.linphone.LinphoneApplication.Companion.coreContext
 import org.linphone.R
@@ -49,12 +55,35 @@ import org.linphone.utils.DialogUtils
 import org.linphone.utils.Event
 import org.linphone.utils.LinphoneUtils
 import org.linphone.utils.RecyclerViewHeaderDecoration
+import com.google.android.material.tabs.TabLayout
+import kotlinx.coroutines.launch
+import org.linphone.loquace_integration.network.LoquaceAvatarHelper
+import org.linphone.loquace_integration.network.LoquaceCallHistoryRepository
+import org.linphone.loquace_integration.network.LoquaceConfig
+import org.linphone.loquace_integration.storage.SessionManager
+import org.linphone.ui.main.history.model.CallLogModelWrapper
+import org.linphone.ui.main.history.model.LoquaceCallLogModel
+import org.linphone.ui.main.history.viewmodel.HistoryListViewModel.HistoryTab
 
 @UiThread
 class HistoryListFragment : AbstractMainFragment() {
     companion object {
         private const val TAG = "[History List Fragment]"
     }
+
+    private val callHistoryRepository = LoquaceCallHistoryRepository()
+
+    private var currentOffset = 0
+
+    private var isLoadingMore = false
+
+    private var hasMoreCalls = true
+
+    private lateinit var domain: String
+
+    private lateinit var token: String
+
+    private lateinit var userAgent: String
 
     private lateinit var binding: HistoryListFragmentBinding
 
@@ -236,16 +265,7 @@ class HistoryListFragment : AbstractMainFragment() {
         }
 
         listViewModel.callLogs.observe(viewLifecycleOwner) {
-            adapter.submitList(it)
-
-            // Wait for adapter to have items before setting it in the RecyclerView,
-            // otherwise scroll position isn't retained
-            if (binding.historyList.adapter != adapter) {
-                binding.historyList.adapter = adapter
-            }
-
-            Log.i("$TAG Call logs ready with [${it.size}] items")
-            listViewModel.fetchInProgress.value = false
+            // No-op — replaced by Loquace call history
         }
 
         listViewModel.historyInsertedEvent.observe(viewLifecycleOwner) {
@@ -298,7 +318,70 @@ class HistoryListFragment : AbstractMainFragment() {
             }
         }
 
-        // AbstractMainFragment related
+        // ---- NEW LOQUACE CODE ----
+
+        // Load credentials
+        val sessionManager = SessionManager(requireContext())
+        domain = sessionManager.getDomain() ?: ""
+        token = sessionManager.getToken() ?: ""
+        userAgent = buildUserAgent(requireContext())
+
+        // Setup tabs
+        val tabLayout = binding.historyTabLayout ?: return
+        tabLayout.addTab(tabLayout.newTab().setText(getString(R.string.history_tab_all)))
+        tabLayout.addTab(tabLayout.newTab().setText(getString(R.string.history_tab_missed)))
+
+        tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab?) {
+                when (tab?.position) {
+                    0 -> {
+                        listViewModel.switchTab(HistoryTab.ALL)
+                        resetAndLoadCalls(false)
+                    }
+                    1 -> {
+                        listViewModel.switchTab(HistoryTab.MISSED)
+                        resetAndLoadCalls(true)
+                    }
+                }
+            }
+            override fun onTabUnselected(tab: TabLayout.Tab?) {}
+            override fun onTabReselected(tab: TabLayout.Tab?) {}
+        })
+
+        // Infinite scroll
+        binding.historyList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                if (!hasMoreCalls || isLoadingMore) return
+                val layoutManager = recyclerView.layoutManager as LinearLayoutManager
+                val lastVisible = layoutManager.findLastVisibleItemPosition()
+                val total = layoutManager.itemCount
+                if (lastVisible >= total - 5) {
+                    val missedOnly = listViewModel.currentTab.value == HistoryTab.MISSED
+                    loadMoreCalls(missedOnly)
+                }
+            }
+        })
+
+        // Loquace callback event
+        adapter.loquaceCallBackClickedEvent.observe(viewLifecycleOwner) {
+            it.consume { model ->
+                val number = model.number
+                if (number.isNotEmpty()) {
+                    coreContext.postOnCoreThread {
+                        val address = coreContext.core.interpretUrl(number, false)
+                        if (address != null) {
+                            Log.i("$TAG Calling back Loquace contact at $number")
+                            coreContext.startAudioCall(address)
+                        }
+                    }
+                }
+            }
+        }
+
+        // Initial load
+        resetAndLoadCalls(false)
+
+        // ---- EXISTING LINPHONE ABSTRACT FRAGMENT SETUP (unchanged) ----
 
         listViewModel.title.value = getString(R.string.bottom_navigation_calls_label)
         setViewModel(listViewModel)
@@ -378,5 +461,91 @@ class HistoryListFragment : AbstractMainFragment() {
         }
 
         dialog.show()
+    }
+
+    private fun resetAndLoadCalls(missedOnly: Boolean) {
+        currentOffset = 0
+        hasMoreCalls = true
+        listViewModel.loquaceCallLogs.value = arrayListOf()
+        loadMoreCalls(missedOnly)
+    }
+
+    private fun loadMoreCalls(missedOnly: Boolean) {
+        if (isLoadingMore || !hasMoreCalls) return
+        isLoadingMore = true
+        listViewModel.fetchInProgress.value = true
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            val calls = callHistoryRepository.fetchCalls(
+                domain     = domain,
+                token      = token,
+                userAgent  = userAgent,
+                offset     = currentOffset,
+                missedOnly = missedOnly
+            )
+
+            if (calls.isEmpty() || calls.size < LoquaceConfig.CONTACTS_PAGE_SIZE) {
+                hasMoreCalls = false
+            }
+
+            // Fetch avatars first
+            val avatarPaths = mutableMapOf<String, String>()
+            for (call in calls) {
+                val contactId = call.contact?.id ?: call.id
+                val path = LoquaceAvatarHelper.fetchAndSaveAvatar(
+                    contactId  = contactId,
+                    pictureUrl = call.contact?.pictureUrl,
+                    domain     = domain,
+                    token      = token,
+                    userAgent  = userAgent,
+                    filesDir   = requireContext().filesDir
+                )
+                if (path != null) avatarPaths[contactId] = path
+            }
+
+            val wrappers = arrayListOf<CallLogModelWrapper>()
+            coreContext.postOnCoreThread {
+                for (call in calls) {
+                    val contactId = call.contact?.id ?: call.id
+                    wrappers.add(
+                        CallLogModelWrapper(
+                            loquaceCallLogModel = LoquaceCallLogModel(
+                                call       = call,
+                                avatarPath = avatarPaths[contactId]
+                            )
+                        )
+                    )
+                }
+
+                coreContext.postOnMainThread {
+                    val existing = listViewModel.loquaceCallLogs.value ?: arrayListOf()
+                    val newList = arrayListOf<CallLogModelWrapper>()
+                    newList.addAll(existing)
+                    newList.addAll(wrappers)
+                    listViewModel.loquaceCallLogs.value = newList
+                    currentOffset += calls.size
+                    isLoadingMore = false
+                    listViewModel.fetchInProgress.value = false
+
+                    adapter.submitList(newList)
+                    if (binding.historyList.adapter != adapter) {
+                        binding.historyList.adapter = adapter
+                    }
+                }
+            }
+        }
+    }
+
+    @SuppressLint("HardwareIds")
+    private fun buildUserAgent(context: Context): String {
+        val appName = context.getString(org.linphone.loquace_integration.R.string.app_name_agent)
+        val osVersion = Build.VERSION.RELEASE
+        val versionName = context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        val deviceModel = Build.MODEL
+        val androidId = Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.ANDROID_ID
+        )
+        return "$appName/Android-$osVersion/$versionName/$deviceModel/$androidId"
     }
 }

@@ -72,6 +72,8 @@ open class AbstractMainViewModel
 
     val moreThanOneAccount = MutableLiveData<Boolean>()
 
+    val dialerSelected = MutableLiveData<Boolean>()
+
     val focusSearchBarEvent: MutableLiveData<Event<Boolean>> by lazy {
         MutableLiveData()
     }
@@ -93,6 +95,10 @@ open class AbstractMainViewModel
     }
 
     val navigateToMeetingsEvent: MutableLiveData<Event<Boolean>> by lazy {
+        MutableLiveData()
+    }
+
+    val navigateToDialerEvent: MutableLiveData<Event<Boolean>> by lazy {
         MutableLiveData()
     }
 
@@ -277,6 +283,11 @@ open class AbstractMainViewModel
     @UiThread
     fun navigateToMeetings() {
         navigateToMeetingsEvent.value = Event(true)
+    }
+
+    @UiThread
+    fun navigateToDialer() {
+        navigateToDialerEvent.value = Event(true)
     }
 
     @UiThread

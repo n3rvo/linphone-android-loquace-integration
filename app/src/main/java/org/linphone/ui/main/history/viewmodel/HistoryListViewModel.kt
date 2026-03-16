@@ -35,6 +35,7 @@ import org.linphone.core.MagicSearch
 import org.linphone.core.MagicSearchListenerStub
 import org.linphone.core.SearchResult
 import org.linphone.core.tools.Log
+import org.linphone.loquace_integration.network.CallHistoryResponse
 import org.linphone.ui.main.contacts.model.ContactAvatarModel
 import org.linphone.ui.main.history.model.CallLogModel
 import org.linphone.ui.main.history.model.CallLogModelWrapper
@@ -51,6 +52,14 @@ class HistoryListViewModel
     companion object {
         private const val TAG = "[History List ViewModel]"
     }
+
+    enum class HistoryTab { ALL, MISSED }
+
+    val currentTab = MutableLiveData<HistoryTab>(HistoryTab.ALL)
+
+    val loquaceCallLogs = MutableLiveData<ArrayList<CallLogModelWrapper>>()
+
+    val isHistoryEmpty = MutableLiveData<Boolean>(true)
 
     val callLogs = MutableLiveData<ArrayList<CallLogModelWrapper>>()
 
@@ -291,5 +300,10 @@ class HistoryListViewModel
         fakeFriend.name = LinphoneUtils.getDisplayName(address)
         fakeFriend.address = address
         return ContactAvatarModel(fakeFriend)
+    }
+
+    @UiThread
+    fun switchTab(tab: HistoryTab) {
+        currentTab.value = tab
     }
 }

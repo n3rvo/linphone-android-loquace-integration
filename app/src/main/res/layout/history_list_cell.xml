@@ -9,6 +9,9 @@
             name="model"
             type="org.linphone.ui.main.history.model.CallLogModel" />
         <variable
+            name="loquaceModel"
+            type="org.linphone.ui.main.history.model.LoquaceCallLogModel" />
+        <variable
             name="onClickListener"
             type="View.OnClickListener" />
         <variable
@@ -39,7 +42,7 @@
             android:layout_marginTop="5dp"
             android:layout_marginBottom="5dp"
             layout="@layout/contact_avatar"
-            bind:model="@{model.avatarModel}"
+            bind:model="@{model != null ? model.avatarModel : loquaceModel.avatarModel}"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
@@ -50,7 +53,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="10dp"
-            android:text="@{model.avatarModel.name, default=`John Doe`}"
+            android:text="@{model != null ? model.avatarModel.name : loquaceModel.contactName}"
             android:textSize="14sp"
             android:textColor="?attr/color_main2_800"
             app:layout_constraintStart_toEndOf="@id/avatar"
@@ -61,7 +64,7 @@
             android:id="@+id/call_status"
             android:layout_width="12dp"
             android:layout_height="12dp"
-            android:src="@{model.iconResId, default=@drawable/outgoing_call}"
+            android:src="@{model != null ? model.iconResId : loquaceModel.iconResId}"
             android:contentDescription="@null"
             app:layout_constraintStart_toStartOf="@id/name"
             app:layout_constraintTop_toTopOf="@id/date_time"
@@ -74,7 +77,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="5dp"
             android:gravity="center"
-            android:text="@{model.dateTime, default=`13 aout 2023`}"
+            android:text="@{model != null ? model.dateTime : loquaceModel.dateTime}"
             android:textSize="12sp"
             app:layout_constraintStart_toEndOf="@id/call_status"
             app:layout_constraintTop_toBottomOf="@id/name"
@@ -90,7 +93,7 @@
             android:src="@drawable/phone"
             android:background="@drawable/circle_transparent_button_background"
             android:contentDescription="@string/content_description_call_start"
-            android:visibility="@{model.wasConference ? View.GONE : View.VISIBLE}"
+            android:visibility="@{model != null ? (model.wasConference ? View.GONE : View.VISIBLE) : View.VISIBLE}"
             app:tint="?attr/color_main2_500"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="@id/name"

@@ -38,6 +38,7 @@ import org.linphone.databinding.HistoryListCellBinding
 import org.linphone.databinding.HistoryListContactSuggestionCellBinding
 import org.linphone.ui.main.history.model.CallLogModel
 import org.linphone.ui.main.history.model.CallLogModelWrapper
+import org.linphone.ui.main.history.model.LoquaceCallLogModel
 import org.linphone.ui.main.model.ConversationContactOrSuggestionModel
 import org.linphone.utils.AppUtils
 import org.linphone.utils.Event
@@ -50,6 +51,7 @@ class HistoryListAdapter :
         private const val CALL_LOG_TYPE = 0
         private const val CONTACT_TYPE = 1
         private const val SUGGESTION_TYPE = 2
+        private const val LOQUACE_CALL_TYPE = 3
     }
 
     var selectedAdapterPosition = -1
@@ -71,6 +73,14 @@ class HistoryListAdapter :
     }
 
     val callAddressClickedEvent: MutableLiveData<Event<Address>> by lazy {
+        MutableLiveData()
+    }
+
+    val loquaceCallBackClickedEvent: MutableLiveData<Event<LoquaceCallLogModel>> by lazy {
+        MutableLiveData()
+    }
+
+    val loquaceCallClickedEvent: MutableLiveData<Event<LoquaceCallLogModel>> by lazy {
         MutableLiveData()
     }
 
@@ -104,16 +114,13 @@ class HistoryListAdapter :
     override fun getItemViewType(position: Int): Int {
         try {
             val model = getItem(position)
-            return if (model.isCallLog) {
-                CALL_LOG_TYPE
-            } else if (model.contactModel?.friend != null) {
-                CONTACT_TYPE
-            } else {
-                SUGGESTION_TYPE
+            return when {
+                model.isLoquaceCall -> LOQUACE_CALL_TYPE
+                model.isCallLog -> CALL_LOG_TYPE
+                model.contactModel?.friend != null -> CONTACT_TYPE
+                else -> SUGGESTION_TYPE
             }
-        } catch (ioobe: IndexOutOfBoundsException) {
-
-        }
+        } catch (ioobe: IndexOutOfBoundsException) { }
         return CALL_LOG_TYPE
     }
 
@@ -147,6 +154,27 @@ class HistoryListAdapter :
                 }
                 viewHolder
             }
+            LOQUACE_CALL_TYPE -> {
+                val binding: HistoryListCellBinding = DataBindingUtil.inflate(
+                    LayoutInflater.from(parent.context),
+                    R.layout.history_list_cell,
+                    parent,
+                    false
+                )
+                val viewHolder = LoquaceCallLogViewHolder(binding)
+                binding.apply {
+                    lifecycleOwner = parent.findViewTreeLifecycleOwner()
+
+                    setOnClickListener {
+                        loquaceCallClickedEvent.value = Event(loquaceModel!!)
+                    }
+
+                    setOnCallClickListener {
+                        loquaceCallBackClickedEvent.value = Event(loquaceModel!!)
+                    }
+                }
+                viewHolder
+            }
             else -> {
                 val binding: HistoryListContactSuggestionCellBinding = DataBindingUtil.inflate(
                     LayoutInflater.from(parent.context),
@@ -173,6 +201,7 @@ class HistoryListAdapter :
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (getItemViewType(position)) {
+            LOQUACE_CALL_TYPE -> (holder as LoquaceCallLogViewHolder).bind(getItem(position).loquaceCallLogModel!!)
             CALL_LOG_TYPE -> (holder as CallLogViewHolder).bind(getItem(position).callLogModel!!)
             else -> (holder as ContactSuggestionViewHolder).bind(getItem(position).contactModel!!)
         }
@@ -213,19 +242,40 @@ class HistoryListAdapter :
 
     private class CallLogDiffCallback : DiffUtil.ItemCallback<CallLogModelWrapper>() {
         override fun areItemsTheSame(oldItem: CallLogModelWrapper, newItem: CallLogModelWrapper): Boolean {
+            if (oldItem.isLoquaceCall && newItem.isLoquaceCall) {
+                return oldItem.loquaceCallLogModel?.id == newItem.loquaceCallLogModel?.id
+            }
             if (oldItem.isCallLog && newItem.isCallLog) {
-                return oldItem.callLogModel?.id == newItem.callLogModel?.id && oldItem.callLogModel?.timestamp == newItem.callLogModel?.timestamp
-            } else if (oldItem.isContactOrSuggestion && newItem.isContactOrSuggestion) {
+                return oldItem.callLogModel?.id == newItem.callLogModel?.id &&
+                        oldItem.callLogModel?.timestamp == newItem.callLogModel?.timestamp
+            }
+            if (oldItem.isContactOrSuggestion && newItem.isContactOrSuggestion) {
                 return oldItem.contactModel?.id == newItem.contactModel?.id
             }
             return false
         }
 
         override fun areContentsTheSame(oldItem: CallLogModelWrapper, newItem: CallLogModelWrapper): Boolean {
+            if (oldItem.isLoquaceCall && newItem.isLoquaceCall) {
+                return oldItem.loquaceCallLogModel?.id == newItem.loquaceCallLogModel?.id
+            }
             if (oldItem.isCallLog && newItem.isCallLog) {
                 return newItem.callLogModel?.avatarModel?.compare(oldItem.callLogModel?.avatarModel) == true
             }
             return false
+        }
+    }
+
+    inner class LoquaceCallLogViewHolder(
+        val binding: HistoryListCellBinding
+    ) : RecyclerView.ViewHolder(binding.root) {
+        @UiThread
+        fun bind(model: LoquaceCallLogModel) {
+            with(binding) {
+                loquaceModel = model
+                binding.root.isSelected = bindingAdapterPosition == selectedAdapterPosition
+                executePendingBindings()
+            }
         }
     }
 }
