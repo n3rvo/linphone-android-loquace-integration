@@ -79,8 +79,6 @@ class LoquaceLoginViewModel(
 
                 _state.value = LoginState.Success
 
-                _state.value = LoginState.Success
-
             } catch (e: Exception) {
                 Log.e(TAG, "Login flow failed: ${e.message}", e)
                 _state.value = LoginState.Error(e.message ?: "Login failed")

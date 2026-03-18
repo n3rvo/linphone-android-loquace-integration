@@ -119,18 +119,48 @@ viewModel.lastAccountRemovedEvent.observe(this) {
 
 ## `app/src/main/res/navigation/main_nav_graph.xml`
 
-### Change: Add global action for StartCallFragment
-**Reason:** Makes the dialer accessible from any fragment via the bottom nav bar.
+### Change: Add LoquaceDialerFragment and its navigation actions
+**Reason:** Custom dialer as a peer tab alongside Contacts, Calls and Conversations.
 
-Added alongside other global actions:
+Added `loquaceDialerFragment` with actions to all other main tabs:
 ```xml
-<action
-    android:id="@+id/action_global_startCallFragment"
-    app:destination="@id/startCallFragment"
-    app:enterAnim="@anim/slide_in"
-    app:popExitAnim="@anim/slide_out"
-    app:launchSingleTop="true"/>
+<fragment
+    android:id="@+id/loquaceDialerFragment"
+    android:name="org.linphone.ui.main.dialer.fragment.LoquaceDialerFragment"
+    android:label="LoquaceDialerFragment"
+    tools:layout="@layout/loquace_dialer_fragment">
+    <action
+        android:id="@+id/action_loquaceDialerFragment_to_historyListFragment"
+        app:destination="@id/historyListFragment"
+        app:launchSingleTop="true"
+        app:popUpTo="@id/loquaceDialerFragment"
+        app:popUpToInclusive="true" />
+    <action
+        android:id="@+id/action_loquaceDialerFragment_to_contactsListFragment"
+        app:destination="@id/contactsListFragment"
+        app:launchSingleTop="true"
+        app:popUpTo="@id/loquaceDialerFragment"
+        app:popUpToInclusive="true" />
+    <action
+        android:id="@+id/action_loquaceDialerFragment_to_conversationsListFragment"
+        app:destination="@id/conversationsListFragment"
+        app:launchSingleTop="true"
+        app:popUpTo="@id/loquaceDialerFragment"
+        app:popUpToInclusive="true" />
+    <action
+        android:id="@+id/action_loquaceDialerFragment_to_meetingsListFragment"
+        app:destination="@id/meetingsListFragment"
+        app:launchSingleTop="true"
+        app:popUpTo="@id/loquaceDialerFragment"
+        app:popUpToInclusive="true" />
+</fragment>
 ```
+
+Added action to dialer from each existing main fragment:
+- `historyListFragment` → `action_historyListFragment_to_loquaceDialerFragment`
+- `contactsListFragment` → `action_contactsListFragment_to_loquaceDialerFragment`
+- `conversationsListFragment` → `action_conversationsListFragment_to_loquaceDialerFragment`
+- `meetingsListFragment` → `action_meetingsListFragment_to_loquaceDialerFragment`
 
 ---
 
@@ -195,28 +225,74 @@ fun navigateToDialer() {
 
 ## `app/src/main/java/org/linphone/ui/main/fragment/AbstractMainFragment.kt`
 
-### Change: Add dialer navigation observer and update tab selection state
-**Reason:** Handle dialer navigation event and highlight dialer tab when active.
+### Change 1: Add dialer navigation
+**Reason:** Handle navigation to and from the dialer tab.
 
-Added in `setViewModel()` alongside existing navigation observers:
+Added `goToDialer()` method:
 ```kotlin
-viewModel.navigateToDialerEvent.observe(viewLifecycleOwner) {
-    it.consume {
-        if (findNavController().currentDestination?.id != R.id.startCallFragment) {
-            findNavController().navigate(R.id.action_global_startCallFragment)
+private fun goToDialer() {
+    Log.i("$TAG Navigating to dialer")
+    when (currentFragmentId) {
+        R.id.historyListFragment -> {
+            val action = HistoryListFragmentDirections.actionHistoryListFragmentToLoquaceDialerFragment()
+            navigateTo(action)
+        }
+        R.id.contactsListFragment -> {
+            val action = ContactsListFragmentDirections.actionContactsListFragmentToLoquaceDialerFragment()
+            navigateTo(action)
+        }
+        R.id.conversationsListFragment -> {
+            val action = ConversationsListFragmentDirections.actionConversationsListFragmentToLoquaceDialerFragment()
+            navigateTo(action)
+        }
+        R.id.meetingsListFragment -> {
+            val action = MeetingsListFragmentDirections.actionMeetingsListFragmentToLoquaceDialerFragment()
+            navigateTo(action)
         }
     }
 }
 ```
 
-Updated `currentlyDisplayedFragment` observer:
+Added `R.id.loquaceDialerFragment` case to each existing navigation method:
+- `goToContactsList()`
+- `goToHistoryList()`
+- `goToConversationsList()`
+- `goToMeetingsList()`
+
+Added in `setViewModel()`:
+```kotlin
+viewModel.navigateToDialerEvent.observe(viewLifecycleOwner) {
+    it.consume {
+        if (currentFragmentId != R.id.loquaceDialerFragment) {
+            goToDialer()
+        }
+    }
+}
+```
+
+### Change 2: Add initViews overload without SlidingPaneLayout
+**Reason:** `LoquaceDialerFragment` doesn't need a sliding pane.
+```kotlin
+fun initViews(
+    topBar: MainActivityTopBarBinding,
+    navBar: BottomNavBarBinding,
+    @IdRes fragmentId: Int
+) {
+    navigationBar = navBar.root
+    initSearchBar(topBar.search)
+    initNavigation(fragmentId)
+}
+```
+
+### Change 3: Update tab selection state
+**Location:** `currentlyDisplayedFragment` observer in `setViewModel()`
 ```kotlin
 sharedViewModel.currentlyDisplayedFragment.observe(viewLifecycleOwner) {
     viewModel.contactsSelected.value = it == R.id.contactsListFragment
     viewModel.callsSelected.value = it == R.id.historyListFragment
     viewModel.conversationsSelected.value = it == R.id.conversationsListFragment
     viewModel.meetingsSelected.value = it == R.id.meetingsListFragment
-    viewModel.dialerSelected.value = it == R.id.startCallFragment
+    viewModel.dialerSelected.value = it == R.id.loquaceDialerFragment
 }
 ```
 
@@ -402,6 +478,22 @@ android:text="@{model != null ? model.dateTime : loquaceModel.dateTime}"
 ```kotlin
 implementation(libs.gson)
 ```
+
+---
+
+## New files in `app` module
+
+### `app/src/main/res/layout/loquace_dialer_fragment.xml` *(NEW FILE)*
+**Reason:** Custom dialer layout with number display, dialpad grid, call button
+and backspace. Includes top bar and bottom nav bar for consistency with other tabs.
+
+### `app/src/main/java/org/linphone/ui/main/dialer/viewmodel/LoquaceDialerViewModel.kt` *(NEW FILE)*
+**Reason:** ViewModel for the custom dialer. Extends `AbstractMainViewModel`.
+Handles digit input, backspace, zero long press for `+`, and initiates audio calls.
+
+### `app/src/main/java/org/linphone/ui/main/dialer/fragment/LoquaceDialerFragment.kt` *(NEW FILE)*
+**Reason:** Fragment for the custom dialer. Extends `AbstractMainFragment`.
+Wires up top bar, bottom nav bar and navigation via `initViews()`.
 
 ---
 

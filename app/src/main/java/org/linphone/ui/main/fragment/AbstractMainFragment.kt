@@ -44,6 +44,7 @@ import org.linphone.databinding.MainActivityTopBarBinding
 import org.linphone.ui.main.MainActivity
 import org.linphone.ui.main.chat.fragment.ConversationsListFragmentDirections
 import org.linphone.ui.main.contacts.fragment.ContactsListFragmentDirections
+import org.linphone.ui.main.dialer.fragment.LoquaceDialerFragmentDirections
 import org.linphone.ui.main.history.fragment.HistoryListFragmentDirections
 import org.linphone.ui.main.meetings.fragment.MeetingsListFragmentDirections
 import org.linphone.ui.main.viewmodel.AbstractMainViewModel
@@ -174,8 +175,8 @@ abstract class AbstractMainFragment : GenericMainFragment() {
 
         viewModel.navigateToDialerEvent.observe(viewLifecycleOwner) {
             it.consume {
-                if (findNavController().currentDestination?.id != R.id.startCallFragment) {
-                    findNavController().navigate(R.id.action_global_startCallFragment)
+                if (currentFragmentId != R.id.loquaceDialerFragment) {
+                    goToDialer()
                 }
             }
         }
@@ -191,7 +192,7 @@ abstract class AbstractMainFragment : GenericMainFragment() {
             viewModel.callsSelected.value = it == R.id.historyListFragment
             viewModel.conversationsSelected.value = it == R.id.conversationsListFragment
             viewModel.meetingsSelected.value = it == R.id.meetingsListFragment
-            viewModel.dialerSelected.value = it == R.id.startCallFragment
+            viewModel.dialerSelected.value = it == R.id.loquaceDialerFragment
         }
 
         sharedViewModel.resetMissedCallsCountEvent.observe(viewLifecycleOwner) {
@@ -218,6 +219,16 @@ abstract class AbstractMainFragment : GenericMainFragment() {
         navigationBar = navBar.root
 
         initSlidingPane(slidingPane)
+        initSearchBar(topBar.search)
+        initNavigation(fragmentId)
+    }
+
+    fun initViews(
+        topBar: MainActivityTopBarBinding,
+        navBar: BottomNavBarBinding,
+        @IdRes fragmentId: Int
+    ) {
+        navigationBar = navBar.root
         initSearchBar(topBar.search)
         initNavigation(fragmentId)
     }
@@ -374,6 +385,11 @@ abstract class AbstractMainFragment : GenericMainFragment() {
                 val action = HistoryListFragmentDirections.actionHistoryListFragmentToContactsListFragment()
                 navigateTo(action)
             }
+            R.id.loquaceDialerFragment -> {
+                Log.i("$TAG Leaving Dialpad")
+                val action = LoquaceDialerFragmentDirections.actionLoquaceDialerFragmentToContactsListFragment()
+                navigateTo(action)
+            }
         }
     }
 
@@ -393,6 +409,11 @@ abstract class AbstractMainFragment : GenericMainFragment() {
             R.id.meetingsListFragment -> {
                 Log.i("$TAG Leaving meetings list")
                 val action = MeetingsListFragmentDirections.actionMeetingsListFragmentToHistoryListFragment()
+                navigateTo(action)
+            }
+            R.id.loquaceDialerFragment -> {
+                Log.i("$TAG Leaving Dialpad")
+                val action = LoquaceDialerFragmentDirections.actionLoquaceDialerFragmentToHistoryListFragment()
                 navigateTo(action)
             }
         }
@@ -416,6 +437,11 @@ abstract class AbstractMainFragment : GenericMainFragment() {
                 val action = HistoryListFragmentDirections.actionHistoryListFragmentToConversationsListFragment()
                 navigateTo(action)
             }
+            R.id.loquaceDialerFragment -> {
+                Log.i("$TAG Leaving Dialpad")
+                val action = LoquaceDialerFragmentDirections.actionLoquaceDialerFragmentToConversationsListFragment()
+                navigateTo(action)
+            }
         }
     }
 
@@ -435,6 +461,37 @@ abstract class AbstractMainFragment : GenericMainFragment() {
             R.id.historyListFragment -> {
                 Log.i("$TAG Leaving history list")
                 val action = HistoryListFragmentDirections.actionHistoryListFragmentToMeetingsListFragment()
+                navigateTo(action)
+            }
+            R.id.loquaceDialerFragment -> {
+                Log.i("$TAG Leaving Dialpad")
+                val action = LoquaceDialerFragmentDirections.actionLoquaceDialerFragmentToMeetingsListFragment()
+                navigateTo(action)
+            }
+        }
+    }
+
+    private fun goToDialer() {
+        Log.i("$TAG Navigating to dialer")
+        when (currentFragmentId) {
+            R.id.contactsListFragment -> {
+                Log.i("$TAG Leaving contacts list")
+                val action = ContactsListFragmentDirections.actionContactsListFragmentToLoquaceDialerFragment()
+                navigateTo(action)
+            }
+            R.id.historyListFragment -> {
+                Log.i("$TAG Leaving history list")
+                val action = HistoryListFragmentDirections.actionHistoryListFragmentToLoquaceDialerFragment()
+                navigateTo(action)
+            }
+            R.id.conversationsListFragment -> {
+                Log.i("$TAG Leaving conversations list")
+                val action = ConversationsListFragmentDirections.actionConversationsListFragmentToLoquaceDialerFragment()
+                navigateTo(action)
+            }
+            R.id.meetingsListFragment -> {
+                Log.i("$TAG Leaving meetings list")
+                val action = MeetingsListFragmentDirections.actionMeetingsListFragmentToLoquaceDialerFragment()
                 navigateTo(action)
             }
         }
