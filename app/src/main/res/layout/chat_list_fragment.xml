@@ -54,14 +54,34 @@
                     android:background="@drawable/shape_squircle_white_r20_top_shadow"
                     app:layout_constraintTop_toTopOf="parent" />
 
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/conversations_list"
-                    android:background="@drawable/shape_squircle_white_r20_top_background"
+                <LinearLayout
+                    android:id="@+id/content_panel"
                     android:layout_width="match_parent"
                     android:layout_height="0dp"
+                    android:orientation="vertical"
+                    android:background="@drawable/shape_squircle_white_r20_top_background"
                     android:layout_marginTop="@dimen/top_bar_height"
                     app:layout_constraintTop_toTopOf="parent"
-                    app:layout_constraintBottom_toTopOf="@id/bottom_nav_bar" />
+                    app:layout_constraintBottom_toTopOf="@id/bottom_nav_bar"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent">
+
+                    <com.google.android.material.tabs.TabLayout
+                        android:id="@+id/chat_tab_layout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@android:color/transparent"
+                        app:tabMode="fixed"
+                        app:tabGravity="fill"/>
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/conversations_list"
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"
+                        android:background="@android:color/transparent"/>
+
+                </LinearLayout>
 
                 <ImageView
                     android:id="@+id/no_conversation_image"
@@ -75,7 +95,7 @@
                     app:layout_constraintVertical_chainStyle="packed"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="@id/conversations_list"
+                    app:layout_constraintTop_toTopOf="@id/content_panel"
                     app:layout_constraintBottom_toTopOf="@id/no_conversation_label" />
 
                 <androidx.appcompat.widget.AppCompatTextView
@@ -88,7 +108,7 @@
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/no_conversation_image"
-                    app:layout_constraintBottom_toBottomOf="@id/conversations_list"/>
+                    app:layout_constraintBottom_toBottomOf="@id/content_panel"/>
 
                 <androidx.appcompat.widget.AppCompatTextView
                     style="@style/default_text_style_600"

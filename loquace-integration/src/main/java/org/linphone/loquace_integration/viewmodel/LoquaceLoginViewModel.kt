@@ -2,6 +2,7 @@ package org.linphone.loquace_integration.viewmodel
 
 import android.util.Log
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.provider.Settings
 import androidx.lifecycle.ViewModel
@@ -19,6 +20,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import org.linphone.loquace_integration.sip.LoquaceCoreProvider
 import org.linphone.loquace_integration.sip.LoquaceSipConfigurator
+import org.linphone.loquace_integration.xmpp.LoquaceXmppManager
+import org.linphone.loquace_integration.xmpp.XmppConnectionService
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
@@ -68,13 +71,26 @@ class LoquaceLoginViewModel(
                 presenceRepository.fetchAndStore(domain, response.token, userAgent)
 
                 Log.d(TAG, "Login flow completed successfully")
+
                 Log.d(TAG, "Configuring SIP account...")
-                val sipEntity = LoquaceDatabase.getInstance(context).sipAccountDao().get()
+                val sipEntity = db.sipAccountDao().get()
                 if (sipEntity != null) {
                     LoquaceSipConfigurator.configure(LoquaceCoreProvider.getCore(), sipEntity)
                     Log.d(TAG, "SIP account configured successfully")
                 } else {
                     Log.e(TAG, "SIP account data not found in database")
+                }
+
+                // Start XMPP connection
+                val xmppEntity = db.xmppAccountDao().get()
+                if (xmppEntity != null && xmppEntity.enabled) {
+                    Log.d(TAG, "Starting XMPP connection for ${xmppEntity.username}@${xmppEntity.domain}")
+                    LoquaceXmppManager.connect(xmppEntity)
+                    val serviceIntent = Intent(context, XmppConnectionService::class.java)
+                    context.startForegroundService(serviceIntent)
+                    Log.d(TAG, "XMPP connection initiated and service started")
+                } else {
+                    Log.w(TAG, "XMPP account not available or not enabled, skipping")
                 }
 
                 _state.value = LoginState.Success

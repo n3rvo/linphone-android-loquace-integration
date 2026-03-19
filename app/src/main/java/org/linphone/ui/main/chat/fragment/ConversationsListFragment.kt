@@ -33,6 +33,7 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
+import com.google.android.material.tabs.TabLayout
 import org.linphone.LinphoneApplication.Companion.coreContext
 import org.linphone.R
 import org.linphone.contacts.getListOfSipAddressesAndPhoneNumbers
@@ -42,7 +43,9 @@ import org.linphone.ui.fileviewer.FileViewerActivity
 import org.linphone.ui.fileviewer.MediaViewerActivity
 import org.linphone.ui.main.MainActivity.Companion.ARGUMENTS_CONVERSATION_ID
 import org.linphone.ui.main.chat.adapter.ConversationsListAdapter
+import org.linphone.ui.main.chat.adapter.XmppConversationsAdapter
 import org.linphone.ui.main.chat.viewmodel.ConversationsListViewModel
+import org.linphone.ui.main.chat.viewmodel.XmppConversationsListViewModel
 import org.linphone.ui.main.contacts.model.ContactNumberOrAddressClickListener
 import org.linphone.ui.main.contacts.model.ContactNumberOrAddressModel
 import org.linphone.ui.main.contacts.model.NumberOrAddressPickerDialogModel
@@ -58,6 +61,10 @@ class ConversationsListFragment : AbstractMainFragment() {
     companion object {
         private const val TAG = "[Conversations List Fragment]"
     }
+
+    private lateinit var xmppViewModel: XmppConversationsListViewModel
+
+    private lateinit var xmppAdapter: XmppConversationsAdapter
 
     private lateinit var binding: ChatListFragmentBinding
 
@@ -347,6 +354,56 @@ class ConversationsListFragment : AbstractMainFragment() {
             }
         }
 
+        xmppViewModel = ViewModelProvider(this)[XmppConversationsListViewModel::class.java]
+        xmppAdapter = XmppConversationsAdapter()
+
+        // Setup tabs
+        val tabLayout = binding.chatTabLayout ?: return
+        tabLayout.addTab(tabLayout.newTab().setText(getString(R.string.chat_tab_chats)))
+        tabLayout.addTab(tabLayout.newTab().setText(getString(R.string.chat_tab_contacts)))
+        tabLayout.addTab(tabLayout.newTab().setText(getString(R.string.chat_tab_groups)))
+
+        tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab?) {
+                when (tab?.position) {
+                    0 -> {
+                        xmppViewModel.switchTab(XmppConversationsListViewModel.ChatTab.CHATS)
+                        showChatsTab()
+                    }
+                    1 -> {
+                        xmppViewModel.switchTab(XmppConversationsListViewModel.ChatTab.CONTACTS)
+                        showContactsTab()
+                    }
+                    2 -> {
+                        xmppViewModel.switchTab(XmppConversationsListViewModel.ChatTab.GROUPS)
+                        showGroupsTab()
+                    }
+                }
+            }
+            override fun onTabUnselected(tab: TabLayout.Tab?) {}
+            override fun onTabReselected(tab: TabLayout.Tab?) {}
+        })
+
+        // Observe XMPP conversations
+        xmppViewModel.conversations.observe(viewLifecycleOwner) { models ->
+            if (xmppViewModel.currentTab.value == XmppConversationsListViewModel.ChatTab.CHATS) {
+                xmppAdapter.submitList(models)
+                if (binding.conversationsList.adapter != xmppAdapter) {
+                    binding.conversationsList.adapter = xmppAdapter
+                }
+            }
+        }
+
+        xmppAdapter.conversationClickedEvent.observe(viewLifecycleOwner) {
+            it.consume { model ->
+                Log.i("$TAG Opening XMPP conversation with ${model.id}")
+                // Navigation to chat screen will be added in next phase
+            }
+        }
+
+        // Show chats tab by default
+        showChatsTab()
+
         // AbstractMainFragment related
 
         listViewModel.title.value = getString(R.string.bottom_navigation_conversations_label)
@@ -421,5 +478,20 @@ class ConversationsListFragment : AbstractMainFragment() {
         }
 
         dialog.show()
+    }
+
+    private fun showChatsTab() {
+        binding.conversationsList.adapter = xmppAdapter
+        xmppAdapter.submitList(xmppViewModel.conversations.value ?: emptyList())
+    }
+
+    private fun showContactsTab() {
+        // Will be implemented in next phase
+        binding.conversationsList.adapter = null
+    }
+
+    private fun showGroupsTab() {
+        // Will be implemented in next phase
+        binding.conversationsList.adapter = null
     }
 }

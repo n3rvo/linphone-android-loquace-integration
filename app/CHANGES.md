@@ -117,6 +117,27 @@ viewModel.lastAccountRemovedEvent.observe(this) {
 
 ---
 
+## `app/src/main/AndroidManifest.xml`
+
+### Change: Register XMPP foreground service and permissions
+**Reason:** `XmppConnectionService` keeps the XMPP connection alive in the background.
+
+Added inside `<application>` tag:
+```xml
+<service
+    android:name="org.linphone.loquace_integration.xmpp.XmppConnectionService"
+    android:foregroundServiceType="dataSync"
+    android:exported="false"/>
+```
+
+Added permissions:
+```xml
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+```
+
+---
+
 ## `app/src/main/res/navigation/main_nav_graph.xml`
 
 ### Change: Add LoquaceDialerFragment and its navigation actions
@@ -228,36 +249,9 @@ fun navigateToDialer() {
 ### Change 1: Add dialer navigation
 **Reason:** Handle navigation to and from the dialer tab.
 
-Added `goToDialer()` method:
-```kotlin
-private fun goToDialer() {
-    Log.i("$TAG Navigating to dialer")
-    when (currentFragmentId) {
-        R.id.historyListFragment -> {
-            val action = HistoryListFragmentDirections.actionHistoryListFragmentToLoquaceDialerFragment()
-            navigateTo(action)
-        }
-        R.id.contactsListFragment -> {
-            val action = ContactsListFragmentDirections.actionContactsListFragmentToLoquaceDialerFragment()
-            navigateTo(action)
-        }
-        R.id.conversationsListFragment -> {
-            val action = ConversationsListFragmentDirections.actionConversationsListFragmentToLoquaceDialerFragment()
-            navigateTo(action)
-        }
-        R.id.meetingsListFragment -> {
-            val action = MeetingsListFragmentDirections.actionMeetingsListFragmentToLoquaceDialerFragment()
-            navigateTo(action)
-        }
-    }
-}
-```
-
-Added `R.id.loquaceDialerFragment` case to each existing navigation method:
-- `goToContactsList()`
-- `goToHistoryList()`
-- `goToConversationsList()`
-- `goToMeetingsList()`
+Added `goToDialer()` method and `R.id.loquaceDialerFragment` cases to all existing
+navigation methods (`goToContactsList`, `goToHistoryList`, `goToConversationsList`,
+`goToMeetingsList`).
 
 Added in `setViewModel()`:
 ```kotlin
@@ -303,47 +297,11 @@ sharedViewModel.currentlyDisplayedFragment.observe(viewLifecycleOwner) {
 ### Change 1: Add TabLayout and wrap content in panel with rounded corners
 **Reason:** Two call history tabs (All/Missed) and visual continuity with top bar.
 
-Replaced standalone `RecyclerView` with a `LinearLayout` wrapper:
-```xml
-<LinearLayout
-    android:id="@+id/content_panel"
-    android:layout_width="match_parent"
-    android:layout_height="0dp"
-    android:orientation="vertical"
-    android:background="@drawable/shape_squircle_white_r20_top_background"
-    android:layout_marginTop="@dimen/top_bar_height"
-    app:layout_constraintTop_toTopOf="parent"
-    app:layout_constraintBottom_toTopOf="@id/bottom_nav_bar"
-    app:layout_constraintStart_toStartOf="parent"
-    app:layout_constraintEnd_toEndOf="parent">
+Replaced standalone `RecyclerView` with a `LinearLayout` wrapper containing
+`TabLayout` and `RecyclerView`, both with transparent backgrounds.
+Empty state constraints updated to reference `content_panel`.
 
-    <com.google.android.material.tabs.TabLayout
-        android:id="@+id/history_tab_layout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@android:color/transparent"
-        app:tabMode="fixed"
-        app:tabGravity="fill"/>
-
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/history_list"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:background="@android:color/transparent"/>
-
-</LinearLayout>
-```
-
-### Change 2: Fix empty state constraints
-**Reason:** After wrapping RecyclerView in LinearLayout, empty state views lost their
-reference. Updated to constrain to `content_panel` instead of `history_list`.
-```xml
-app:layout_constraintTop_toTopOf="@id/content_panel"
-app:layout_constraintBottom_toBottomOf="@id/content_panel"
-```
-
-### Change 3: Hide FAB
+### Change 2: Hide FAB
 **Reason:** Replaced by the Dialer tab in the bottom nav bar.
 ```xml
 android:visibility="gone"
@@ -354,64 +312,34 @@ android:visibility="gone"
 ## `app/src/main/java/org/linphone/ui/main/history/viewmodel/HistoryListViewModel.kt`
 
 ### Change: Add tab state and Loquace call history LiveData
-**Reason:** Drive which call history source is displayed based on selected tab.
-
-Added alongside existing LiveData:
-```kotlin
-enum class HistoryTab { ALL, MISSED }
-val currentTab = MutableLiveData<HistoryTab>(HistoryTab.ALL)
-val loquaceCallLogs = MutableLiveData<ArrayList<CallLogModelWrapper>>()
-val isHistoryEmpty = MutableLiveData<Boolean>(true)
-```
-
-Added method:
-```kotlin
-@UiThread
-fun switchTab(tab: HistoryTab) {
-    currentTab.value = tab
-}
-```
+Added: `HistoryTab` enum, `currentTab`, `loquaceCallLogs`, `isHistoryEmpty`, `switchTab()`
 
 ---
 
 ## `app/src/main/java/org/linphone/ui/main/history/fragment/HistoryListFragment.kt`
 
 ### Change: Replace Linphone call history with Loquace API call history
-**Reason:** Show calls from Loquace backend instead of Linphone's local call logs.
-
 - Load credentials from `SessionManager`
-- Setup two tabs (All, Missed) on `historyTabLayout`
-- Tab selection calls `listViewModel.switchTab()` and `resetAndLoadCalls()`
-- Infinite scroll listener triggers `loadMoreCalls()`
+- Setup two tabs (All, Missed)
+- Infinite scroll, avatar fetching, callback calls
 - `callLogs.observe` replaced with no-op
-- Added `loquaceCallBackClickedEvent` observer for callback calls
-
-Added methods:
-- `resetAndLoadCalls(missedOnly)` — resets pagination and loads first page
-- `loadMoreCalls(missedOnly)` — fetches page from API, builds `LoquaceCallLogModel`
-  objects with avatars, appends to `loquaceCallLogs`
-- `buildUserAgent(context)` — builds Loquace user agent string
+- Added `resetAndLoadCalls()`, `loadMoreCalls()`, `fetchAndSaveAvatar()`, `buildUserAgent()`
 
 ---
 
 ## `app/src/main/java/org/linphone/ui/main/history/adapter/HistoryListAdapter.kt`
 
 ### Change: Add Loquace call log view type
-**Reason:** Render Loquace API call entries in the same list as Linphone call logs.
-
-- Added `LOQUACE_CALL_TYPE = 3` constant
-- Added `loquaceCallBackClickedEvent` and `loquaceCallClickedEvent` LiveData
-- Added `LoquaceCallLogViewHolder` using `HistoryListCellBinding`
-- Updated `getItemViewType()` to handle `isLoquaceCall`
-- Updated `onCreateViewHolder()` and `onBindViewHolder()` for new type
-- Updated `CallLogDiffCallback` to handle Loquace items
+- Added `LOQUACE_CALL_TYPE = 3`
+- Added `loquaceCallBackClickedEvent` and `loquaceCallClickedEvent`
+- Added `LoquaceCallLogViewHolder`
+- Updated `getItemViewType()`, `onCreateViewHolder()`, `onBindViewHolder()`, `CallLogDiffCallback`
 
 ---
 
 ## `app/src/main/java/org/linphone/ui/main/history/model/CallLogModelWrapper.kt`
 
 ### Change: Add loquaceCallLogModel field
-**Reason:** Support Loquace API call entries alongside Linphone call logs.
 ```kotlin
 class CallLogModelWrapper(
     val callLogModel: CallLogModel? = null,
@@ -426,34 +354,62 @@ class CallLogModelWrapper(
 
 ---
 
-## `app/src/main/java/org/linphone/ui/main/history/model/LoquaceCallLogModel.kt` *(NEW FILE)*
-
-**Reason:** UI model for Loquace API call entries, mirrors `CallLogModel` interface
-so the same adapter cell layout works for both.
-
-**Location:** `org.linphone.ui.main.history.model`
-
----
-
 ## `app/src/main/res/layout/history_list_cell.xml`
 
 ### Change: Add loquaceModel variable and update bindings
-**Reason:** Support rendering both Linphone and Loquace call entries in the same cell.
+Added `loquaceModel` variable, updated avatar, name, icon, datetime bindings to
+use whichever model is set.
 
-Added variable:
+---
+
+## `app/src/main/res/layout/chat_list_fragment.xml`
+
+### Change: Add TabLayout and wrap content in panel with rounded corners
+**Reason:** Three chat tabs (Chats, Contacts, Groups) and visual continuity with top bar.
+
+Replaced standalone `RecyclerView` with a `LinearLayout` wrapper:
 ```xml
-<variable
-    name="loquaceModel"
-    type="org.linphone.ui.main.history.model.LoquaceCallLogModel" />
+<LinearLayout
+    android:id="@+id/content_panel"
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:orientation="vertical"
+    android:background="@drawable/shape_squircle_white_r20_top_background"
+    android:layout_marginTop="@dimen/top_bar_height"
+    ...>
+
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/chat_tab_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@android:color/transparent"
+        app:tabMode="fixed"
+        app:tabGravity="fill"/>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/conversations_list"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@android:color/transparent"/>
+
+</LinearLayout>
 ```
 
-Updated bindings to use whichever model is set:
-```xml
-bind:model="@{model != null ? model.avatarModel : loquaceModel.avatarModel}"
-android:text="@{model != null ? model.avatarModel.name : loquaceModel.contactName}"
-android:src="@{model != null ? model.iconResId : loquaceModel.iconResId}"
-android:text="@{model != null ? model.dateTime : loquaceModel.dateTime}"
-```
+Empty state constraints updated to reference `content_panel`.
+
+---
+
+## `app/src/main/java/org/linphone/ui/main/chat/fragment/ConversationsListFragment.kt`
+
+### Change: Add XMPP chat tabs and adapter
+**Reason:** Replace Linphone chat with Loquace XMPP conversations.
+
+- Added `xmppViewModel` and `xmppAdapter` properties
+- Setup three tabs (Chats, Contacts, Groups)
+- `xmppViewModel.conversations` observer updates `xmppAdapter`
+- Added `showChatsTab()`, `showContactsTab()`, `showGroupsTab()` methods
+- Contacts and Groups tabs stubbed for future phases
 
 ---
 
@@ -467,6 +423,9 @@ android:text="@{model != null ? model.dateTime : loquaceModel.dateTime}"
 <string name="history_tab_all">All</string>
 <string name="history_tab_missed">Missed</string>
 <string name="bottom_navigation_dialer_label">Dialer</string>
+<string name="chat_tab_chats">Chats</string>
+<string name="chat_tab_contacts">Contacts</string>
+<string name="chat_tab_groups">Groups</string>
 ```
 
 ---
@@ -474,7 +433,6 @@ android:text="@{model != null ? model.dateTime : loquaceModel.dateTime}"
 ## `app/build.gradle.kts`
 
 ### Change: Add Gson dependency
-**Reason:** Used in `ContactsListFragment` for avatar path handling.
 ```kotlin
 implementation(libs.gson)
 ```
@@ -483,17 +441,35 @@ implementation(libs.gson)
 
 ## New files in `app` module
 
-### `app/src/main/res/layout/loquace_dialer_fragment.xml` *(NEW FILE)*
-**Reason:** Custom dialer layout with number display, dialpad grid, call button
-and backspace. Includes top bar and bottom nav bar for consistency with other tabs.
+### `app/src/main/res/layout/loquace_dialer_fragment.xml` *(NEW)*
+Custom dialer layout with number display, dialpad grid, call button, backspace,
+top bar and bottom nav bar.
 
-### `app/src/main/java/org/linphone/ui/main/dialer/viewmodel/LoquaceDialerViewModel.kt` *(NEW FILE)*
-**Reason:** ViewModel for the custom dialer. Extends `AbstractMainViewModel`.
-Handles digit input, backspace, zero long press for `+`, and initiates audio calls.
+### `app/src/main/java/org/linphone/ui/main/dialer/viewmodel/LoquaceDialerViewModel.kt` *(NEW)*
+ViewModel for custom dialer. Extends `AbstractMainViewModel`. Handles digit input,
+backspace, zero long press for `+`, initiates audio calls.
 
-### `app/src/main/java/org/linphone/ui/main/dialer/fragment/LoquaceDialerFragment.kt` *(NEW FILE)*
-**Reason:** Fragment for the custom dialer. Extends `AbstractMainFragment`.
-Wires up top bar, bottom nav bar and navigation via `initViews()`.
+### `app/src/main/java/org/linphone/ui/main/dialer/fragment/LoquaceDialerFragment.kt` *(NEW)*
+Fragment for custom dialer. Extends `AbstractMainFragment`. Wires up top bar,
+bottom nav bar and navigation via `initViews()`.
+
+### `app/src/main/res/layout/loquace_chat_list_cell.xml` *(NEW)*
+Conversation list cell layout bound to `XmppConversationModel`. Simplified version
+of Linphone's `chat_list_cell.xml` without Linphone-specific fields.
+
+### `app/src/main/java/org/linphone/ui/main/chat/model/XmppConversationModel.kt` *(NEW)*
+UI model for XMPP conversations. Mirrors `ConversationModel` interface so the
+same cell layout structure works.
+
+### `app/src/main/java/org/linphone/ui/main/chat/adapter/XmppConversationsAdapter.kt` *(NEW)*
+RecyclerView adapter for XMPP conversations using `loquace_chat_list_cell.xml`.
+
+### `app/src/main/java/org/linphone/ui/main/chat/viewmodel/XmppConversationsListViewModel.kt` *(NEW)*
+ViewModel for XMPP conversations list. Extends `AbstractMainViewModel`. Collects
+from `LoquaceXmppManager.conversations` StateFlow and exposes as LiveData.
+
+### `app/src/main/java/org/linphone/ui/main/history/model/LoquaceCallLogModel.kt` *(NEW)*
+UI model for Loquace API call entries. Mirrors `CallLogModel` interface.
 
 ---
 
@@ -501,23 +477,19 @@ Wires up top bar, bottom nav bar and navigation via `initViews()`.
 
 Entirely new module — no merge conflicts expected here.
 
-**Contains:**
-- `network/` — Retrofit API clients for auth, settings, presence, contacts and call history
-- `storage/` — Room database with SQLCipher encryption, SessionManager
-- `sip/` — Linphone SIP account configurator and Core provider
+**Key files:**
+- `network/` — Retrofit API clients for auth, settings, presence, contacts, call history
+- `storage/` — Room DB with SQLCipher, SessionManager
+- `sip/` — SIP configurator and Core provider
 - `ui/` — LoquaceLoginActivity
 - `viewmodel/` — LoquaceLoginViewModel
+- `xmpp/LoquaceXmppManager.kt` — Smack XMPP connection singleton
+- `xmpp/XmppConnectionService.kt` — Foreground service for background connection
+- `xmpp/XmppConnectionState.kt` — Sealed class for connection states
+- `xmpp/XmppMessage.kt` — Data class for XMPP messages
+- `xmpp/XmppConversation.kt` — Data class for XMPP conversations
 
-**Key files added during contacts and call history implementation:**
-- `network/ContactResponse.kt`
-- `network/ContactsApi.kt`
-- `network/LoquaceContactsRepository.kt`
-- `network/CallHistoryResponse.kt`
-- `network/CallHistoryApi.kt`
-- `network/LoquaceCallHistoryRepository.kt`
-- `network/LoquaceAvatarHelper.kt`
-
-**Dependencies added (not in original Linphone):**
+**Dependencies added:**
 - `retrofit2:retrofit`
 - `retrofit2:converter-gson`
 - `androidx.security:security-crypto`
@@ -527,4 +499,9 @@ Entirely new module — no merge conflicts expected here.
 - `androidx.room:room-ktx`
 - `androidx.room:room-compiler`
 - `com.google.firebase:firebase-messaging`
-- `org.linphone:linphone-sdk-android` (same as app module)
+- `org.linphone:linphone-sdk-android`
+- `org.igniterealtime.smack:smack-android:4.4.8`
+- `org.igniterealtime.smack:smack-tcp:4.4.8`
+- `org.igniterealtime.smack:smack-im:4.4.8`
+- `org.igniterealtime.smack:smack-extensions:4.4.8`
+- `org.igniterealtime.smack:smack-sasl-provided:4.4.8`

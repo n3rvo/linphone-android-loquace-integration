@@ -204,6 +204,11 @@
                 android:value="Needed to keep app alive to be able to receive messages and calls from third party SIP servers for which push notifications aren't available." />
         </service>
 
+        <service
+            android:name="org.linphone.loquace_integration.xmpp.XmppConnectionService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false"/>
+
         <!--<service
             android:name=".telecom.auto.AndroidAutoService"
             android:exported="true">

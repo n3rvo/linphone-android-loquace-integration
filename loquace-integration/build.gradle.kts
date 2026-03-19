@@ -57,6 +57,12 @@ dependencies {
     // DB Encryption
     implementation(libs.sqlcipher)
     implementation(libs.androidx.sqlite)
-    //LinphoneSDK
+    // LinphoneSDK
     implementation(libs.linphone)
+    // Xmpp Library
+    implementation(libs.smack.android) { exclude(group = "xpp3", module = "xpp3") }
+    implementation(libs.smack.tcp) { exclude(group = "xpp3", module = "xpp3") }
+    implementation(libs.smack.im) { exclude(group = "xpp3", module = "xpp3") }
+    implementation(libs.smack.extensions) { exclude(group = "xpp3", module = "xpp3") }
+    implementation(libs.smack.sasl) { exclude(group = "xpp3", module = "xpp3") }
 }

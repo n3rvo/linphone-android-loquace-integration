@@ -1045,10 +1045,13 @@
         </string-array>
 
     <!-- Loquace Strings -->
-    <string name="contacts_tab_phone">Contacts</string>
+    <string name="contacts_tab_phone">Phone</string>
     <string name="contacts_tab_pbx">PBX</string>
     <string name="contacts_tab_user">User</string>
     <string name="history_tab_all">All</string>
     <string name="history_tab_missed">Missed</string>
     <string name="bottom_navigation_dialer_label">Dialer</string>
+    <string name="chat_tab_chats">Chats</string>
+    <string name="chat_tab_contacts">Contacts</string>
+    <string name="chat_tab_groups">Groups</string>
 </resources>
