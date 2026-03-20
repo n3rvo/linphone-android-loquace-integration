@@ -17,6 +17,7 @@ import org.jivesoftware.smack.chat2.Chat
 import org.jivesoftware.smack.chat2.ChatManager
 import org.jivesoftware.smack.chat2.IncomingChatMessageListener
 import org.jivesoftware.smack.packet.Message
+import org.jivesoftware.smack.roster.Roster
 import org.jivesoftware.smack.tcp.XMPPTCPConnection
 import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration
 import org.jxmpp.jid.EntityBareJid
@@ -52,7 +53,7 @@ object LoquaceXmppManager {
     private val _conversations = MutableStateFlow<List<XmppConversation>>(emptyList())
     val conversations: StateFlow<List<XmppConversation>> = _conversations
 
-    fun connect(account: XmppAccountEntity) {
+    fun connect(account: XmppAccountEntity, userAgent: String) {
         if (isConnected() || isConnecting) {
             Log.d(TAG, "Already connected or connecting, skipping")
             return
@@ -69,11 +70,12 @@ object LoquaceXmppManager {
                     .setHost(account.serverAddress)
                     .setPort(account.serverPort)
                     .setSecurityMode(ConnectionConfiguration.SecurityMode.required)
-                    .setResource("android")
+                    .setResource(userAgent)
                     .setSendPresence(true)
                     .build()
 
                 val conn = XMPPTCPConnection(config)
+                Roster.getInstanceFor(conn).isRosterLoadedAtLogin = false  // Add this
                 connection = conn
 
                 ReconnectionManager.getInstanceFor(conn).apply {

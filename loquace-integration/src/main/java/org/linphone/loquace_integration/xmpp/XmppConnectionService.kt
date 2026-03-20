@@ -26,17 +26,19 @@ class XmppConnectionService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.d(TAG, "Service started")
+        val userAgent = intent?.getStringExtra("userAgent")?.ifEmpty { null }
+            ?: SessionManager(applicationContext).getUserAgent()
+
         startForeground(NOTIFICATION_ID, buildNotification())
+        Log.d(TAG, "Service started")
 
         scope.launch {
             if (!LoquaceXmppManager.isConnected()) {
-                val context = applicationContext
-                val db = LoquaceDatabase.getInstance(context)
+                val db = LoquaceDatabase.getInstance(applicationContext)
                 val xmppEntity = db.xmppAccountDao().get()
                 if (xmppEntity != null && xmppEntity.enabled) {
                     Log.d(TAG, "Reconnecting XMPP from service")
-                    LoquaceXmppManager.connect(xmppEntity)
+                    LoquaceXmppManager.connect(xmppEntity, userAgent)
                 }
             }
         }

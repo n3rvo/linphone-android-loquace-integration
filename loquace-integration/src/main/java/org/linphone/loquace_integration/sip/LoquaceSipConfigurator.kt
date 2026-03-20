@@ -10,24 +10,26 @@ object LoquaceSipConfigurator {
 
     private const val TAG = "LoquaceSip"
 
-    fun configure(core: Core, sip: SipAccountEntity) {
+    fun configure(core: Core, sip: SipAccountEntity, userAgent: String) {
         val factory = Factory.instance()
 
         Log.d(TAG, "Configuring SIP account for user: ${sip.username} on domain: ${sip.domain}")
 
-        // 1. Auth info
+        // Set SIP user agent
+        core.setUserAgent(userAgent, null)
+        Log.d(TAG, "User agent set to: $userAgent")
+
         val authInfo = factory.createAuthInfo(
             sip.username,
-            null,           // userid, null = same as username
+            null,
             sip.password,
-            null,           // ha1
-            null,           // realm
+            null,
+            null,
             sip.domain
         )
         core.addAuthInfo(authInfo)
         Log.d(TAG, "Auth info added")
 
-        // 2. Account params
         val params = core.createAccountParams()
 
         val identity = factory.createAddress("sip:${sip.username}@${sip.domain}")
@@ -43,7 +45,7 @@ object LoquaceSipConfigurator {
 
         params.isRegisterEnabled = true
 
-        // 3. Create and add account
+        // Create and add account
         val account = core.createAccount(params)
         core.addAccount(account)
         core.defaultAccount = account

@@ -40,6 +40,7 @@ class LoquaceLoginViewModel(
             try {
                 // Build user agent once, reuse everywhere
                 val userAgent = buildUserAgent(context)
+                sessionManager.saveUserAgent(userAgent)
                 Log.d(TAG, "User-Agent: $userAgent")
 
                 Log.d(TAG, "Fetching FCM token...")
@@ -75,7 +76,7 @@ class LoquaceLoginViewModel(
                 Log.d(TAG, "Configuring SIP account...")
                 val sipEntity = db.sipAccountDao().get()
                 if (sipEntity != null) {
-                    LoquaceSipConfigurator.configure(LoquaceCoreProvider.getCore(), sipEntity)
+                    LoquaceSipConfigurator.configure(LoquaceCoreProvider.getCore(), sipEntity, userAgent)
                     Log.d(TAG, "SIP account configured successfully")
                 } else {
                     Log.e(TAG, "SIP account data not found in database")
@@ -85,7 +86,7 @@ class LoquaceLoginViewModel(
                 val xmppEntity = db.xmppAccountDao().get()
                 if (xmppEntity != null && xmppEntity.enabled) {
                     Log.d(TAG, "Starting XMPP connection for ${xmppEntity.username}@${xmppEntity.domain}")
-                    LoquaceXmppManager.connect(xmppEntity)
+                    LoquaceXmppManager.connect(xmppEntity, userAgent)
                     val serviceIntent = Intent(context, XmppConnectionService::class.java)
                     context.startForegroundService(serviceIntent)
                     Log.d(TAG, "XMPP connection initiated and service started")

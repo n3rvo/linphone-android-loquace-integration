@@ -50,6 +50,14 @@ class SessionManager(context: Context) {
 
     fun getDomain(): String? = prefs.getString(KEY_DOMAIN, null)
 
+    fun saveUserAgent(userAgent: String) {
+        prefs.edit().putString("user_agent", userAgent).apply()
+    }
+
+    fun getUserAgent(): String {
+        return prefs.getString("user_agent", "") ?: ""
+    }
+
     companion object {
         private const val KEY_TOKEN  = "auth_token"
         private const val KEY_DB_KEY = "db_key"
