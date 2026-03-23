@@ -172,4 +172,29 @@
             app:popExitAnim="@anim/slide_out_right" />
     </fragment>
 
+    <fragment
+        android:id="@+id/xmppConversationFragment"
+        android:name="org.linphone.ui.main.chat.fragment.XmppConversationFragment"
+        android:label="XmppConversationFragment"
+        tools:layout="@layout/loquace_chat_conversation_fragment">
+        <argument
+            android:name="peerJid"
+            app:argType="string" />
+        <argument
+            android:name="displayName"
+            app:argType="string" />
+        <argument
+            android:name="isGroup"
+            app:argType="boolean"
+            android:defaultValue="false" />
+    </fragment>
+
+    <action
+        android:id="@+id/action_global_xmppConversationFragment"
+        app:destination="@id/xmppConversationFragment"
+        app:enterAnim="@anim/slide_in_right"
+        app:exitAnim="@anim/slide_out_left"
+        app:popEnterAnim="@anim/slide_in_left"
+        app:popExitAnim="@anim/slide_out_right"/>
+
 </navigation>

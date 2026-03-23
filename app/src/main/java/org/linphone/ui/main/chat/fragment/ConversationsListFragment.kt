@@ -193,7 +193,7 @@ class ConversationsListFragment : AbstractMainFragment() {
             it.consume { model ->
                 Log.i("$TAG Show conversation with ID [${model.id}]")
                 sharedViewModel.displayedChatRoom = model.chatRoom
-                sharedViewModel.showConversationEvent.value = Event(model.id)
+                //sharedViewModel.showConversationEvent.value = Event(model.id)
             }
         }
 
@@ -397,7 +397,20 @@ class ConversationsListFragment : AbstractMainFragment() {
         xmppAdapter.conversationClickedEvent.observe(viewLifecycleOwner) {
             it.consume { model ->
                 Log.i("$TAG Opening XMPP conversation with ${model.id}")
-                // Navigation to chat screen will be added in next phase
+                try {
+                    val bundle = Bundle().apply {
+                        putString("peerJid", model.id)
+                        putString("displayName", model.subject)
+                        putBoolean("isGroup", model.isGroup)
+                    }
+                    sharedViewModel.openSlidingPaneEvent.value = Event(true)
+                    binding.chatNavContainer.findNavController().navigate(
+                        R.id.action_global_xmppConversationFragment,
+                        bundle
+                    )
+                } catch (e: Exception) {
+                    Log.e("$TAG Failed to navigate to conversation: ${e.message}")
+                }
             }
         }
 

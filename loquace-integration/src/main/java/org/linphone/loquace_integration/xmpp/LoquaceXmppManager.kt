@@ -39,19 +39,20 @@ object LoquaceXmppManager {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private var connection: XMPPTCPConnection? = null
+
     private var chatManager: ChatManager? = null
 
     // Connection state
     private val _connectionState = MutableStateFlow<XmppConnectionState>(XmppConnectionState.Disconnected)
     val connectionState: StateFlow<XmppConnectionState> = _connectionState
 
-    // Incoming messages
-    private val _incomingMessages = MutableSharedFlow<XmppMessage>()
-    val incomingMessages: SharedFlow<XmppMessage> = _incomingMessages
-
     // Conversations cache
     private val _conversations = MutableStateFlow<List<XmppConversation>>(emptyList())
     val conversations: StateFlow<List<XmppConversation>> = _conversations
+
+    // Messages cache
+    private val _messages = MutableStateFlow<Map<String, List<XmppMessage>>>(emptyMap())
+    val messages: StateFlow<Map<String, List<XmppMessage>>> = _messages
 
     fun connect(account: XmppAccountEntity, userAgent: String) {
         if (isConnected() || isConnecting) {
@@ -99,7 +100,6 @@ object LoquaceXmppManager {
                             isOutgoing  = false
                         )
                         Log.d(TAG, "Received message from ${xmppMessage.from}: ${xmppMessage.body}")
-                        _incomingMessages.emit(xmppMessage)
                         updateConversationWithMessage(xmppMessage)
                     }
                 })
@@ -157,7 +157,9 @@ object LoquaceXmppManager {
                 timestamp  = System.currentTimeMillis(),
                 isOutgoing = true
             )
-            scope.launch { updateConversationWithMessage(message) }
+            scope.launch {
+                updateConversationWithMessage(message)
+            }
             Log.d(TAG, "Sent message to $toJid: $body")
             message
         } catch (e: Exception) {
@@ -177,6 +179,7 @@ object LoquaceXmppManager {
     }
 
     private suspend fun updateConversationWithMessage(message: XmppMessage) {
+        storeMessage(message)
         val peerJid = if (message.isOutgoing) message.to else message.from
         val currentList = _conversations.value.toMutableList()
         val existing = currentList.find { it.peerJid == peerJid }
@@ -200,5 +203,18 @@ object LoquaceXmppManager {
 
         currentList.sortByDescending { it.lastTimestamp }
         _conversations.value = currentList
+    }
+
+    fun getMessagesForConversation(peerJid: String): List<XmppMessage> {
+        return _messages.value[peerJid] ?: emptyList()
+    }
+
+    private suspend fun storeMessage(message: XmppMessage) {
+        val peerJid = if (message.isOutgoing) message.to else message.from
+        val current = _messages.value.toMutableMap()
+        val conversationMessages = (current[peerJid] ?: emptyList()).toMutableList()
+        conversationMessages.add(message)
+        current[peerJid] = conversationMessages
+        _messages.value = current
     }
 }

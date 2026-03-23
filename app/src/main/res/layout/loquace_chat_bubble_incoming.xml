@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <data>
+        <variable
+            name="model"
+            type="org.linphone.loquace_integration.xmpp.XmppMessage" />
+    </data>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="32dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="4dp">
+
+        <LinearLayout
+            android:id="@+id/bubble"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:padding="10dp"
+            android:orientation="vertical"
+            android:background="@drawable/chat_bubble_incoming_first_background"
+            app:layout_constraintHorizontal_bias="0"
+            app:layout_constrainedWidth="true"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <androidx.appcompat.widget.AppCompatTextView
+                android:id="@+id/text_content"
+                style="@style/default_text_style"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@{model.body}"
+                android:textSize="14sp"
+                android:textColor="?attr/color_main2_800"/>
+
+            <androidx.appcompat.widget.AppCompatTextView
+                android:id="@+id/time"
+                style="@style/default_text_style_300"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textSize="11sp"
+                android:text="@{model.formattedTime}"/>
+
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</layout>
