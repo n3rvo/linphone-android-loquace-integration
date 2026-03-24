@@ -3,6 +3,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <data>
+        <import type="android.view.View" />
+        <import type="org.linphone.loquace_integration.xmpp.AttachmentType" />
         <variable
             name="model"
             type="org.linphone.loquace_integration.xmpp.XmppMessage" />
@@ -22,7 +24,7 @@
             android:layout_height="wrap_content"
             android:padding="10dp"
             android:orientation="vertical"
-            android:gravity="end"
+            android:gravity="center_horizontal"
             android:background="@drawable/chat_bubble_outgoing_last_background"
             app:layout_constraintHorizontal_bias="1"
             app:layout_constrainedWidth="true"
@@ -33,11 +35,105 @@
             <androidx.appcompat.widget.AppCompatTextView
                 android:id="@+id/text_content"
                 style="@style/default_text_style"
+                android:visibility="@{model.body.length() > 0 ? View.VISIBLE : View.GONE}"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@{model.body}"
                 android:textSize="14sp"
                 android:textColor="?attr/color_main2_800"/>
+
+            <!-- Image attachment -->
+            <ImageView
+                android:id="@+id/attachment_image"
+                android:layout_width="200dp"
+                android:layout_height="150dp"
+                android:scaleType="centerCrop"
+                android:visibility="gone"
+                android:contentDescription="@null"/>
+
+            <!-- Video attachment -->
+            <FrameLayout
+                android:id="@+id/attachment_video"
+                android:layout_width="200dp"
+                android:layout_height="150dp"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/video_thumbnail"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop"
+                    android:contentDescription="@null"/>
+
+                <ImageView
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/play_fill"
+                    android:contentDescription="@null"
+                    app:tint="@color/bc_white"/>
+
+            </FrameLayout>
+
+            <!-- File/Audio attachment -->
+            <LinearLayout
+                android:id="@+id/attachment_file"
+                android:layout_width="200dp"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="end"
+                android:padding="8dp"
+                android:background="@drawable/chat_bubble_outgoing_last_background"
+                android:visibility="gone">
+
+                <ImageView
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:src="@drawable/file"
+                    android:contentDescription="@null"
+                    app:tint="?attr/color_main1_500"/>
+
+                <androidx.appcompat.widget.AppCompatTextView
+                    style="@style/default_text_style_300"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:text="@{model.attachmentName}"
+                    android:maxLines="2"
+                    android:ellipsize="end"
+                    android:textSize="12sp"/>
+
+            </LinearLayout>
+
+            <!-- Voice note attachment -->
+            <LinearLayout
+                android:id="@+id/attachment_voice"
+                android:layout_width="200dp"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="end"
+                android:padding="8dp"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/voice_play_button"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:src="@drawable/play_fill"
+                    android:contentDescription="@null"
+                    app:tint="?attr/color_main1_500"/>
+
+                <SeekBar
+                    android:id="@+id/voice_seekbar"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:max="100"
+                    android:progress="0"/>
+
+            </LinearLayout>
 
             <androidx.appcompat.widget.AppCompatTextView
                 android:id="@+id/time"

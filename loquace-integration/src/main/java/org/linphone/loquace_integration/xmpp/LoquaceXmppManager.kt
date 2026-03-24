@@ -24,6 +24,7 @@ import org.jxmpp.jid.EntityBareJid
 import org.jxmpp.jid.impl.JidCreate
 import org.linphone.loquace_integration.storage.LoquaceDatabase
 import org.linphone.loquace_integration.storage.entity.XmppAccountEntity
+import java.io.File
 import java.security.SecureRandom
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManager
@@ -91,15 +92,24 @@ object LoquaceXmppManager {
                 chatManager = ChatManager.getInstanceFor(conn)
                 chatManager?.addIncomingListener(IncomingChatMessageListener { from, message, chat ->
                     scope.launch {
+                        val body = message.body ?: ""
+                        val attachmentType = detectAttachmentType(body)
+                        val attachmentName = if (attachmentType != AttachmentType.NONE) {
+                            body.substringAfterLast("/")
+                        } else null
+
                         val xmppMessage = XmppMessage(
-                            id          = message.stanzaId ?: System.currentTimeMillis().toString(),
-                            from        = from.asEntityBareJidString(),
-                            to          = conn.user.asEntityBareJidString(),
-                            body        = message.body ?: "",
-                            timestamp   = System.currentTimeMillis(),
-                            isOutgoing  = false
+                            id             = message.stanzaId ?: System.currentTimeMillis().toString(),
+                            from           = from.asEntityBareJidString(),
+                            to             = conn.user.asEntityBareJidString(),
+                            body           = if (attachmentType != AttachmentType.NONE) "" else body,
+                            timestamp      = System.currentTimeMillis(),
+                            isOutgoing     = false,
+                            attachmentUrl  = if (attachmentType != AttachmentType.NONE) body else null,
+                            attachmentType = attachmentType,
+                            attachmentName = attachmentName
                         )
-                        Log.d(TAG, "Received message from ${xmppMessage.from}: ${xmppMessage.body}")
+                        Log.d(TAG, "Received message from ${xmppMessage.from}")
                         updateConversationWithMessage(xmppMessage)
                     }
                 })
@@ -168,9 +178,68 @@ object LoquaceXmppManager {
         }
     }
 
+    fun sendMessageWithAttachment(
+        toJid: String,
+        attachmentUrl: String,
+        attachmentType: AttachmentType,
+        attachmentName: String,
+        body: String = ""
+    ): XmppMessage? {
+        return try {
+            val conn = connection ?: throw Exception("Not connected")
+            val jid: EntityBareJid = JidCreate.entityBareFrom(toJid)
+            val chat: Chat = ChatManager.getInstanceFor(conn).chatWith(jid)
+
+            // Send the URL as the message body (standard XMPP file sharing)
+            chat.send(attachmentUrl)
+
+            val message = XmppMessage(
+                id             = System.currentTimeMillis().toString(),
+                from           = conn.user.asEntityBareJidString(),
+                to             = toJid,
+                body           = body,
+                timestamp      = System.currentTimeMillis(),
+                isOutgoing     = true,
+                attachmentUrl  = attachmentUrl,
+                attachmentType = attachmentType,
+                attachmentName = attachmentName
+            )
+            scope.launch { updateConversationWithMessage(message) }
+            Log.d(TAG, "Sent attachment to $toJid: $attachmentUrl")
+            message
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to send attachment: ${e.message}")
+            null
+        }
+    }
+
+    suspend fun uploadAndSendFile(
+        toJid: String,
+        file: File,
+        attachmentName: String,
+        attachmentType: AttachmentType
+    ): XmppMessage? {
+        val conn = connection as? XMPPTCPConnection ?: run {
+            Log.e(TAG, "Not connected or wrong connection type")
+            return null
+        }
+        val uploadedUrl = XmppHttpUploadManager.uploadFile(conn, file) ?: run {
+            Log.e(TAG, "Failed to upload file ${file.name}")
+            return null
+        }
+        return sendMessageWithAttachment(
+            toJid          = toJid,
+            attachmentUrl  = uploadedUrl,
+            attachmentType = attachmentType,
+            attachmentName = attachmentName
+        )
+    }
+
     fun isConnected(): Boolean = connection?.isConnected == true && connection?.isAuthenticated == true
 
     fun getMyJid(): String = connection?.user?.asEntityBareJidString() ?: ""
+
+    fun getConnection(): XMPPTCPConnection? = connection as? XMPPTCPConnection
 
     private fun loadConversations() {
         // Initial empty list — conversations are built up as messages arrive
@@ -216,5 +285,23 @@ object LoquaceXmppManager {
         conversationMessages.add(message)
         current[peerJid] = conversationMessages
         _messages.value = current
+    }
+
+    private fun detectAttachmentType(body: String): AttachmentType {
+        if (!body.startsWith("https://") && !body.startsWith("http://")) return AttachmentType.NONE
+        // Strip query parameters before checking extension
+        val urlWithoutQuery = body.substringBefore("?")
+        val lower = urlWithoutQuery.lowercase()
+        return when {
+            lower.endsWith(".jpg") || lower.endsWith(".jpeg") ||
+                    lower.endsWith(".png") || lower.endsWith(".gif") ||
+                    lower.endsWith(".webp") -> AttachmentType.IMAGE
+            lower.endsWith(".mp4") || lower.endsWith(".mkv") ||
+                    lower.endsWith(".avi") || lower.endsWith(".mov") -> AttachmentType.VIDEO
+            lower.endsWith(".mp3") || lower.endsWith(".ogg") ||
+                    lower.endsWith(".wav") || lower.endsWith(".m4a") -> AttachmentType.AUDIO
+            lower.endsWith(".mka") -> AttachmentType.VOICE_NOTE
+            else -> AttachmentType.FILE
+        }
     }
 }

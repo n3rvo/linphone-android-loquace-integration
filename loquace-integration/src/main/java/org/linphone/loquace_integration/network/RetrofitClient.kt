@@ -26,4 +26,7 @@ object RetrofitClient {
 
     fun createCallHistoryApi(domain: String): CallHistoryApi =
         buildRetrofit(domain).create(CallHistoryApi::class.java)
+
+    fun createMediaApi(domain: String): MediaApi =
+        buildRetrofit(domain).create(MediaApi::class.java)
 }

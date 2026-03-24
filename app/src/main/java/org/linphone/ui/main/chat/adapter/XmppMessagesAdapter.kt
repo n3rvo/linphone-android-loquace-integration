@@ -11,6 +11,17 @@ import org.linphone.R
 import org.linphone.databinding.LoquaceChatBubbleIncomingBinding
 import org.linphone.databinding.LoquaceChatBubbleOutgoingBinding
 import org.linphone.loquace_integration.xmpp.XmppMessage
+import coil3.load
+import android.graphics.Bitmap
+import android.media.ThumbnailUtils
+import android.provider.MediaStore
+import android.util.Log
+import android.view.View
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.linphone.loquace_integration.network.LoquaceMediaDownloader
 
 class XmppMessagesAdapter : ListAdapter<XmppMessage, RecyclerView.ViewHolder>(DiffCallback()) {
 
@@ -55,6 +66,19 @@ class XmppMessagesAdapter : ListAdapter<XmppMessage, RecyclerView.ViewHolder>(Di
         fun bind(message: XmppMessage) {
             binding.model = message
             binding.executePendingBindings()
+
+            Log.d("XmppAdapter", "Message: body=${message.body}, isImage=${message.isImage}, isVideo=${message.isVideo}, isFile=${message.isFile}, attachmentUrl=${message.attachmentUrl}, attachmentType=${message.attachmentType}")
+
+            // Handle visibility manually
+            binding.attachmentImage.visibility = if (message.isImage) View.VISIBLE else View.GONE
+            binding.attachmentVideo.visibility = if (message.isVideo) View.VISIBLE else View.GONE
+            binding.attachmentFile.visibility = if (message.isFile) View.VISIBLE else View.GONE
+            binding.attachmentVoice.visibility = if (message.isVoiceNote) View.VISIBLE else View.GONE
+            binding.textContent.visibility = if (message.body.isNotEmpty()) View.VISIBLE else View.GONE
+
+            Log.d("XmppAdapter", "attachmentImage visibility=${binding.attachmentImage.visibility}")
+
+            loadAttachment(message, binding)
         }
     }
 
@@ -64,6 +88,20 @@ class XmppMessagesAdapter : ListAdapter<XmppMessage, RecyclerView.ViewHolder>(Di
         fun bind(message: XmppMessage) {
             binding.model = message
             binding.executePendingBindings()
+
+            Log.d("XmppAdapter", "Message: body=${message.body}, isImage=${message.isImage}, isVideo=${message.isVideo}, isFile=${message.isFile}, attachmentUrl=${message.attachmentUrl}, attachmentType=${message.attachmentType}")
+
+            // Handle visibility manually
+            binding.attachmentImage.visibility = if (message.isImage) View.VISIBLE else View.GONE
+            binding.attachmentVideo.visibility = if (message.isVideo) View.VISIBLE else View.GONE
+            binding.attachmentFile.visibility = if (message.isFile) View.VISIBLE else View.GONE
+            binding.attachmentVoice.visibility = if (message.isVoiceNote) View.VISIBLE else View.GONE
+            binding.textContent.visibility = if (message.body.isNotEmpty()) View.VISIBLE else View.GONE
+
+            Log.d("XmppAdapter", "attachmentImage visibility=${binding.attachmentImage.visibility}")
+
+
+            loadAttachment(message, binding)
         }
     }
 
@@ -74,4 +112,63 @@ class XmppMessagesAdapter : ListAdapter<XmppMessage, RecyclerView.ViewHolder>(Di
         override fun areContentsTheSame(oldItem: XmppMessage, newItem: XmppMessage) =
             oldItem == newItem
     }
+
+    private fun loadAttachment(message: XmppMessage, binding: Any) {
+        val imageView = when (binding) {
+            is LoquaceChatBubbleIncomingBinding -> binding.attachmentImage
+            is LoquaceChatBubbleOutgoingBinding -> binding.attachmentImage
+            else -> return
+        }
+        val videoThumb = when (binding) {
+            is LoquaceChatBubbleIncomingBinding -> binding.videoThumbnail
+            is LoquaceChatBubbleOutgoingBinding -> binding.videoThumbnail
+            else -> null
+        }
+        val voicePlayButton = when (binding) {
+            is LoquaceChatBubbleIncomingBinding -> binding.voicePlayButton
+            is LoquaceChatBubbleOutgoingBinding -> binding.voicePlayButton
+            else -> null
+        }
+
+        when {
+            message.isImage -> {
+                val token = org.linphone.loquace_integration.storage.SessionManager(imageView.context).getToken() ?: ""
+                val domain = org.linphone.loquace_integration.storage.SessionManager(imageView.context).getDomain() ?: ""
+
+                CoroutineScope(Dispatchers.IO).launch {
+                    val bytes = LoquaceMediaDownloader.downloadBytes(
+                        url    = message.attachmentUrl!!,
+                        token  = token,
+                        domain = domain
+                    )
+                    if (bytes != null) {
+                        val bitmap = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                        withContext(Dispatchers.Main) {
+                            imageView.setImageBitmap(bitmap)
+                            Log.d("XmppAdapter", "Image loaded successfully")
+                        }
+                    } else {
+                        Log.e("XmppAdapter", "Failed to download image")
+                    }
+                }
+            }
+            message.isVideo -> {
+                CoroutineScope(Dispatchers.IO).launch {
+                    val thumb = ThumbnailUtils.createVideoThumbnail(
+                        message.localPath ?: message.attachmentUrl ?: "",
+                        MediaStore.Images.Thumbnails.MINI_KIND
+                    )
+                    withContext(Dispatchers.Main) {
+                        videoThumb?.setImageBitmap(thumb)
+                    }
+                }
+            }
+            message.isVoiceNote -> {
+                voicePlayButton?.setOnClickListener {
+                    // Voice note playback will be implemented next
+                }
+            }
+        }
+    }
+
 }

@@ -28,6 +28,8 @@ constructor() : GenericViewModel() {
         MutableLiveData()
     }
 
+    val fetchInProgress = MutableLiveData<Boolean>(false)
+
     fun initialize(jid: String, name: String, group: Boolean = false) {
         peerJid.value = jid
         displayName.value = name
