@@ -43,6 +43,8 @@ object LoquaceXmppManager {
 
     private var chatManager: ChatManager? = null
 
+    private val sentMessageIds = mutableSetOf<String>()
+
     // Connection state
     private val _connectionState = MutableStateFlow<XmppConnectionState>(XmppConnectionState.Disconnected)
     val connectionState: StateFlow<XmppConnectionState> = _connectionState
@@ -93,6 +95,16 @@ object LoquaceXmppManager {
                 chatManager?.addIncomingListener(IncomingChatMessageListener { from, message, chat ->
                     scope.launch {
                         val body = message.body ?: ""
+                        Log.d(TAG, "Incoming message from ${from.asEntityBareJidString()}, body: $body")
+                        Log.d(TAG, "My JID: ${conn.user.asEntityBareJidString()}")
+                        Log.d(TAG, "sentMessageIds contains body: ${sentMessageIds.contains(body)}")
+
+                        // Ignore carbon copies of our own sent messages
+                        if (sentMessageIds.contains(body)) {
+                            Log.d(TAG, "Ignoring carbon copy of our own message")
+                            sentMessageIds.remove(body)
+                            return@launch
+                        }
                         val attachmentType = detectAttachmentType(body)
                         val attachmentName = if (attachmentType != AttachmentType.NONE) {
                             body.substringAfterLast("/")
@@ -157,6 +169,7 @@ object LoquaceXmppManager {
             val jid: EntityBareJid = JidCreate.entityBareFrom(toJid)
             val chat: Chat = ChatManager.getInstanceFor(conn).chatWith(jid)
             val messageId = System.currentTimeMillis().toString()
+            sentMessageIds.add(body) // Track sent message body
             chat.send(body)
 
             val message = XmppMessage(
@@ -217,22 +230,48 @@ object LoquaceXmppManager {
         toJid: String,
         file: File,
         attachmentName: String,
-        attachmentType: AttachmentType
+        attachmentType: AttachmentType,
+        localPath: String? = null
     ): XmppMessage? {
         val conn = connection as? XMPPTCPConnection ?: run {
             Log.e(TAG, "Not connected or wrong connection type")
             return null
         }
+
+        // Create pending message immediately
+        val messageId = System.currentTimeMillis().toString()
+        val pendingMessage = XmppMessage(
+            id             = messageId,
+            from           = conn.user.asEntityBareJidString(),
+            to             = toJid,
+            body           = "",
+            timestamp      = System.currentTimeMillis(),
+            isOutgoing     = true,
+            attachmentType = attachmentType,
+            attachmentName = attachmentName,
+            localPath      = localPath,
+            isUploading    = true
+        )
+        addPendingMessage(pendingMessage)
+
+        // Upload in background
         val uploadedUrl = XmppHttpUploadManager.uploadFile(conn, file) ?: run {
             Log.e(TAG, "Failed to upload file ${file.name}")
             return null
         }
-        return sendMessageWithAttachment(
-            toJid          = toJid,
-            attachmentUrl  = uploadedUrl,
-            attachmentType = attachmentType,
-            attachmentName = attachmentName
+
+        // Send the message and update
+        val jid: EntityBareJid = JidCreate.entityBareFrom(toJid)
+        val chat: Chat = ChatManager.getInstanceFor(conn).chatWith(jid)
+        chat.send(uploadedUrl)
+
+        val finalMessage = pendingMessage.copy(
+            attachmentUrl = uploadedUrl,
+            isUploading   = false
         )
+        updateMessage(messageId, toJid, finalMessage)
+        Log.d(TAG, "File uploaded and message updated: $uploadedUrl")
+        return finalMessage
     }
 
     fun isConnected(): Boolean = connection?.isConnected == true && connection?.isAuthenticated == true
@@ -302,6 +341,43 @@ object LoquaceXmppManager {
                     lower.endsWith(".wav") || lower.endsWith(".m4a") -> AttachmentType.AUDIO
             lower.endsWith(".mka") -> AttachmentType.VOICE_NOTE
             else -> AttachmentType.FILE
+        }
+    }
+
+    fun addPendingMessage(message: XmppMessage) {
+        scope.launch {
+            val peerJid = message.to
+            val current = _messages.value.toMutableMap()
+            val conversationMessages = (current[peerJid] ?: emptyList()).toMutableList()
+            conversationMessages.add(message)
+            current[peerJid] = conversationMessages
+            _messages.value = current
+        }
+    }
+
+    fun updateMessage(messageId: String, peerJid: String, updatedMessage: XmppMessage) {
+        scope.launch {
+            // Update message in store
+            val current = _messages.value.toMutableMap()
+            val conversationMessages = (current[peerJid] ?: emptyList()).toMutableList()
+            val index = conversationMessages.indexOfFirst { it.id == messageId }
+            if (index != -1) {
+                conversationMessages[index] = updatedMessage
+                current[peerJid] = conversationMessages
+                _messages.value = current
+            }
+
+            // Update conversation last message without adding to store
+            val currentConvList = _conversations.value.toMutableList()
+            val existingConv = currentConvList.find { it.peerJid == peerJid }
+            if (existingConv != null) {
+                val updated = existingConv.copy(
+                    lastMessage   = updatedMessage.attachmentName ?: updatedMessage.body,
+                    lastTimestamp = updatedMessage.timestamp
+                )
+                currentConvList[currentConvList.indexOf(existingConv)] = updated
+                _conversations.value = currentConvList
+            }
         }
     }
 }

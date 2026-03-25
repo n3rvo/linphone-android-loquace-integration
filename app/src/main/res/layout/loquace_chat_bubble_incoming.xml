@@ -132,6 +132,17 @@
 
             </LinearLayout>
 
+            <com.google.android.material.progressindicator.CircularProgressIndicator
+                android:id="@+id/upload_progress"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="4dp"
+                android:indeterminate="true"
+                android:visibility="gone"
+                app:indicatorColor="?attr/color_main1_500"/>
+
             <androidx.appcompat.widget.AppCompatTextView
                 android:id="@+id/time"
                 style="@style/default_text_style_300"

@@ -1,5 +1,6 @@
 package org.linphone.ui.main.chat.fragment
 
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -9,6 +10,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.UiThread
 import androidx.core.content.FileProvider
 import androidx.databinding.DataBindingUtil
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.navArgs
@@ -19,9 +21,12 @@ import kotlinx.coroutines.withContext
 import org.linphone.R
 import org.linphone.core.tools.Log
 import org.linphone.databinding.LoquaceChatConversationFragmentBinding
+import org.linphone.loquace_integration.network.LoquaceMediaDownloader
+import org.linphone.loquace_integration.storage.SessionManager
 import org.linphone.loquace_integration.xmpp.AttachmentType
 import org.linphone.loquace_integration.xmpp.LoquaceXmppManager
 import org.linphone.loquace_integration.xmpp.XmppHttpUploadManager
+import org.linphone.loquace_integration.xmpp.XmppMessage
 import org.linphone.ui.main.chat.adapter.XmppMessagesAdapter
 import org.linphone.ui.main.chat.viewmodel.XmppConversationViewModel
 import org.linphone.ui.main.fragment.SlidingPaneChildFragment
@@ -82,6 +87,7 @@ class XmppConversationFragment : SlidingPaneChildFragment() {
             container,
             false
         )
+
         return binding.root
     }
 
@@ -127,6 +133,15 @@ class XmppConversationFragment : SlidingPaneChildFragment() {
         binding.attachButton.setOnClickListener {
             showAttachmentPicker()
         }
+
+        adapter.attachmentClickedEvent.observe(viewLifecycleOwner) {
+            it.consume { message ->
+                when {
+                    message.isImage || message.isVideo -> openMediaFullScreen(message)
+                    message.isFile -> openDocument(message)
+                }
+            }
+        }
     }
 
     override fun goBack(): Boolean {
@@ -167,25 +182,20 @@ class XmppConversationFragment : SlidingPaneChildFragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             for (uri in uris) {
                 val file = uriToFile(uri) ?: continue
-                val mimeType = requireContext().contentResolver.getType(uri) ?: "application/octet-stream"
+                val mimeType = requireContext().contentResolver.getType(uri)
+                    ?: "application/octet-stream"
                 val attachmentType = mimeTypeToAttachmentType(mimeType)
 
-                viewModel.fetchInProgress.value = true
-
-                val result = withContext(Dispatchers.IO) {
+                // Upload in background without blocking UI
+                launch(Dispatchers.IO) {
                     LoquaceXmppManager.uploadAndSendFile(
                         toJid          = peerJid,
                         file           = file,
                         attachmentName = file.name,
-                        attachmentType = attachmentType
+                        attachmentType = attachmentType,
+                        localPath      = file.absolutePath  // Pass local path for immediate display
                     )
                 }
-
-                if (result == null) {
-                    Log.e("$TAG Failed to upload and send file ${file.name}")
-                }
-
-                viewModel.fetchInProgress.value = false
             }
         }
     }
@@ -222,6 +232,96 @@ class XmppConversationFragment : SlidingPaneChildFragment() {
             mimeType.startsWith("video/") -> AttachmentType.VIDEO
             mimeType.startsWith("audio/") -> AttachmentType.AUDIO
             else -> AttachmentType.FILE
+        }
+    }
+
+    private fun openMediaFullScreen(message: XmppMessage) {
+        // If already cached locally, open directly
+        if (!message.localPath.isNullOrEmpty()) {
+            val file = File(message.localPath!!)
+            if (file.exists()) {
+                openFileDirectly(file, message)
+                return
+            }
+        }
+
+        // Otherwise download first
+        val token = SessionManager(requireContext()).getToken() ?: ""
+        val domain = SessionManager(requireContext()).getDomain() ?: ""
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.fetchInProgress.value = true
+            val bytes = withContext(Dispatchers.IO) {
+                LoquaceMediaDownloader.downloadBytes(
+                    url    = message.attachmentUrl!!,
+                    token  = token,
+                    domain = domain
+                )
+            }
+            viewModel.fetchInProgress.value = false
+
+            if (bytes != null) {
+                val ext = message.attachmentName?.substringAfterLast(".") ?:
+                if (message.isVideo) "mp4" else "jpg"
+                val file = File(requireContext().cacheDir, "media_${message.id}.$ext")
+                file.writeBytes(bytes)
+                message.localPath = file.absolutePath
+                openFileDirectly(file, message)
+            }
+        }
+    }
+
+    private fun openFileDirectly(file: File, message: XmppMessage) {
+        val uri = FileProvider.getUriForFile(
+            requireContext(),
+            requireContext().getString(R.string.file_provider),
+            file
+        )
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, if (message.isVideo) "video/*" else "image/*")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        startActivity(intent)
+    }
+
+    private fun openDocument(message: XmppMessage) {
+        val token = SessionManager(requireContext()).getToken() ?: ""
+        val domain = SessionManager(requireContext()).getDomain() ?: ""
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.fetchInProgress.value = true
+            val bytes = withContext(Dispatchers.IO) {
+                LoquaceMediaDownloader.downloadBytes(
+                    url    = message.attachmentUrl!!,
+                    token  = token,
+                    domain = domain
+                )
+            }
+            viewModel.fetchInProgress.value = false
+
+            if (bytes != null) {
+                val fileName = message.attachmentName ?: "document_${message.id}"
+                val file = File(requireContext().cacheDir, fileName)
+                file.writeBytes(bytes)
+
+                val uri = FileProvider.getUriForFile(
+                    requireContext(),
+                    requireContext().getString(R.string.file_provider),
+                    file
+                )
+                val mimeType = requireContext().contentResolver.getType(uri) ?: "*/*"
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(uri, mimeType)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                try {
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    Log.e("$TAG No app found to open document: ${e.message}")
+                }
+            } else {
+                Log.e("$TAG Failed to download document for viewing")
+            }
         }
     }
 }

@@ -10,7 +10,8 @@ data class XmppMessage(
     val attachmentUrl: String? = null,
     val attachmentType: AttachmentType = AttachmentType.NONE,
     val attachmentName: String? = null,
-    var localPath: String? = null
+    var localPath: String? = null,
+    val isUploading: Boolean = false  // Add this
 ) {
     val formattedTime: String
         get() {

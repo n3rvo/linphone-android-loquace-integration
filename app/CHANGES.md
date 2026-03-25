@@ -30,7 +30,6 @@ AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO) // Added 
 
 ### Change: Replace first launch welcome screen with Loquace login
 **Location:** `handleMainIntent()` function
-**Reason:** Linphone's `WelcomeActivity` replaced by `LoquaceLoginActivity`.
 
 ### Change: Handle login result, permissions screen and contacts load
 **Location:** `onActivityResult()`
@@ -54,9 +53,8 @@ AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO) // Added 
 ```
 
 ### Change: Remove duplicate FileProvider
-**Reason:** We accidentally added a duplicate FileProvider. Removed ours and use
-Linphone's existing one with authority `@string/file_provider` pointing to
-`@xml/provider_paths`.
+**Reason:** Accidentally added a duplicate. Using Linphone's existing one with
+authority `@string/file_provider` pointing to `@xml/provider_paths`.
 
 ---
 
@@ -162,8 +160,6 @@ Added `LOQUACE_CALL_TYPE`, related events, `LoquaceCallLogViewHolder`.
 ## `app/src/main/res/layout/chat_list_fragment.xml`
 
 ### Change: Add TabLayout and wrap content in panel
-Replaced standalone `RecyclerView` with `LinearLayout` wrapper containing
-`TabLayout` and `RecyclerView`.
 
 ---
 
@@ -216,34 +212,40 @@ implementation(libs.gson)
 ### `app/src/main/java/org/linphone/ui/main/chat/adapter/XmppMessagesAdapter.kt` *(NEW)*
 
 **Key implementation notes:**
-- Images loaded via `LoquaceMediaDownloader` with auth headers (OkHttp via Retrofit)
+- Images loaded via `LoquaceMediaDownloader` with auth headers
+- Videos cached locally after first download for faster reopening
 - Attachment type detection strips query parameters before checking extension
 - Visibility of attachment views controlled entirely in code, not data binding
+- `attachmentClickedEvent` fires when tapping image, video or file bubble
+- Upload progress shown via `CircularProgressIndicator` while `isUploading=true`
+- Sent message IDs tracked in `sentMessageIds` to avoid carbon copy duplicates
 
 ### `app/src/main/res/layout/loquace_chat_bubble_incoming.xml` *(NEW)*
 ### `app/src/main/res/layout/loquace_chat_bubble_outgoing.xml` *(NEW)*
 
 **Attachment views:** `attachment_image`, `attachment_video`, `attachment_file`,
-`attachment_voice` — all default `gone`, visibility set in adapter `bind()`.
+`attachment_voice`, `upload_progress` — all default `gone`, visibility set in adapter.
 
 ### `app/src/main/res/layout/loquace_chat_conversation_fragment.xml` *(NEW)*
 Chat screen with header, message list, attach button, text input and send button.
 
 ### `app/src/main/java/org/linphone/ui/main/chat/fragment/XmppConversationFragment.kt` *(NEW)*
-Extends `SlidingPaneChildFragment`. Handles file picking (image, video, file, camera),
-file upload via `LoquaceXmppManager.uploadAndSendFile()`, and message sending.
+Extends `SlidingPaneChildFragment`. Handles:
+- File picking (Image, Video, File, Camera)
+- File upload via `LoquaceXmppManager.uploadAndSendFile()`
+- Message sending
+- Attachment tap → `openMediaFullScreen()` or `openDocument()`
+- Full screen media via Android's built-in viewer with `FileProvider`
+- Document opening via `ACTION_VIEW` intent
 
 ### `app/src/main/java/org/linphone/ui/main/history/model/LoquaceCallLogModel.kt` *(NEW)*
 
 ---
 
 ## Pending attachment features (to implement)
-- Full screen image viewer when tapping image bubble
-- Full screen video player when tapping video bubble (similar to WhatsApp)
-- Video thumbnail loading with authenticated download
 - Voice note recording and playback
 - Camera photo fix (file size zero issue)
-- Document/file opening when tapping file bubble
+- Video upload optimization for longer videos
 
 ---
 
@@ -252,7 +254,7 @@ file upload via `LoquaceXmppManager.uploadAndSendFile()`, and message sending.
 Entirely new module — no merge conflicts expected here.
 
 **Key files:**
-- `network/` — Retrofit API clients for auth, settings, presence, contacts, call history, media download
+- `network/` — Retrofit API clients for auth, settings, presence, contacts, call history, media
 - `network/MediaApi.kt` — authenticated media download endpoint
 - `network/LoquaceMediaDownloader.kt` — downloads media bytes with auth headers
 - `storage/` — Room DB with SQLCipher, SessionManager (includes `saveUserAgent`/`getUserAgent`)
@@ -260,16 +262,19 @@ Entirely new module — no merge conflicts expected here.
 - `ui/` — LoquaceLoginActivity
 - `viewmodel/LoquaceLoginViewModel.kt` — full login flow including XMPP
 - `xmpp/LoquaceXmppManager.kt` — Smack XMPP singleton with:
-    - Message store per conversation
+    - Message store per conversation (`_messages` StateFlow)
     - `isConnecting` flag to prevent double connection
+    - `sentMessageIds` set to ignore carbon copies of sent messages
     - Roster loading disabled
     - Resource set to user agent
-    - Attachment type detection (strips query params)
-    - `uploadAndSendFile()` for authenticated file upload
-    - `sendMessageWithAttachment()` for sending attachment messages
+    - Attachment type detection (strips query params before extension check)
+    - `addPendingMessage()` — shows message immediately while uploading
+    - `updateMessage()` — updates pending message after upload completes
+    - `uploadAndSendFile()` — creates pending message, uploads, then updates
+    - `sendMessageWithAttachment()` — for sending attachment messages
 - `xmpp/XmppConnectionService.kt` — foreground service with user agent from intent/SessionManager
 - `xmpp/XmppConnectionState.kt` — sealed class for connection states
-- `xmpp/XmppMessage.kt` — data class with attachment fields and `formattedTime`
+- `xmpp/XmppMessage.kt` — data class with attachment fields, `isUploading`, `formattedTime`
 - `xmpp/XmppConversation.kt` — data class for conversations
 - `xmpp/XmppHttpUploadManager.kt` — XEP-0363 HTTP file upload via Smack
 - `xmpp/AttachmentType.kt` — enum: NONE, IMAGE, VIDEO, AUDIO, FILE, VOICE_NOTE
