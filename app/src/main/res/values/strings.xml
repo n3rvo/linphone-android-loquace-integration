@@ -1054,4 +1054,12 @@
     <string name="chat_tab_chats">Chats</string>
     <string name="chat_tab_contacts">Contacts</string>
     <string name="chat_tab_groups">Groups</string>
+    <string name="attachment_picker_title">Attach</string>
+    <string name="attachment_picker_image">Photo</string>
+    <string name="attachment_picker_video">Video</string>
+    <string name="attachment_picker_file">Document</string>
+    <string name="attachment_picker_camera_photo">Take Photo</string>
+    <string name="attachment_picker_camera_video">Record Video</string>
+    <string name="voice_note_release_to_send">Release to send</string>
+    <string name="voice_note_permission_denied">Microphone permission is required to record voice notes</string>
 </resources>

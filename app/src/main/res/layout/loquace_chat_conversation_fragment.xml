@@ -90,21 +90,80 @@
                 android:paddingTop="8dp"
                 android:paddingBottom="8dp"
                 app:layout_constraintStart_toEndOf="@id/attach_button"
-                app:layout_constraintEnd_toStartOf="@id/send_button"
+                app:layout_constraintEnd_toStartOf="@id/button_container"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent"/>
 
-            <ImageView
-                android:id="@+id/send_button"
+            <FrameLayout
+                android:id="@+id/button_container"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
-                android:padding="8dp"
-                android:src="@drawable/paper_plane_right"
-                android:contentDescription="@string/content_description_chat_send_message"
-                app:tint="@color/icon_primary_color_selector"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent"/>
+                app:layout_constraintBottom_toBottomOf="parent">
+
+                <ImageView
+                    android:id="@+id/send_button"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:padding="8dp"
+                    android:src="@drawable/paper_plane_right"
+                    android:contentDescription="@string/content_description_chat_send_message"
+                    android:visibility="gone"
+                    app:tint="@color/icon_primary_color_selector"/>
+
+                <ImageView
+                    android:id="@+id/mic_button"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:padding="8dp"
+                    android:src="@drawable/microphone"
+                    android:contentDescription="@string/content_description_chat_start_voice_message_recording"
+                    android:visibility="visible"
+                    app:tint="@color/icon_primary_color_selector"/>
+
+            </FrameLayout>
+
+            <!-- Recording indicator - shown while recording -->
+            <LinearLayout
+                android:id="@+id/recording_area"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:visibility="gone"
+                android:padding="8dp"
+                app:layout_constraintStart_toEndOf="@id/attach_button"
+                app:layout_constraintEnd_toStartOf="@id/button_container"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent">
+
+                <View
+                    android:id="@+id/recording_dot"
+                    android:layout_width="10dp"
+                    android:layout_height="10dp"
+                    android:background="@drawable/led_background"
+                    android:backgroundTint="@color/red_danger_500"/>
+
+                <androidx.appcompat.widget.AppCompatTextView
+                    android:id="@+id/recording_timer"
+                    style="@style/default_text_style"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="0:00"
+                    android:textSize="14sp"/>
+
+                <androidx.appcompat.widget.AppCompatTextView
+                    style="@style/default_text_style_300"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:text="@string/voice_note_release_to_send"
+                    android:textSize="12sp"
+                    android:textColor="?attr/color_main2_500"/>
+
+            </LinearLayout>
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 

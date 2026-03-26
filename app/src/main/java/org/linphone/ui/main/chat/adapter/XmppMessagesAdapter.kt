@@ -13,6 +13,7 @@ import org.linphone.databinding.LoquaceChatBubbleOutgoingBinding
 import org.linphone.loquace_integration.xmpp.XmppMessage
 import coil3.load
 import android.graphics.Bitmap
+import android.media.MediaPlayer
 import android.media.ThumbnailUtils
 import android.provider.MediaStore
 import android.util.Log
@@ -164,17 +165,30 @@ class XmppMessagesAdapter : ListAdapter<XmppMessage, RecyclerView.ViewHolder>(Di
             is LoquaceChatBubbleOutgoingBinding -> binding.voicePlayButton
             else -> null
         }
+        val voiceSeekbar = when (binding) {
+            is LoquaceChatBubbleIncomingBinding -> binding.voiceSeekbar
+            is LoquaceChatBubbleOutgoingBinding -> binding.voiceSeekbar
+            else -> null
+        }
 
         when {
             message.isImage -> {
-                val url = message.attachmentUrl
+                val url = message.localPath ?: message.attachmentUrl
                 if (url == null) {
-                    Log.d("XmppAdapter", "Video still uploading, skipping thumbnail")
+                    Log.d("XmppAdapter", "Image still uploading, skipping")
                     return
                 }
 
-                val token = org.linphone.loquace_integration.storage.SessionManager(imageView.context).getToken() ?: ""
-                val domain = org.linphone.loquace_integration.storage.SessionManager(imageView.context).getDomain() ?: ""
+                // If we have a local path, load directly without downloading
+                if (!message.localPath.isNullOrEmpty() && File(message.localPath!!).exists()) {
+                    val bitmap = android.graphics.BitmapFactory.decodeFile(message.localPath)
+                    imageView.setImageBitmap(bitmap)
+                    Log.d("XmppAdapter", "Image loaded from local path")
+                    return
+                }
+
+                val token = SessionManager(imageView.context).getToken() ?: ""
+                val domain = SessionManager(imageView.context).getDomain() ?: ""
 
                 CoroutineScope(Dispatchers.IO).launch {
                     val bytes = LoquaceMediaDownloader.downloadBytes(
@@ -193,38 +207,93 @@ class XmppMessagesAdapter : ListAdapter<XmppMessage, RecyclerView.ViewHolder>(Di
                     }
                 }
             }
+
             message.isVideo -> {
-                val url = message.attachmentUrl ?: return
-                val token = SessionManager(imageView.context).getToken() ?: ""
-                val domain = SessionManager(imageView.context).getDomain() ?: ""
+                val url = message.attachmentUrl
 
                 CoroutineScope(Dispatchers.IO).launch {
                     val cachedFile = File(imageView.context.cacheDir, "video_${message.id}.mp4")
 
-                    if (!cachedFile.exists()) {
-                        val bytes = LoquaceMediaDownloader.downloadBytes(url, token, domain)
-                        if (bytes != null) {
-                            cachedFile.writeBytes(bytes)
+                    when {
+                        // Use local path if available (camera video)
+                        !message.localPath.isNullOrEmpty() && File(message.localPath!!).exists() -> {
+                            val thumb = ThumbnailUtils.createVideoThumbnail(
+                                message.localPath!!,
+                                MediaStore.Images.Thumbnails.MINI_KIND
+                            )
+                            withContext(Dispatchers.Main) {
+                                videoThumb?.setImageBitmap(thumb)
+                            }
+                        }
+                        // Use cached file if available
+                        cachedFile.exists() -> {
+                            val thumb = ThumbnailUtils.createVideoThumbnail(
+                                cachedFile.absolutePath,
+                                MediaStore.Images.Thumbnails.MINI_KIND
+                            )
+                            withContext(Dispatchers.Main) {
+                                videoThumb?.setImageBitmap(thumb)
+                            }
                             message.localPath = cachedFile.absolutePath
                         }
-                    } else {
-                        message.localPath = cachedFile.absolutePath
-                    }
-
-                    if (cachedFile.exists()) {
-                        val thumb = ThumbnailUtils.createVideoThumbnail(
-                            cachedFile.absolutePath,
-                            MediaStore.Images.Thumbnails.MINI_KIND
-                        )
-                        withContext(Dispatchers.Main) {
-                            videoThumb?.setImageBitmap(thumb)
+                        // Download from network
+                        url != null -> {
+                            val token = SessionManager(imageView.context).getToken() ?: ""
+                            val domain = SessionManager(imageView.context).getDomain() ?: ""
+                            val bytes = LoquaceMediaDownloader.downloadBytes(url, token, domain)
+                            if (bytes != null) {
+                                cachedFile.writeBytes(bytes)
+                                message.localPath = cachedFile.absolutePath
+                                val thumb = ThumbnailUtils.createVideoThumbnail(
+                                    cachedFile.absolutePath,
+                                    MediaStore.Images.Thumbnails.MINI_KIND
+                                )
+                                withContext(Dispatchers.Main) {
+                                    videoThumb?.setImageBitmap(thumb)
+                                }
+                            }
                         }
+                        else -> Log.d("XmppAdapter", "Video still uploading, skipping thumbnail")
                     }
                 }
             }
             message.isVoiceNote -> {
+                val url = message.localPath ?: message.attachmentUrl ?: return
+                var mediaPlayer: MediaPlayer? = null
+
                 voicePlayButton?.setOnClickListener {
-                    // Voice note playback will be implemented next
+                    if (mediaPlayer?.isPlaying == true) {
+                        mediaPlayer?.pause()
+                        voicePlayButton.setImageResource(R.drawable.play_fill)
+                    } else {
+                        mediaPlayer?.release()
+                        mediaPlayer = MediaPlayer().apply {
+                            if (!message.localPath.isNullOrEmpty() && File(message.localPath!!).exists()) {
+                                setDataSource(message.localPath!!)
+                            } else {
+                                setDataSource(url)
+                            }
+                            setOnPreparedListener { player ->
+                                player.start()
+                                voicePlayButton?.setImageResource(R.drawable.pause_fill)
+                                voiceSeekbar?.max = player.duration
+
+                                CoroutineScope(Dispatchers.Main).launch {
+                                    while (player.isPlaying) {
+                                        voiceSeekbar?.progress = player.currentPosition
+                                        kotlinx.coroutines.delay(100)
+                                    }
+                                    voicePlayButton?.setImageResource(R.drawable.play_fill)
+                                    voiceSeekbar?.progress = 0
+                                }
+                            }
+                            setOnCompletionListener {
+                                voicePlayButton?.setImageResource(R.drawable.play_fill)
+                                voiceSeekbar?.progress = 0
+                            }
+                            prepareAsync()
+                        }
+                    }
                 }
             }
         }

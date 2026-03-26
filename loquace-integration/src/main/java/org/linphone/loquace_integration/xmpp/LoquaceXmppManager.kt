@@ -107,7 +107,7 @@ object LoquaceXmppManager {
                         }
                         val attachmentType = detectAttachmentType(body)
                         val attachmentName = if (attachmentType != AttachmentType.NONE) {
-                            body.substringAfterLast("/")
+                            body.substringAfterLast("/").substringBefore("?")
                         } else null
 
                         val xmppMessage = XmppMessage(
@@ -328,7 +328,6 @@ object LoquaceXmppManager {
 
     private fun detectAttachmentType(body: String): AttachmentType {
         if (!body.startsWith("https://") && !body.startsWith("http://")) return AttachmentType.NONE
-        // Strip query parameters before checking extension
         val urlWithoutQuery = body.substringBefore("?")
         val lower = urlWithoutQuery.lowercase()
         return when {
@@ -337,9 +336,9 @@ object LoquaceXmppManager {
                     lower.endsWith(".webp") -> AttachmentType.IMAGE
             lower.endsWith(".mp4") || lower.endsWith(".mkv") ||
                     lower.endsWith(".avi") || lower.endsWith(".mov") -> AttachmentType.VIDEO
-            lower.endsWith(".mp3") || lower.endsWith(".ogg") ||
-                    lower.endsWith(".wav") || lower.endsWith(".m4a") -> AttachmentType.AUDIO
-            lower.endsWith(".mka") -> AttachmentType.VOICE_NOTE
+            lower.endsWith(".mp3") || lower.endsWith(".wav") ||
+                    lower.endsWith(".ogg") || lower.endsWith(".mka") ||
+                    lower.endsWith(".m4a") || lower.endsWith(".aac") -> AttachmentType.VOICE_NOTE
             else -> AttachmentType.FILE
         }
     }
