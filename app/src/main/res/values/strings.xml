@@ -1062,4 +1062,10 @@
     <string name="attachment_picker_camera_video">Record Video</string>
     <string name="voice_note_release_to_send">Release to send</string>
     <string name="voice_note_permission_denied">Microphone permission is required to record voice notes</string>
+    <string name="group_name_hint">Group name</string>
+    <string name="create_group_title">Create Group</string>
+    <string name="add_participants_title">Add Participants</string>
+    <string name="cancel">Cancel</string>
+    <string name="create">Create</string>
+    <string name="content_description_group_create">Create new group</string>
 </resources>

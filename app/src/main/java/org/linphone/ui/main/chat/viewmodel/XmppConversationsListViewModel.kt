@@ -11,6 +11,7 @@ import org.linphone.loquace_integration.network.ContactResponse
 import org.linphone.loquace_integration.network.LoquaceAvatarHelper
 import org.linphone.loquace_integration.network.LoquaceConfig
 import org.linphone.loquace_integration.network.LoquaceContactsRepository
+import org.linphone.loquace_integration.network.LoquaceGroupsRepository
 import org.linphone.loquace_integration.xmpp.LoquaceXmppManager
 import org.linphone.loquace_integration.xmpp.XmppConversation
 import org.linphone.ui.main.chat.model.XmppConversationModel
@@ -44,6 +45,9 @@ constructor() : AbstractMainViewModel() {
     val contacts = MutableLiveData<List<XmppConversationModel>>()
     val isFetchingContacts = MutableLiveData<Boolean>(false)
 
+    val groups = MutableLiveData<List<XmppConversationModel>>()
+    val isFetchingGroups = MutableLiveData<Boolean>(false)
+
     init {
         viewModelScope.launch {
             LoquaceXmppManager.conversations.collectLatest { xmppConversations ->
@@ -73,34 +77,27 @@ constructor() : AbstractMainViewModel() {
     }
 
     fun loadContacts(domain: String, token: String, userAgent: String, filesDir: File) {
-        Log.d("XmppContacts", "loadContacts called, isFetchingContacts=${isFetchingContacts.value}")
         if (isFetchingContacts.value == true) return
 
         viewModelScope.launch {
             isFetchingContacts.value = true
-            val repository = LoquaceContactsRepository()
+            val repository = LoquaceGroupsRepository()
             var offset = 0
             val allModels = arrayListOf<XmppConversationModel>()
 
             while (true) {
-                val page = repository.fetchContacts(
+                val page = repository.fetchChatEnabledContacts(
                     domain    = domain,
                     token     = token,
                     userAgent = userAgent,
-                    type      = LoquaceContactsRepository.TYPE_USER,
                     offset    = offset
                 )
 
                 if (page.isEmpty()) break
 
-                // Filter XMPP contacts
-                val xmppContacts = page.filter { contact ->
-                    contact.chats?.any { it.type == "xmpp" && !it.account.isNullOrEmpty() } == true
-                }
-
                 // Fetch avatars BEFORE entering postOnCoreThread
                 val avatarPaths = mutableMapOf<String, String>()
-                for (contact in xmppContacts) {
+                for (contact in page) {
                     val path = LoquaceAvatarHelper.fetchAndSaveAvatar(
                         contactId  = contact.id,
                         pictureUrl = contact.pictureUrl,
@@ -112,10 +109,12 @@ constructor() : AbstractMainViewModel() {
                     if (path != null) avatarPaths[contact.id] = path
                 }
 
-                // Now create models on core thread with avatars ready
                 coreContext.postOnCoreThread {
-                    val newModels = xmppContacts.map { contact ->
-                        val jid = contact.chats!!.first { it.type == "xmpp" }.account!!
+                    val newModels = page.map { contact ->
+                        val jid = contact.chats?.firstOrNull {
+                            it.type == "xmpp" && !it.account.isNullOrEmpty()
+                        }?.account ?: return@map null
+
                         val friend = coreContext.core.createFriend()
                         friend.name = contact.fullName
                             ?: "${contact.firstName} ${contact.lastName}".trim()
@@ -136,19 +135,45 @@ constructor() : AbstractMainViewModel() {
                             ),
                             prebuiltAvatarModel = avatarModel
                         )
-                    }
+                    }.filterNotNull()
 
                     allModels.addAll(newModels)
                     contacts.postValue(ArrayList(allModels))
                 }
 
-                Log.d("XmppContacts", "Fetched page with ${page.size} contacts, ${xmppContacts.size} have XMPP, offset=$offset")
+                Log.d(TAG, "Fetched page with ${page.size} chat-enabled contacts, offset=$offset")
 
                 if (page.size < LoquaceConfig.CONTACTS_PAGE_SIZE) break
                 offset += page.size
             }
 
             isFetchingContacts.postValue(false)
+        }
+    }
+
+    fun loadGroups(domain: String, token: String, userAgent: String) {
+        if (isFetchingGroups.value == true) return
+        viewModelScope.launch {
+            isFetchingGroups.value = true
+            val repository = LoquaceGroupsRepository()
+            val groupList = repository.getGroups(domain, token, userAgent)
+            Log.d(TAG, "Fetched ${groupList.size} groups")
+
+            coreContext.postOnCoreThread {
+                val models = groupList.map { group ->
+                    XmppConversationModel(
+                        XmppConversation(
+                            peerJid       = group.jid,
+                            lastMessage   = "${group.participants.size} members",
+                            lastTimestamp = group.createdAt,
+                            displayName   = group.name,
+                            isGroup       = true
+                        )
+                    )
+                }
+                groups.postValue(models)
+                isFetchingGroups.postValue(false)
+            }
         }
     }
 }

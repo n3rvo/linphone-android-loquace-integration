@@ -13,11 +13,12 @@ interface ContactsApi {
         @Header(LoquaceConfig.HEADER_AUTH_TOKEN) token: String,
         @Header(LoquaceConfig.HEADER_USER_AGENT) userAgent: String,
         @Header(LoquaceConfig.HEADER_TENANT)     tenant: String,
-        @Query("type")                           type: String,
+        @Query("type")                           type: String? = null,
         @Query("offset")                         offset: Int,
         @Query("limit")                          limit: Int,
         @Query("_")                              timestamp: Long,
-        @Query("term")                           query: String = ""
+        @Query("term")                           query: String = "",
+        @Query("chats")                          chatsEnabled: Boolean? = null
     ): List<ContactResponse>
 
     @GET

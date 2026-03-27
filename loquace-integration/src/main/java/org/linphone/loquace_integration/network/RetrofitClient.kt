@@ -29,4 +29,7 @@ object RetrofitClient {
 
     fun createMediaApi(domain: String): MediaApi =
         buildRetrofit(domain).create(MediaApi::class.java)
+
+    fun createChatsApi(domain: String): ChatsApi =
+        buildRetrofit(domain).create(ChatsApi::class.java)
 }

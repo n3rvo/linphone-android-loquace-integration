@@ -32,17 +32,22 @@ import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import androidx.annotation.UiThread
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.findNavController
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.tabs.TabLayout
+import kotlinx.coroutines.launch
 import org.linphone.LinphoneApplication.Companion.coreContext
 import org.linphone.R
 import org.linphone.contacts.getListOfSipAddressesAndPhoneNumbers
 import org.linphone.core.tools.Log
 import org.linphone.databinding.ChatListFragmentBinding
+import org.linphone.loquace_integration.network.ContactResponse
+import org.linphone.loquace_integration.network.LoquaceConfig
+import org.linphone.loquace_integration.network.LoquaceGroupsRepository
 import org.linphone.loquace_integration.storage.SessionManager
 import org.linphone.ui.fileviewer.FileViewerActivity
 import org.linphone.ui.fileviewer.MediaViewerActivity
@@ -78,6 +83,10 @@ class ConversationsListFragment : AbstractMainFragment() {
     private lateinit var adapter: ConversationsListAdapter
 
     private var bottomSheetDialog: BottomSheetDialogFragment? = null
+
+    private var pendingGroupName: String = ""
+
+    private var selectedParticipants = mutableListOf<ContactResponse>()
 
     private val numberOrAddressClickListener = object : ContactNumberOrAddressClickListener {
         @UiThread
@@ -240,6 +249,10 @@ class ConversationsListFragment : AbstractMainFragment() {
             }
         }
 
+        binding.newGroup?.setOnClickListener {
+            showCreateGroupDialog()
+        }
+
         listViewModel.conversations.observe(viewLifecycleOwner) {
             adapter.submitList(it)
 
@@ -373,14 +386,17 @@ class ConversationsListFragment : AbstractMainFragment() {
                 when (tab?.position) {
                     0 -> {
                         xmppViewModel.switchTab(XmppConversationsListViewModel.ChatTab.CHATS)
+                        binding.newGroup?.visibility = View.GONE
                         showChatsTab()
                     }
                     1 -> {
                         xmppViewModel.switchTab(XmppConversationsListViewModel.ChatTab.CONTACTS)
+                        binding.newGroup?.visibility = View.GONE
                         showContactsTab()
                     }
                     2 -> {
                         xmppViewModel.switchTab(XmppConversationsListViewModel.ChatTab.GROUPS)
+                        binding.newGroup?.visibility = View.VISIBLE
                         showGroupsTab()
                     }
                 }
@@ -536,8 +552,128 @@ class ConversationsListFragment : AbstractMainFragment() {
     }
 
     private fun showGroupsTab() {
-        // Will be implemented in next phase
-        binding.conversationsList.adapter = null
+        binding.conversationsList.adapter = xmppAdapter
+
+        val sessionManager = SessionManager(requireContext())
+        val domain = sessionManager.getDomain() ?: ""
+        val token = sessionManager.getToken() ?: ""
+        val userAgent = buildUserAgent(requireContext())
+
+        xmppViewModel.loadGroups(domain, token, userAgent)
+
+        xmppViewModel.groups.observe(viewLifecycleOwner) { models ->
+            if (xmppViewModel.currentTab.value == XmppConversationsListViewModel.ChatTab.GROUPS) {
+                xmppAdapter.submitList(models)
+            }
+        }
+
+        xmppViewModel.isFetchingGroups.observe(viewLifecycleOwner) { isFetching ->
+            if (xmppViewModel.currentTab.value == XmppConversationsListViewModel.ChatTab.GROUPS) {
+                listViewModel.fetchInProgress.value = isFetching
+            }
+        }
+    }
+
+    private fun showCreateGroupDialog() {
+        val input = android.widget.EditText(requireContext()).apply {
+            hint = getString(R.string.group_name_hint)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
+            setPadding(48, 32, 48, 32)
+        }
+
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.create_group_title))
+            .setView(input)
+            .setPositiveButton(getString(R.string.next)) { _, _ ->
+                val name = input.text.toString().trim()
+                if (name.isNotEmpty()) {
+                    showContactPickerForGroup(name)
+                }
+            }
+            .setNegativeButton(getString(R.string.cancel), null)
+            .show()
+    }
+
+    private fun showContactPickerForGroup(groupName: String) {
+        pendingGroupName = groupName
+        selectedParticipants.clear()
+
+        val sessionManager = SessionManager(requireContext())
+        val domain = sessionManager.getDomain() ?: ""
+        val token = sessionManager.getToken() ?: ""
+        val userAgent = buildUserAgent(requireContext())
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            listViewModel.fetchInProgress.value = true
+            val repository = LoquaceGroupsRepository()
+            val contacts = mutableListOf<ContactResponse>()
+            var offset = 0
+
+            while (true) {
+                val page = repository.fetchChatEnabledContacts(domain, token, userAgent, offset)
+                if (page.isEmpty()) break
+                contacts.addAll(page)
+                if (page.size < LoquaceConfig.CONTACTS_PAGE_SIZE) break
+                offset += page.size
+            }
+            listViewModel.fetchInProgress.value = false
+
+            val names = contacts.map {
+                it.fullName ?: "${it.firstName} ${it.lastName}".trim()
+            }.toTypedArray()
+            val checked = BooleanArray(contacts.size) { false }
+
+            androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setTitle(getString(R.string.add_participants_title))
+                .setMultiChoiceItems(names, checked) { _, which, isChecked ->
+                    if (isChecked) selectedParticipants.add(contacts[which])
+                    else selectedParticipants.remove(contacts[which])
+                }
+                .setPositiveButton(getString(R.string.create)) { _, _ ->
+                    createGroup(domain, token, userAgent)
+                }
+                .setNegativeButton(getString(R.string.cancel), null)
+                .show()
+        }
+    }
+
+    private fun createGroup(domain: String, token: String, userAgent: String) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            listViewModel.fetchInProgress.value = true
+            val repository = LoquaceGroupsRepository()
+
+            val group = repository.createGroup(domain, token, userAgent, pendingGroupName)
+            if (group != null) {
+                Log.i("$TAG Group created: ${group.jid}")
+
+                // Invite selected participants
+                for (contact in selectedParticipants) {
+                    val jid = contact.chats?.firstOrNull { it.type == "xmpp" }?.account
+                    if (!jid.isNullOrEmpty()) {
+                        repository.inviteParticipant(domain, token, userAgent, group.jid, jid)
+                    }
+                }
+
+                listViewModel.fetchInProgress.value = false
+
+                // Reload groups and navigate to the new group
+                xmppViewModel.loadGroups(domain, token, userAgent)
+
+                val bundle = Bundle().apply {
+                    putString("peerJid", group.jid)
+                    putString("displayName", group.name)
+                    putBoolean("isGroup", true)
+                }
+                binding.chatNavContainer.findNavController().navigate(
+                    R.id.action_global_xmppConversationFragment,
+                    bundle
+                )
+                sharedViewModel.openSlidingPaneEvent.value = Event(true)
+            } else {
+                listViewModel.fetchInProgress.value = false
+                Log.e("$TAG Failed to create group")
+            }
+        }
     }
 
     @SuppressLint("HardwareIds")

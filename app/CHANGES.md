@@ -81,12 +81,12 @@ Added `loquaceDialerFragment` with actions to/from all other main tabs.
 </fragment>
 
 <action
-    android:id="@+id/action_global_xmppConversationFragment"
-    app:destination="@id/xmppConversationFragment"
-    app:enterAnim="@anim/slide_in_right"
-    app:exitAnim="@anim/slide_out_left"
-    app:popEnterAnim="@anim/slide_in_left"
-    app:popExitAnim="@anim/slide_out_right"/>
+android:id="@+id/action_global_xmppConversationFragment"
+app:destination="@id/xmppConversationFragment"
+app:enterAnim="@anim/slide_in_right"
+app:exitAnim="@anim/slide_out_left"
+app:popEnterAnim="@anim/slide_in_left"
+app:popExitAnim="@anim/slide_out_right"/>
 ```
 
 ---
@@ -160,17 +160,31 @@ Added `LOQUACE_CALL_TYPE`, related events, `LoquaceCallLogViewHolder`.
 
 ## `app/src/main/res/layout/chat_list_fragment.xml`
 
-### Change: Add TabLayout and wrap content in panel
+### Change 1: Add TabLayout and wrap content in panel
+
+### Change 2: Add Create Group FAB
+```xml
+<com.google.android.material.floatingactionbutton.FloatingActionButton
+    android:id="@+id/new_group"
+    android:visibility="gone"
+    android:src="@drawable/users_three"
+    .../>
+```
+Shown only when Groups tab is active.
 
 ---
 
 ## `app/src/main/java/org/linphone/ui/main/chat/fragment/ConversationsListFragment.kt`
 
-### Change: Add XMPP chat tabs, adapter and conversation navigation
+### Change: Add XMPP chat tabs, adapter, conversation navigation and group creation
 - Added `xmppViewModel` and `xmppAdapter`
-- Setup three tabs (Chats, Contacts, Groups)
-- Conversation click navigates to `xmppConversationFragment`
+- Setup three tabs (Chats, Contacts, Groups) with FAB visibility per tab
+- Conversation/contact/group click navigates to `xmppConversationFragment`
 - Added `showChatsTab()`, `showContactsTab()`, `showGroupsTab()`
+- Added `showCreateGroupDialog()` — dialog for group name input
+- Added `showContactPickerForGroup()` — paginated contact picker with checkboxes
+- Added `createGroup()` — creates group via API and invites selected participants
+- Added `buildUserAgent()` helper
 
 ---
 
@@ -195,6 +209,13 @@ Added `LOQUACE_CALL_TYPE`, related events, `LoquaceCallLogViewHolder`.
 <string name="attachment_picker_file">File</string>
 <string name="attachment_picker_camera_photo">Camera Photo</string>
 <string name="attachment_picker_camera_video">Camera Video</string>
+<string name="group_name_hint">Group name</string>
+<string name="create_group_title">Create Group</string>
+<string name="add_participants_title">Add Participants</string>
+<string name="next">Next</string>
+<string name="cancel">Cancel</string>
+<string name="create">Create</string>
+<string name="content_description_group_create">Create new group</string>
 ```
 
 ---
@@ -215,8 +236,18 @@ implementation(libs.gson)
 ### `app/src/main/java/org/linphone/ui/main/dialer/fragment/LoquaceDialerFragment.kt` *(NEW)*
 ### `app/src/main/res/layout/loquace_chat_list_cell.xml` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/chat/model/XmppConversationModel.kt` *(NEW)*
+
+**Updated:** Accepts optional `prebuiltAvatarModel` parameter to avoid
+re-creating friend on core thread when avatar is already fetched.
+
 ### `app/src/main/java/org/linphone/ui/main/chat/adapter/XmppConversationsAdapter.kt` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/chat/viewmodel/XmppConversationsListViewModel.kt` *(NEW)*
+
+**Key methods:**
+- `loadContacts()` — fetches chat-enabled contacts via `chats=true` param,
+  paginated, with avatar pre-fetching
+- `loadGroups()` — fetches groups from Loquace API
+
 ### `app/src/main/java/org/linphone/ui/main/chat/viewmodel/XmppConversationViewModel.kt` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/chat/adapter/XmppMessagesAdapter.kt` *(NEW)*
 
@@ -241,9 +272,8 @@ implementation(libs.gson)
 Voice note bubble has `voice_play_button` and `voice_seekbar`.
 
 ### `app/src/main/res/layout/loquace_chat_conversation_fragment.xml` *(NEW)*
-Chat screen with header, message list, attach button, text input, send button
-and mic button. Send/mic toggle based on text input content. Recording area
-shows timer and hint while recording.
+Chat screen with header, message list, attach button, text input, send/mic buttons
+in a `FrameLayout` container, and recording area with timer.
 
 ### `app/src/main/java/org/linphone/ui/main/chat/fragment/XmppConversationFragment.kt` *(NEW)*
 Extends `SlidingPaneChildFragment`. Handles:
@@ -266,12 +296,15 @@ Methods: `startRecording()`, `stopRecording()`, `cancelRecording()`, `isRecordin
 ---
 
 ## Pending features
-- Chat contacts tab (fetch from Loquace API, show XMPP-enabled contacts)
-- Chat groups tab
+- Group messages (incoming/outgoing) via XMPP MUC listener
+- Group header click → group details screen
+- Group details screen (members, add/remove, delete)
+- Improved contact picker with avatars and search
 - Push notifications (requires updated `google-services.json`)
 - Video upload optimization for longer videos
 - In-app media viewer (future phase)
 - Message history via MAM XEP-0313 (future phase)
+- Delete message (for all chat types, future phase)
 
 ---
 
@@ -280,30 +313,23 @@ Methods: `startRecording()`, `stopRecording()`, `cancelRecording()`, `isRecordin
 Entirely new module — no merge conflicts expected here.
 
 **Key files:**
-- `network/` — Retrofit API clients for auth, settings, presence, contacts, call history, media
+- `network/` — Retrofit API clients for auth, settings, presence, contacts, call history, media, chats
 - `network/MediaApi.kt` — authenticated media download endpoint
 - `network/LoquaceMediaDownloader.kt` — downloads media bytes with auth headers
-- `network/ContactResponse.kt` — added `chats: List<ContactChat>?` field for XMPP JID
-- `storage/` — Room DB with SQLCipher, SessionManager (includes `saveUserAgent`/`getUserAgent`)
+- `network/ContactResponse.kt` — includes `chats: List<ContactChat>?` for XMPP JID
+- `network/GroupResponse.kt` — group and participant data models
+- `network/ChatsApi.kt` — group CRUD endpoints (get, create, invite, remove, delete)
+- `network/LoquaceGroupsRepository.kt` — group API calls + `fetchChatEnabledContacts()`
+- `storage/` — Room DB with SQLCipher, SessionManager
 - `sip/LoquaceSipConfigurator.kt` — sets SIP user agent via `core.setUserAgent()`
 - `ui/` — LoquaceLoginActivity
 - `viewmodel/LoquaceLoginViewModel.kt` — full login flow including XMPP
-- `xmpp/LoquaceXmppManager.kt` — Smack XMPP singleton with:
-    - Message store per conversation (`_messages` StateFlow)
-    - `isConnecting` flag to prevent double connection
-    - `sentMessageIds` set to ignore carbon copies of sent messages
-    - Roster loading disabled
-    - Resource set to user agent
-    - Attachment type detection (strips query params, all audio → VOICE_NOTE)
-    - `addPendingMessage()` — shows message immediately while uploading
-    - `updateMessage()` — updates pending message after upload completes
-    - `uploadAndSendFile()` — creates pending message, uploads, then updates
-    - `sendMessageWithAttachment()` — for sending attachment messages
-- `xmpp/XmppConnectionService.kt` — foreground service with user agent from intent/SessionManager
+- `xmpp/LoquaceXmppManager.kt` — Smack XMPP singleton with full message/attachment handling
+- `xmpp/XmppConnectionService.kt` — foreground service
 - `xmpp/XmppConnectionState.kt` — sealed class for connection states
 - `xmpp/XmppMessage.kt` — data class with attachment fields, `isUploading`, `formattedTime`
-- `xmpp/XmppConversation.kt` — data class for conversations
-- `xmpp/XmppHttpUploadManager.kt` — XEP-0363 HTTP file upload via Smack
+- `xmpp/XmppConversation.kt` — data class with `displayName`, `pictureUrl`, `isGroup`
+- `xmpp/XmppHttpUploadManager.kt` — XEP-0363 HTTP file upload
 - `xmpp/AttachmentType.kt` — enum: NONE, IMAGE, VIDEO, AUDIO, FILE, VOICE_NOTE
 - `network/LoquaceAvatarHelper.kt` — shared avatar fetch utility
 
