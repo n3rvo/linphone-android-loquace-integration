@@ -33,8 +33,8 @@
                 <androidx.constraintlayout.widget.Group
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    app:constraint_referenced_ids="no_conversation_image, no_conversation_label"
-                    android:visibility="@{viewModel.conversations.empty ? View.VISIBLE : View.GONE}" />
+                    app:constraint_referenced_ids="no_conversation_image, no_conversation_label,show_accounts_list"
+                    android:visibility="gone" />
 
                 <include
                     android:id="@+id/top_bar"

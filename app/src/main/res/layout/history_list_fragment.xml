@@ -39,8 +39,8 @@
                 <androidx.constraintlayout.widget.Group
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    app:constraint_referenced_ids="no_calls_image, no_calls_label"
-                    android:visibility="@{viewModel.callLogs.empty ? View.VISIBLE : View.GONE}" />
+                    app:constraint_referenced_ids="no_calls_image, no_calls_label, show_accounts_list"
+                    android:visibility="gone" />
 
                 <include
                     android:id="@+id/top_bar"

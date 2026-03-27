@@ -11,7 +11,10 @@ import org.linphone.R
 
 class XmppConversationModel
 @WorkerThread
-constructor(val conversation: XmppConversation) {
+constructor(
+    val conversation: XmppConversation,
+    prebuiltAvatarModel: ContactAvatarModel? = null
+) {
 
     val id = conversation.peerJid
 
@@ -52,10 +55,13 @@ constructor(val conversation: XmppConversation) {
     val avatarModel: ContactAvatarModel
 
     init {
-        val friend = coreContext.core.createFriend()
-        friend.name = conversation.displayName ?: conversation.peerJid.substringBefore("@")
-        friend.refKey = conversation.peerJid
-        avatarModel = coreContext.contactsManager.getContactAvatarModelForFriend(friend)
+        avatarModel = prebuiltAvatarModel ?: run {
+            val friend = coreContext.core.createFriend()
+            friend.name = conversation.displayName
+                ?: conversation.peerJid.substringBefore("@")
+            friend.refKey = conversation.peerJid
+            coreContext.contactsManager.getContactAvatarModelForFriend(friend)
+        }
     }
 
     fun update(conversation: XmppConversation) {

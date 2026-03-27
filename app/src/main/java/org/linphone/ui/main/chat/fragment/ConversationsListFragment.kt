@@ -19,8 +19,12 @@
  */
 package org.linphone.ui.main.chat.fragment
 
+import android.annotation.SuppressLint
+import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -39,6 +43,7 @@ import org.linphone.R
 import org.linphone.contacts.getListOfSipAddressesAndPhoneNumbers
 import org.linphone.core.tools.Log
 import org.linphone.databinding.ChatListFragmentBinding
+import org.linphone.loquace_integration.storage.SessionManager
 import org.linphone.ui.fileviewer.FileViewerActivity
 import org.linphone.ui.fileviewer.MediaViewerActivity
 import org.linphone.ui.main.MainActivity.Companion.ARGUMENTS_CONVERSATION_ID
@@ -403,14 +408,22 @@ class ConversationsListFragment : AbstractMainFragment() {
                         putString("displayName", model.subject)
                         putBoolean("isGroup", model.isGroup)
                     }
-                    sharedViewModel.openSlidingPaneEvent.value = Event(true)
                     binding.chatNavContainer.findNavController().navigate(
                         R.id.action_global_xmppConversationFragment,
                         bundle
                     )
+                    binding.root.postDelayed({
+                        sharedViewModel.openSlidingPaneEvent.value = Event(true)
+                    }, 50)
                 } catch (e: Exception) {
                     Log.e("$TAG Failed to navigate to conversation: ${e.message}")
                 }
+            }
+        }
+
+        xmppViewModel.isFetchingContacts.observe(viewLifecycleOwner) { isFetching ->
+            if (xmppViewModel.currentTab.value == XmppConversationsListViewModel.ChatTab.CONTACTS) {
+                listViewModel.fetchInProgress.value = isFetching
             }
         }
 
@@ -499,12 +512,44 @@ class ConversationsListFragment : AbstractMainFragment() {
     }
 
     private fun showContactsTab() {
-        // Will be implemented in next phase
-        binding.conversationsList.adapter = null
+        binding.conversationsList.adapter = xmppAdapter
+        Log.d("XmppContacts", "showContactsTab called")
+
+        /*if (!xmppViewModel.contacts.value.isNullOrEmpty()) {
+            xmppAdapter.submitList(xmppViewModel.contacts.value)
+            return
+        }*/
+
+        val sessionManager = SessionManager(requireContext())
+        val domain = sessionManager.getDomain() ?: ""
+        val token = sessionManager.getToken() ?: ""
+        val userAgent = buildUserAgent(requireContext())
+
+        Log.d("XmppContacts", "About to call loadContacts, domain=$domain")
+        xmppViewModel.loadContacts(domain, token, userAgent, requireContext().filesDir)
+
+        xmppViewModel.contacts.observe(viewLifecycleOwner) { models ->
+            if (xmppViewModel.currentTab.value == XmppConversationsListViewModel.ChatTab.CONTACTS) {
+                xmppAdapter.submitList(models)
+            }
+        }
     }
 
     private fun showGroupsTab() {
         // Will be implemented in next phase
         binding.conversationsList.adapter = null
+    }
+
+    @SuppressLint("HardwareIds")
+    private fun buildUserAgent(context: Context): String {
+        val appName = context.getString(org.linphone.loquace_integration.R.string.app_name_agent)
+        val osVersion = Build.VERSION.RELEASE
+        val versionName = context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        val deviceModel = Build.MODEL
+        val androidId = Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.ANDROID_ID
+        )
+        return "$appName/Android-$osVersion/$versionName/$deviceModel/$androidId"
     }
 }

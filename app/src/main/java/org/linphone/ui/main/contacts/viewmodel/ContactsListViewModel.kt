@@ -51,6 +51,13 @@ class ContactsListViewModel
         private const val TAG = "[Contacts List ViewModel]"
     }
 
+    /*val pbxContactsCache = MutableLiveData<ArrayList<ContactAvatarModel>>()
+    val userContactsCache = MutableLiveData<ArrayList<ContactAvatarModel>>()
+    var pbxOffset = 0
+    var pbxHasMore = true
+    var userOffset = 0
+    var userHasMore = true*/
+
     enum class ContactTab { PHONE, PBX, USER }
 
     val currentTab = MutableLiveData<ContactTab>(ContactTab.PHONE)

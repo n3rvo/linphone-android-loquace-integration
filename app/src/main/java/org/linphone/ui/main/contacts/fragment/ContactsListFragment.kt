@@ -549,6 +549,26 @@ class ContactsListFragment : AbstractMainFragment() {
     }
 
     private fun resetAndLoadContacts(type: String, query: String = "") {
+        /*if (query.isEmpty()) {
+            val cache = when (type) {
+                LoquaceContactsRepository.TYPE_PBX -> listViewModel.pbxContactsCache.value
+                LoquaceContactsRepository.TYPE_USER -> listViewModel.userContactsCache.value
+                else -> null
+            }
+            if (!cache.isNullOrEmpty()) {
+                listViewModel.loquaceContactsList.value = cache
+                // Restore pagination state
+                currentOffset = when (type) {
+                    LoquaceContactsRepository.TYPE_PBX -> listViewModel.pbxOffset
+                    else -> listViewModel.userOffset
+                }
+                hasMoreContacts = when (type) {
+                    LoquaceContactsRepository.TYPE_PBX -> listViewModel.pbxHasMore
+                    else -> listViewModel.userHasMore
+                }
+                return
+            }
+        }*/
         currentOffset = 0
         hasMoreContacts = true
         listViewModel.loquaceContactsList.value = arrayListOf()
@@ -572,6 +592,15 @@ class ContactsListFragment : AbstractMainFragment() {
 
             if (contacts.isEmpty() || contacts.size < LoquaceConfig.CONTACTS_PAGE_SIZE) {
                 hasMoreContacts = false
+        /*        when (type) {
+                    LoquaceContactsRepository.TYPE_PBX -> listViewModel.pbxHasMore = false
+                    LoquaceContactsRepository.TYPE_USER -> listViewModel.userHasMore = false
+                }
+            }
+            // After updating list:
+            when (type) {
+                LoquaceContactsRepository.TYPE_PBX -> listViewModel.pbxOffset = currentOffset
+                LoquaceContactsRepository.TYPE_USER -> listViewModel.userOffset = currentOffset*/
             }
 
             val avatarPaths = mutableMapOf<String, String>()
@@ -613,6 +642,13 @@ class ContactsListFragment : AbstractMainFragment() {
                     newList.addAll(existing)
                     newList.addAll(friends)
                     listViewModel.loquaceContactsList.value = newList
+/*
+                    // Save to cache after every page
+                    when (type) {
+                        LoquaceContactsRepository.TYPE_PBX -> listViewModel.pbxContactsCache.value = newList
+                        LoquaceContactsRepository.TYPE_USER -> listViewModel.userContactsCache.value = newList
+                    }
+*/
                     currentOffset += contacts.size
                     isLoadingMore = false
                     listViewModel.fetchInProgress.value = false

@@ -50,11 +50,12 @@ AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO) // Added 
 
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+<uses-permission android:name="android.permission.RECORD_AUDIO"/>
 ```
 
 ### Change: Remove duplicate FileProvider
-**Reason:** Accidentally added a duplicate. Using Linphone's existing one with
-authority `@string/file_provider` pointing to `@xml/provider_paths`.
+**Reason:** Using Linphone's existing one with authority `@string/file_provider`
+pointing to `@xml/provider_paths`.
 
 ---
 
@@ -186,6 +187,14 @@ Added `LOQUACE_CALL_TYPE`, related events, `LoquaceCallLogViewHolder`.
 <string name="chat_tab_chats">Chats</string>
 <string name="chat_tab_contacts">Contacts</string>
 <string name="chat_tab_groups">Groups</string>
+<string name="voice_note_release_to_send">Release to send</string>
+<string name="voice_note_permission_denied">Microphone permission is required to record voice notes</string>
+<string name="attachment_picker_title">Attach</string>
+<string name="attachment_picker_image">Image</string>
+<string name="attachment_picker_video">Video</string>
+<string name="attachment_picker_file">File</string>
+<string name="attachment_picker_camera_photo">Camera Photo</string>
+<string name="attachment_picker_camera_video">Camera Video</string>
 ```
 
 ---
@@ -213,39 +222,56 @@ implementation(libs.gson)
 
 **Key implementation notes:**
 - Images loaded via `LoquaceMediaDownloader` with auth headers
+- Camera photos/videos load instantly from local path
 - Videos cached locally after first download for faster reopening
 - Attachment type detection strips query parameters before checking extension
+- All audio formats (mp3, m4a, ogg, wav, mka) treated as VOICE_NOTE
 - Visibility of attachment views controlled entirely in code, not data binding
 - `attachmentClickedEvent` fires when tapping image, video or file bubble
 - Upload progress shown via `CircularProgressIndicator` while `isUploading=true`
 - Sent message IDs tracked in `sentMessageIds` to avoid carbon copy duplicates
+- `addPendingMessage()` shows message immediately while uploading
+- `updateMessage()` updates pending message after upload completes
 
 ### `app/src/main/res/layout/loquace_chat_bubble_incoming.xml` *(NEW)*
 ### `app/src/main/res/layout/loquace_chat_bubble_outgoing.xml` *(NEW)*
 
 **Attachment views:** `attachment_image`, `attachment_video`, `attachment_file`,
 `attachment_voice`, `upload_progress` — all default `gone`, visibility set in adapter.
+Voice note bubble has `voice_play_button` and `voice_seekbar`.
 
 ### `app/src/main/res/layout/loquace_chat_conversation_fragment.xml` *(NEW)*
-Chat screen with header, message list, attach button, text input and send button.
+Chat screen with header, message list, attach button, text input, send button
+and mic button. Send/mic toggle based on text input content. Recording area
+shows timer and hint while recording.
 
 ### `app/src/main/java/org/linphone/ui/main/chat/fragment/XmppConversationFragment.kt` *(NEW)*
 Extends `SlidingPaneChildFragment`. Handles:
-- File picking (Image, Video, File, Camera)
+- File picking (Image, Video, File, Camera Photo, Camera Video)
 - File upload via `LoquaceXmppManager.uploadAndSendFile()`
 - Message sending
 - Attachment tap → `openMediaFullScreen()` or `openDocument()`
 - Full screen media via Android's built-in viewer with `FileProvider`
 - Document opening via `ACTION_VIEW` intent
+- Voice note recording via hold-to-record mic button
+- `RECORD_AUDIO` permission handling
+- Recording timer display
+
+### `app/src/main/java/org/linphone/ui/main/chat/LoquaceVoiceRecorder.kt` *(NEW)*
+Wraps Android `MediaRecorder`. Records in MP3/AAC format.
+Methods: `startRecording()`, `stopRecording()`, `cancelRecording()`, `isRecording()`.
 
 ### `app/src/main/java/org/linphone/ui/main/history/model/LoquaceCallLogModel.kt` *(NEW)*
 
 ---
 
-## Pending attachment features (to implement)
-- Voice note recording and playback
-- Camera photo fix (file size zero issue)
+## Pending features
+- Chat contacts tab (fetch from Loquace API, show XMPP-enabled contacts)
+- Chat groups tab
+- Push notifications (requires updated `google-services.json`)
 - Video upload optimization for longer videos
+- In-app media viewer (future phase)
+- Message history via MAM XEP-0313 (future phase)
 
 ---
 
@@ -257,6 +283,7 @@ Entirely new module — no merge conflicts expected here.
 - `network/` — Retrofit API clients for auth, settings, presence, contacts, call history, media
 - `network/MediaApi.kt` — authenticated media download endpoint
 - `network/LoquaceMediaDownloader.kt` — downloads media bytes with auth headers
+- `network/ContactResponse.kt` — added `chats: List<ContactChat>?` field for XMPP JID
 - `storage/` — Room DB with SQLCipher, SessionManager (includes `saveUserAgent`/`getUserAgent`)
 - `sip/LoquaceSipConfigurator.kt` — sets SIP user agent via `core.setUserAgent()`
 - `ui/` — LoquaceLoginActivity
@@ -267,7 +294,7 @@ Entirely new module — no merge conflicts expected here.
     - `sentMessageIds` set to ignore carbon copies of sent messages
     - Roster loading disabled
     - Resource set to user agent
-    - Attachment type detection (strips query params before extension check)
+    - Attachment type detection (strips query params, all audio → VOICE_NOTE)
     - `addPendingMessage()` — shows message immediately while uploading
     - `updateMessage()` — updates pending message after upload completes
     - `uploadAndSendFile()` — creates pending message, uploads, then updates
