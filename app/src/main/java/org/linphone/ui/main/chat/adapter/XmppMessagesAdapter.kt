@@ -133,6 +133,7 @@ class XmppMessagesAdapter : ListAdapter<XmppMessage, RecyclerView.ViewHolder>(Di
             binding.attachmentVoice.visibility = if (message.isVoiceNote) View.VISIBLE else View.GONE
             binding.textContent.visibility = if (message.body.isNotEmpty()) View.VISIBLE else View.GONE
             binding.uploadProgress.visibility = if (message.isUploading) View.VISIBLE else View.GONE
+            binding.senderName.visibility = if (!message.senderName.isNullOrEmpty()) View.VISIBLE else View.GONE
 
             Log.d("XmppAdapter", "attachmentImage visibility=${binding.attachmentImage.visibility}")
 

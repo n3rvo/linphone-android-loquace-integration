@@ -28,4 +28,13 @@ interface ContactsApi {
         @Header(LoquaceConfig.HEADER_USER_AGENT) userAgent: String,
         @Header(LoquaceConfig.HEADER_TENANT)     tenant: String
     ): ResponseBody
+
+    @GET(LoquaceConfig.ENDPOINT_CONTACTS)
+    suspend fun getContactByJid(
+        @Header(LoquaceConfig.HEADER_AUTH_TOKEN) token: String,
+        @Header(LoquaceConfig.HEADER_USER_AGENT) userAgent: String,
+        @Header(LoquaceConfig.HEADER_TENANT)     tenant: String,
+        @Query("chats")                          jid: String,
+        @Query("_")                              timestamp: Long = System.currentTimeMillis()
+    ): List<ContactResponse>
 }

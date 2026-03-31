@@ -20,8 +20,11 @@ import org.jivesoftware.smack.packet.Message
 import org.jivesoftware.smack.roster.Roster
 import org.jivesoftware.smack.tcp.XMPPTCPConnection
 import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration
+import org.jivesoftware.smackx.muc.MultiUserChat
+import org.jivesoftware.smackx.muc.MultiUserChatManager
 import org.jxmpp.jid.EntityBareJid
 import org.jxmpp.jid.impl.JidCreate
+import org.jxmpp.jid.parts.Resourcepart
 import org.linphone.loquace_integration.storage.LoquaceDatabase
 import org.linphone.loquace_integration.storage.entity.XmppAccountEntity
 import java.io.File
@@ -56,6 +59,8 @@ object LoquaceXmppManager {
     // Messages cache
     private val _messages = MutableStateFlow<Map<String, List<XmppMessage>>>(emptyMap())
     val messages: StateFlow<Map<String, List<XmppMessage>>> = _messages
+
+    private val joinedRooms = mutableMapOf<String, MultiUserChat>()
 
     fun connect(account: XmppAccountEntity, userAgent: String) {
         if (isConnected() || isConnecting) {
@@ -166,11 +171,21 @@ object LoquaceXmppManager {
     fun sendMessage(toJid: String, body: String): XmppMessage? {
         return try {
             val conn = connection ?: throw Exception("Not connected")
-            val jid: EntityBareJid = JidCreate.entityBareFrom(toJid)
-            val chat: Chat = ChatManager.getInstanceFor(conn).chatWith(jid)
             val messageId = System.currentTimeMillis().toString()
-            sentMessageIds.add(body) // Track sent message body
-            chat.send(body)
+
+            // Check if it's a group chat
+            val muc = joinedRooms[toJid]
+            if (muc != null) {
+                sentMessageIds.add(body)
+                muc.sendMessage(body)
+                Log.d(TAG, "Sent MUC message to $toJid: $body")
+            } else {
+                val jid: EntityBareJid = JidCreate.entityBareFrom(toJid)
+                val chat: Chat = ChatManager.getInstanceFor(conn).chatWith(jid)
+                sentMessageIds.add(body)
+                chat.send(body)
+                Log.d(TAG, "Sent message to $toJid: $body")
+            }
 
             val message = XmppMessage(
                 id         = messageId,
@@ -183,7 +198,6 @@ object LoquaceXmppManager {
             scope.launch {
                 updateConversationWithMessage(message)
             }
-            Log.d(TAG, "Sent message to $toJid: $body")
             message
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send message: ${e.message}")
@@ -200,11 +214,15 @@ object LoquaceXmppManager {
     ): XmppMessage? {
         return try {
             val conn = connection ?: throw Exception("Not connected")
-            val jid: EntityBareJid = JidCreate.entityBareFrom(toJid)
-            val chat: Chat = ChatManager.getInstanceFor(conn).chatWith(jid)
 
-            // Send the URL as the message body (standard XMPP file sharing)
-            chat.send(attachmentUrl)
+            val muc = joinedRooms[toJid]
+            if (muc != null) {
+                muc.sendMessage(attachmentUrl)
+            } else {
+                val jid: EntityBareJid = JidCreate.entityBareFrom(toJid)
+                val chat: Chat = ChatManager.getInstanceFor(conn).chatWith(jid)
+                chat.send(attachmentUrl)
+            }
 
             val message = XmppMessage(
                 id             = System.currentTimeMillis().toString(),
@@ -261,9 +279,15 @@ object LoquaceXmppManager {
         }
 
         // Send the message and update
-        val jid: EntityBareJid = JidCreate.entityBareFrom(toJid)
-        val chat: Chat = ChatManager.getInstanceFor(conn).chatWith(jid)
-        chat.send(uploadedUrl)
+        // Send the message and update
+        val muc = joinedRooms[toJid]
+        if (muc != null) {
+            muc.sendMessage(uploadedUrl)
+        } else {
+            val jid: EntityBareJid = JidCreate.entityBareFrom(toJid)
+            val chat: Chat = ChatManager.getInstanceFor(conn).chatWith(jid)
+            chat.send(uploadedUrl)
+        }
 
         val finalMessage = pendingMessage.copy(
             attachmentUrl = uploadedUrl,
@@ -319,6 +343,7 @@ object LoquaceXmppManager {
 
     private suspend fun storeMessage(message: XmppMessage) {
         val peerJid = if (message.isOutgoing) message.to else message.from
+        Log.d(TAG, "Storing message, peerJid=$peerJid, to=${message.to}, from=${message.from}, isOutgoing=${message.isOutgoing}")
         val current = _messages.value.toMutableMap()
         val conversationMessages = (current[peerJid] ?: emptyList()).toMutableList()
         conversationMessages.add(message)
@@ -377,6 +402,73 @@ object LoquaceXmppManager {
                 currentConvList[currentConvList.indexOf(existingConv)] = updated
                 _conversations.value = currentConvList
             }
+        }
+    }
+
+    private fun getMucManager(): MultiUserChatManager? {
+        val conn = connection ?: return null
+        return MultiUserChatManager.getInstanceFor(conn)
+    }
+
+    suspend fun joinRoom(roomJid: String, nickname: String) {
+        try {
+            val mucManager = getMucManager() ?: return
+            val entityBareJid = JidCreate.entityBareFrom(roomJid)
+            val muc = mucManager.getMultiUserChat(entityBareJid)
+
+            if (!muc.isJoined) {
+                val resource = Resourcepart.from(nickname)
+                muc.join(resource)
+                Log.d(TAG, "Joined MUC room: $roomJid")
+            }
+
+            // Add message listener for this room
+            muc.addMessageListener { message ->
+                scope.launch {
+                    val body = message.body ?: return@launch
+                    if (body.isEmpty()) return@launch
+
+                    val senderNickname = message.from?.resourceOrNull?.toString()
+                    val myNickname = connection?.user?.asEntityBareJidIfPossible()
+                        ?.localpartOrNull?.toString()
+
+                    Log.d(TAG, "MUC message from nickname: $senderNickname, my nickname: $myNickname")
+
+                    if (senderNickname != null && senderNickname == myNickname) {
+                        Log.d(TAG, "Ignoring own MUC message")
+                        return@launch
+                    }
+
+                    // Use room JID as the conversation identifier
+                    val conversationJid = message.from?.asEntityBareJidIfPossible()?.toString()
+                        ?: roomJid
+
+                    val attachmentType = detectAttachmentType(body)
+                    val attachmentName = if (attachmentType != AttachmentType.NONE) {
+                        body.substringAfterLast("/").substringBefore("?")
+                    } else null
+
+                    val xmppMessage = XmppMessage(
+                        id             = message.stanzaId ?: System.currentTimeMillis().toString(),
+                        from           = roomJid,  // Use roomJid so storeMessage keys correctly
+                        to             = roomJid,
+                        body           = if (attachmentType != AttachmentType.NONE) "" else body,
+                        timestamp      = System.currentTimeMillis(),
+                        isOutgoing     = false,
+                        attachmentUrl  = if (attachmentType != AttachmentType.NONE) body else null,
+                        attachmentType = attachmentType,
+                        attachmentName = attachmentName,
+                        senderName = senderNickname
+                    )
+
+                    Log.d(TAG, "Received MUC message in $roomJid from $senderNickname")
+                    updateConversationWithMessage(xmppMessage)
+                }
+            }
+
+            joinedRooms[roomJid] = muc
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to join room $roomJid: ${e.message}")
         }
     }
 }

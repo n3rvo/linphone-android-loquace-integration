@@ -25,6 +25,8 @@ import kotlinx.coroutines.withContext
 import org.linphone.R
 import org.linphone.core.tools.Log
 import org.linphone.databinding.LoquaceChatConversationFragmentBinding
+import org.linphone.loquace_integration.network.GroupResponse
+import org.linphone.loquace_integration.network.LoquaceGroupsRepository
 import org.linphone.loquace_integration.network.LoquaceMediaDownloader
 import org.linphone.loquace_integration.storage.SessionManager
 import org.linphone.loquace_integration.xmpp.AttachmentType
@@ -48,6 +50,8 @@ class XmppConversationFragment : SlidingPaneChildFragment() {
     private lateinit var binding: LoquaceChatConversationFragmentBinding
     private lateinit var viewModel: XmppConversationViewModel
     private lateinit var adapter: XmppMessagesAdapter
+
+    private var currentGroup: GroupResponse? = null
 
     private val args: XmppConversationFragmentArgs by navArgs()
 
@@ -150,6 +154,33 @@ class XmppConversationFragment : SlidingPaneChildFragment() {
             name  = args.displayName,
             group = args.isGroup
         )
+
+        if (args.isGroup) {
+            viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                val myJid = LoquaceXmppManager.getMyJid()
+                val nickname = myJid.substringBefore("@")
+                LoquaceXmppManager.joinRoom(args.peerJid, nickname)
+
+                val sessionManager = SessionManager(requireContext())
+                val domain = sessionManager.getDomain() ?: ""
+                val token = sessionManager.getToken() ?: ""
+                val userAgent = sessionManager.getUserAgent()
+
+                currentGroup = LoquaceGroupsRepository().getGroupDetails(domain, token, userAgent, args.peerJid)
+                Log.d("GroupDetails", "currentGroup set: ${currentGroup?.name}, participants=${currentGroup?.participants?.size}")
+            }
+        }
+
+        binding.title.setOnClickListener {
+            val group = currentGroup
+            Log.d("GroupDetails", "Title clicked, currentGroup=${group?.name}")
+            if (group != null) {
+                XmppGroupDetailsBottomSheet(group) {
+                    // Group deleted - go back
+                    goBack()
+                }.show(parentFragmentManager, "GroupDetails")
+            }
+        }
 
         viewModel.messages.observe(viewLifecycleOwner) { messages ->
             Log.d(TAG, "Messages updated: ${messages.size} items")

@@ -32,6 +32,17 @@
             app:layout_constraintTop_toTopOf="parent">
 
             <androidx.appcompat.widget.AppCompatTextView
+                android:id="@+id/sender_name"
+                style="@style/default_text_style_300"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="2dp"
+                android:text="@{model.senderName}"
+                android:textSize="11sp"
+                android:textColor="?attr/color_main1_500"
+                android:visibility="@{model.senderName != null ? View.VISIBLE : View.GONE, default=gone}"/>
+
+            <androidx.appcompat.widget.AppCompatTextView
                 android:id="@+id/text_content"
                 style="@style/default_text_style"
                 android:visibility="@{model.body.length() > 0 ? View.VISIBLE : View.GONE}"

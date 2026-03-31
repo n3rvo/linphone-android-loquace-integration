@@ -111,4 +111,34 @@ class LoquaceGroupsRepository {
             emptyList()
         }
     }
+
+    suspend fun getGroupDetails(
+        domain: String,
+        token: String,
+        userAgent: String,
+        groupJid: String
+    ): GroupResponse? {
+        return try {
+            val api = RetrofitClient.createChatsApi(domain)
+            api.getGroupDetails(token, userAgent, domain, groupJid)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get group details: ${e.message}")
+            null
+        }
+    }
+
+    suspend fun getContactByJid(
+        domain: String,
+        token: String,
+        userAgent: String,
+        jid: String
+    ): ContactResponse? {
+        return try {
+            val api = RetrofitClient.createContactsApi(domain)
+            api.getContactByJid(token, userAgent, domain, jid).firstOrNull()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get contact by JID: ${e.message}")
+            null
+        }
+    }
 }

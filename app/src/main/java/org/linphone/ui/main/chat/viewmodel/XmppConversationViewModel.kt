@@ -43,6 +43,7 @@ constructor() : GenericViewModel() {
         viewModelScope.launch {
             LoquaceXmppManager.messages.collectLatest { allMessages ->
                 val conversationMessages = allMessages[jid] ?: emptyList()
+                Log.d(TAG, "Messages updated for $jid: ${conversationMessages.size} messages")
                 messages.postValue(conversationMessages)
             }
         }
