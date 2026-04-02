@@ -2,12 +2,14 @@ package org.linphone.ui.main.chat.model
 
 import androidx.annotation.WorkerThread
 import androidx.lifecycle.MutableLiveData
+import kotlinx.coroutines.launch
 import org.linphone.LinphoneApplication.Companion.coreContext
 import org.linphone.loquace_integration.xmpp.XmppConversation
 import org.linphone.ui.main.contacts.model.ContactAvatarModel
 import org.linphone.utils.TimestampUtils
 import org.linphone.utils.AppUtils
 import org.linphone.R
+import org.linphone.loquace_integration.xmpp.LoquaceXmppManager
 
 class XmppConversationModel
 @WorkerThread
@@ -20,7 +22,9 @@ constructor(
 
     val isGroup = conversation.isGroup
 
-    val subject = conversation.displayName ?: conversation.peerJid
+    val subject = conversation.displayName
+        ?: LoquaceXmppManager.getContactName(conversation.peerJid)
+        ?: conversation.peerJid
 
     val lastMessageText = MutableLiveData<String>(conversation.lastMessage)
 
@@ -58,8 +62,41 @@ constructor(
         avatarModel = prebuiltAvatarModel ?: run {
             val friend = coreContext.core.createFriend()
             friend.name = conversation.displayName
-                ?: conversation.peerJid.substringBefore("@")
+                ?: LoquaceXmppManager.getContactName(conversation.peerJid)
+                        ?: conversation.peerJid.substringBefore("@")
             friend.refKey = conversation.peerJid
+
+            val contactId = LoquaceXmppManager.getContactId(conversation.peerJid)
+            if (contactId != null) {
+                val avatarFile = java.io.File(
+                    coreContext.context.filesDir,
+                    "avatar_$contactId.jpg"
+                )
+                if (avatarFile.exists()) {
+                    // Use cached avatar
+                    friend.photo = avatarFile.absolutePath
+                } else {
+                    // Download in background
+                    val pictureUrl = LoquaceXmppManager.getContactPictureUrl(conversation.peerJid)
+                    if (pictureUrl != null) {
+                        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                            val sessionManager = org.linphone.loquace_integration.storage.SessionManager(coreContext.context)
+                            val token = sessionManager.getToken() ?: return@launch
+                            val domain = sessionManager.getDomain() ?: return@launch
+                            val bytes = org.linphone.loquace_integration.network.LoquaceMediaDownloader.downloadBytes(
+                                url    = pictureUrl,
+                                token  = token,
+                                domain = domain
+                            )
+                            if (bytes != null) {
+                                avatarFile.writeBytes(bytes)
+                                friend.photo = avatarFile.absolutePath
+                            }
+                        }
+                    }
+                }
+            }
+
             coreContext.contactsManager.getContactAvatarModelForFriend(friend)
         }
     }

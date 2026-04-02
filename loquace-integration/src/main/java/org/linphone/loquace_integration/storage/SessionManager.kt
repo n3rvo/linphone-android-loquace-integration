@@ -58,6 +58,14 @@ class SessionManager(context: Context) {
         return prefs.getString("user_agent", "") ?: ""
     }
 
+    fun saveAvatarUrl(url: String) {
+        prefs.edit().putString("avatar_url", url).apply()
+    }
+
+    fun getAvatarUrl(): String? {
+        return prefs.getString("avatar_url", null)
+    }
+
     companion object {
         private const val KEY_TOKEN  = "auth_token"
         private const val KEY_DB_KEY = "db_key"

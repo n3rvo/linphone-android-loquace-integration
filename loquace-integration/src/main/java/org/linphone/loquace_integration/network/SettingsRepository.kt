@@ -3,13 +3,14 @@ package org.linphone.loquace_integration.network
 import android.util.Log
 import com.google.gson.Gson
 import org.linphone.loquace_integration.storage.LoquaceDatabase
+import org.linphone.loquace_integration.storage.SessionManager
 import org.linphone.loquace_integration.storage.entity.*
 
 class SettingsRepository(private val db: LoquaceDatabase) {
 
     private val gson = Gson()
 
-    suspend fun fetchAndStore(domain: String, token: String, userAgent: String) {
+    suspend fun fetchAndStore(domain: String, token: String, userAgent: String, sessionManager: SessionManager) {
         Log.d(TAG, "Fetching settings for domain: $domain")
         val api = RetrofitClient.createSettingsApi(domain)
         val response = api.getSettings(
@@ -17,6 +18,7 @@ class SettingsRepository(private val db: LoquaceDatabase) {
             userAgent = userAgent,
             tenant    = domain
         )
+        sessionManager.saveAvatarUrl(response.profile.avatarUrl)
         Log.d(TAG, "Settings received for user: ${response.profile.firstName} ${response.profile.lastName}")
         Log.d(TAG, "SIP domain: ${response.sipAccount.domain}")
         Log.d(TAG, "SIP username: ${response.sipAccount.username}")

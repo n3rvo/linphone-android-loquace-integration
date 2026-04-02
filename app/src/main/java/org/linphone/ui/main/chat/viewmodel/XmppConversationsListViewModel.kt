@@ -111,9 +111,11 @@ constructor() : AbstractMainViewModel() {
 
                 coreContext.postOnCoreThread {
                     val newModels = page.map { contact ->
-                        val jid = contact.chats?.firstOrNull {
-                            it.type == "xmpp" && !it.account.isNullOrEmpty()
-                        }?.account ?: return@map null
+                        val jid = contact.chats?.firstOrNull { it.type == "xmpp" }?.account ?: return@map null
+                        LoquaceXmppManager.setContactName(jid, contact.fullName ?:
+                            "${contact.firstName} ${contact.lastName}".trim())
+                        contact.pictureUrl?.let { LoquaceXmppManager.setContactPictureUrl(jid, it) }
+                        LoquaceXmppManager.setContactId(jid, contact.id)
 
                         val friend = coreContext.core.createFriend()
                         friend.name = contact.fullName

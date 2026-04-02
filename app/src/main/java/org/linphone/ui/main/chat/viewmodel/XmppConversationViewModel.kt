@@ -3,8 +3,10 @@ package org.linphone.ui.main.chat.viewmodel
 import androidx.annotation.UiThread
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.linphone.core.tools.Log
 import org.linphone.loquace_integration.xmpp.LoquaceXmppManager
 import org.linphone.loquace_integration.xmpp.XmppMessage
@@ -24,6 +26,11 @@ constructor() : GenericViewModel() {
     val messages = MutableLiveData<List<XmppMessage>>()
     val isGroup = MutableLiveData<Boolean>(false)
 
+    val isLoadingHistory = MutableLiveData<Boolean>(false)
+    val hasMoreHistory = MutableLiveData<Boolean>(true)
+    private var oldestMessageUid: String? = null
+    var isPrependingHistory = false
+
     val messageSentEvent: MutableLiveData<Event<Boolean>> by lazy {
         MutableLiveData()
     }
@@ -35,11 +42,11 @@ constructor() : GenericViewModel() {
         displayName.value = name
         isGroup.value = group
 
-        // Load existing messages
+        // Load existing in-memory messages
         messages.value = LoquaceXmppManager.getMessagesForConversation(jid)
         Log.d(TAG, "Loaded ${messages.value?.size} messages for $jid")
 
-        // Observe new incoming messages
+        // Observe new messages
         viewModelScope.launch {
             LoquaceXmppManager.messages.collectLatest { allMessages ->
                 val conversationMessages = allMessages[jid] ?: emptyList()
@@ -47,6 +54,9 @@ constructor() : GenericViewModel() {
                 messages.postValue(conversationMessages)
             }
         }
+
+        // Load history
+        loadHistory(jid, group)
     }
 
     @UiThread
@@ -60,6 +70,51 @@ constructor() : GenericViewModel() {
             messageSentEvent.value = Event(true)
         } else {
             Log.e(TAG, "Failed to send message to $jid")
+        }
+    }
+
+    fun loadHistory(jid: String, group: Boolean, before: String? = null) {
+        if (isLoadingHistory.value == true) return
+        viewModelScope.launch {
+            isLoadingHistory.value = true
+            val (history, firstUid) = withContext(Dispatchers.IO) {
+                LoquaceXmppManager.fetchMessageHistory(
+                    peerJid = jid,
+                    isGroup = group,
+                    before  = before
+                )
+            }
+
+            if (history.isEmpty()) {
+                hasMoreHistory.value = false
+                isLoadingHistory.value = false
+                return@launch
+            }
+
+            if (history.size < 50) hasMoreHistory.value = false
+            oldestMessageUid = firstUid
+
+            val current = LoquaceXmppManager.getMessagesForConversation(jid).toMutableList()
+            val historyIds = current.map { it.id }.toSet()
+            val newMessages = history.filter { !historyIds.contains(it.id) }
+
+            if (newMessages.isNotEmpty()) {
+                isPrependingHistory = true
+                LoquaceXmppManager.prependMessages(jid, newMessages)
+            }
+
+            isLoadingHistory.value = false
+
+            isLoadingHistory.value = false
+        }
+    }
+
+    fun loadMoreHistory() {
+        val jid = peerJid.value ?: return
+        val group = isGroup.value ?: false
+        Log.d(TAG, "loadMoreHistory called, hasMore=${hasMoreHistory.value}, isLoading=${isLoadingHistory.value}, oldestUid=$oldestMessageUid")
+        if (hasMoreHistory.value == true && isLoadingHistory.value == false) {
+            loadHistory(jid, group, before = oldestMessageUid)
         }
     }
 }

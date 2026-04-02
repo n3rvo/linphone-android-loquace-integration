@@ -246,18 +246,28 @@ implementation(libs.gson)
 ### `app/src/main/res/layout/loquace_chat_list_cell.xml` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/chat/model/XmppConversationModel.kt` *(NEW)*
 
-**Updated:** Accepts optional `prebuiltAvatarModel` parameter to avoid
-re-creating friend on core thread when avatar is already fetched.
+**Key implementation notes:**
+- `prebuiltAvatarModel` parameter for pre-fetched avatars (contacts tab)
+- Falls back to `LoquaceXmppManager.getContactName()` for display name
+- Uses cached avatar file via `LoquaceXmppManager.getContactId()` → `avatar_{contactId}.jpg`
+- `subject` uses `displayName ?? getContactName(peerJid) ?? peerJid`
 
 ### `app/src/main/java/org/linphone/ui/main/chat/adapter/XmppConversationsAdapter.kt` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/chat/viewmodel/XmppConversationsListViewModel.kt` *(NEW)*
 
 **Key methods:**
-- `loadContacts()` — fetches chat-enabled contacts via `chats=true` param,
-  paginated, with avatar pre-fetching, using `LoquaceGroupsRepository.fetchChatEnabledContacts()`
+- `loadContacts()` — fetches chat-enabled contacts via `chats=true`, paginated,
+  with avatar pre-fetching, stores `contactId`, `contactName` in `LoquaceXmppManager`
 - `loadGroups()` — fetches groups from Loquace API
 
 ### `app/src/main/java/org/linphone/ui/main/chat/viewmodel/XmppConversationViewModel.kt` *(NEW)*
+
+**Key additions:**
+- `isLoadingHistory`, `hasMoreHistory`, `oldestMessageUid`
+- `loadHistory()` — fetches MAM history, prepends to existing messages
+- `loadMoreHistory()` — triggered by scroll to top, loads next page
+- `isPrependingHistory` flag — prevents scroll-to-bottom when prepending
+
 ### `app/src/main/java/org/linphone/ui/main/chat/adapter/XmppMessagesAdapter.kt` *(NEW)*
 
 **Key implementation notes:**
@@ -283,7 +293,8 @@ Incoming bubble has `sender_name` TextView (visible only when `senderName` is no
 
 ### `app/src/main/res/layout/loquace_chat_conversation_fragment.xml` *(NEW)*
 Chat screen with header, message list, attach button, text input, send/mic buttons
-in a `FrameLayout` container, and recording area with timer.
+in a `FrameLayout` container, recording area with timer, and `history_progress`
+indicator at top of messages list.
 
 ### `app/src/main/java/org/linphone/ui/main/chat/fragment/XmppConversationFragment.kt` *(NEW)*
 Extends `SlidingPaneChildFragment`. Handles:
@@ -296,33 +307,27 @@ Extends `SlidingPaneChildFragment`. Handles:
 - Voice note recording via hold-to-record mic button
 - `RECORD_AUDIO` permission handling
 - Recording timer display
-- Group room joining via `LoquaceXmppManager.joinRoom()` when `isGroup=true`
+- Group room joining via `LoquaceXmppManager.joinRoom()` with `displayName` when `isGroup=true`
 - Group details bottom sheet via header tap
+- Scroll listener → `loadMoreHistory()` when reaching top
 
 ### `app/src/main/java/org/linphone/ui/main/chat/LoquaceVoiceRecorder.kt` *(NEW)*
-Wraps Android `MediaRecorder`. Records in MP3/AAC format.
-Methods: `startRecording()`, `stopRecording()`, `cancelRecording()`, `isRecording()`.
-
 ### `app/src/main/res/layout/loquace_group_details_bottom_sheet.xml` *(NEW)*
-Group details bottom sheet with group name, member count, members list,
-add member button and delete group button (owner only).
-
 ### `app/src/main/res/layout/loquace_group_member_cell.xml` *(NEW)*
-Member cell with `FrameLayout` avatar container (ImageView + initials TextView),
-member name, role badge and remove button (owner only, hidden for owner role).
+
+**Avatar container:** `FrameLayout` with `ImageView` (loaded progressively) and
+`AppCompatTextView` for initials (shown immediately).
 
 ### `app/src/main/java/org/linphone/ui/main/chat/adapter/GroupMembersAdapter.kt` *(NEW)*
-RecyclerView adapter for group members. Manages avatar bitmaps internally.
-- `updateAvatar()` — updates a single member's avatar without full list refresh
-- Shows initials immediately, avatars load progressively via `updateAvatar()`
+
+**Key notes:**
+- `updateAvatar()` — updates single member avatar without full list refresh
+- Shows initials immediately, avatars load progressively
 
 ### `app/src/main/java/org/linphone/ui/main/chat/fragment/XmppGroupDetailsBottomSheet.kt` *(NEW)*
-Bottom sheet dialog for group details. Expands to 2/3 of screen height.
-- Shows members with progressive avatar loading
-- Owner can remove members (with confirmation dialog)
-- Owner can add members from chat-enabled contacts
-- Owner can delete group (with confirmation dialog)
-- `onGroupDeleted` callback navigates back on deletion
+
+Expands to 2/3 of screen height. Owner-only features: add member, remove member
+(with confirmation), delete group (with confirmation). Progressive avatar loading.
 
 ### `app/src/main/java/org/linphone/ui/main/history/model/LoquaceCallLogModel.kt` *(NEW)*
 
@@ -330,12 +335,13 @@ Bottom sheet dialog for group details. Expands to 2/3 of screen height.
 
 ## Pending features
 - Round avatars in group details screen
-- Improved contact picker with avatars and search
+- Conversation list avatars for single chats (contact info fetched on demand)
+- Top bar avatar from `profile.avatarUrl` via settings API (in progress)
+- Improved contact picker with avatars and search (post-prototype)
 - Push notifications (requires updated `google-services.json`)
 - Video upload optimization for longer videos
 - In-app media viewer (future phase)
-- Message history via MAM XEP-0313 (future phase)
-- Delete message (for all chat types, future phase)
+- Delete message for all chat types (future phase)
 - Contact list caching (post-prototype optimization)
 
 ---
@@ -350,35 +356,42 @@ Entirely new module — no merge conflicts expected here.
 - `network/LoquaceMediaDownloader.kt` — downloads media bytes with auth headers
 - `network/ContactResponse.kt` — includes `chats: List<ContactChat>?` for XMPP JID
 - `network/GroupResponse.kt` — group and participant data models
-- `network/ChatsApi.kt` — group CRUD endpoints (get, create, invite, remove, delete)
+- `network/ChatsApi.kt` — group CRUD endpoints
 - `network/LoquaceGroupsRepository.kt` — group API calls + `fetchChatEnabledContacts()`
-    + `getContactByJid()` for member avatar loading
-- `storage/` — Room DB with SQLCipher, SessionManager
-- `sip/LoquaceSipConfigurator.kt` — sets SIP user agent via `core.setUserAgent()`
+    + `getContactByJid()`
+- `network/SettingsRepository.kt` — added `sessionManager` parameter to `fetchAndStore()`,
+  saves `profile.avatarUrl` via `sessionManager.saveAvatarUrl()`
+- `storage/SessionManager.kt` — added `saveAvatarUrl()` and `getAvatarUrl()`
+- `sip/LoquaceSipConfigurator.kt` — added `context` parameter, sets avatar from
+  `my_avatar.jpg` on account params after login
 - `ui/` — LoquaceLoginActivity
-- `viewmodel/LoquaceLoginViewModel.kt` — full login flow including XMPP
+- `viewmodel/LoquaceLoginViewModel.kt` — downloads and caches `my_avatar.jpg` after
+  settings fetch, passes `context` to `LoquaceSipConfigurator.configure()`
 - `xmpp/LoquaceXmppManager.kt` — Smack XMPP singleton with:
     - Message store per conversation (`_messages` StateFlow)
     - `isConnecting` flag to prevent double connection
-    - `sentMessageIds` set to ignore carbon copies of sent messages
-    - Roster loading disabled
-    - Resource set to user agent
+    - `sentMessageIds` set to ignore carbon copies
+    - Roster loading disabled, resource set to user agent
     - Attachment type detection (strips query params, all audio → VOICE_NOTE)
-    - `addPendingMessage()` — shows message immediately while uploading
-    - `updateMessage()` — updates pending message after upload completes
-    - `uploadAndSendFile()` — creates pending message, uploads, then updates
-    - `sendMessageWithAttachment()` — for sending attachment messages
-    - `joinRoom()` — joins MUC room, adds message listener for group messages
-    - `joinedRooms` map — tracks joined MUC rooms for group message routing
-    - MUC messages stored with `from = roomJid` for correct conversation keying
-    - `senderName` field populated from MUC message resource (nickname)
+    - `addPendingMessage()`, `updateMessage()`, `uploadAndSendFile()`
+    - `joinRoom()` — joins MUC, stores group name, updates conversation display name
+    - `groupNames` map — roomJid → group name for display
+    - `contactNames` map — JID → full name for single chat display
+    - `contactIds` map — JID → contactId for avatar file lookup
+    - `contactPictureUrls` map — JID → pictureUrl for on-demand avatar download
+    - `hasContactInfo()` — checks if contact info is already cached
+    - `fetchAndCacheContactInfo()` — fetches and caches contact info on demand
+    - `prependMessages()` — prepends history without sorting (preserves MAM order)
+    - `fetchMessageHistory()` — MAM XEP-0313, supports 1-1 and MUC, paginated,
+      uses `DelayInformation` for timestamps, returns `Pair<List<XmppMessage>, String?>`
+    - MUC `isOutgoing` detection uses nickname comparison
+    - Group display name shown in conversations list via `groupNames` map
 - `xmpp/XmppConnectionService.kt` — foreground service
-- `xmpp/XmppConnectionState.kt` — sealed class for connection states
-- `xmpp/XmppMessage.kt` — data class with attachment fields, `isUploading`,
-  `senderName`, `formattedTime`
-- `xmpp/XmppConversation.kt` — data class with `displayName`, `pictureUrl`, `isGroup`
+- `xmpp/XmppConnectionState.kt` — sealed class
+- `xmpp/XmppMessage.kt` — includes `senderName`, `isUploading`, `formattedTime`
+- `xmpp/XmppConversation.kt` — includes `displayName`, `pictureUrl`, `isGroup`
 - `xmpp/XmppHttpUploadManager.kt` — XEP-0363 HTTP file upload
-- `xmpp/AttachmentType.kt` — enum: NONE, IMAGE, VIDEO, AUDIO, FILE, VOICE_NOTE
+- `xmpp/AttachmentType.kt` — NONE, IMAGE, VIDEO, AUDIO, FILE, VOICE_NOTE
 - `network/LoquaceAvatarHelper.kt` — shared avatar fetch utility
 
 **Dependencies added:**

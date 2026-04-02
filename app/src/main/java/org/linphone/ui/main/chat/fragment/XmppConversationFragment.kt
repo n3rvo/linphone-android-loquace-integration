@@ -19,6 +19,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -159,7 +160,7 @@ class XmppConversationFragment : SlidingPaneChildFragment() {
             viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                 val myJid = LoquaceXmppManager.getMyJid()
                 val nickname = myJid.substringBefore("@")
-                LoquaceXmppManager.joinRoom(args.peerJid, nickname)
+                LoquaceXmppManager.joinRoom(args.peerJid, nickname, args.displayName)
 
                 val sessionManager = SessionManager(requireContext())
                 val domain = sessionManager.getDomain() ?: ""
@@ -184,8 +185,19 @@ class XmppConversationFragment : SlidingPaneChildFragment() {
 
         viewModel.messages.observe(viewLifecycleOwner) { messages ->
             Log.d(TAG, "Messages updated: ${messages.size} items")
+            val previousCount = adapter.itemCount
+
             adapter.submitList(messages) {
-                binding.messagesList.scrollToPosition(adapter.itemCount - 1)
+                if (viewModel.isPrependingHistory) {
+                    viewModel.isPrependingHistory = false
+                    val newItems = adapter.itemCount - previousCount
+                    if (newItems > 0) {
+                        (binding.messagesList.layoutManager as LinearLayoutManager)
+                            .scrollToPositionWithOffset(newItems, 0)
+                    }
+                } else {
+                    binding.messagesList.scrollToPosition(adapter.itemCount - 1)
+                }
             }
         }
 
@@ -231,6 +243,22 @@ class XmppConversationFragment : SlidingPaneChildFragment() {
 
         // Hold to record
         setupMicButton()
+
+        // Load more history when scrolling to top
+        binding.messagesList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+                val layoutManager = recyclerView.layoutManager as LinearLayoutManager
+                if (layoutManager.findFirstVisibleItemPosition() == 0 && dy < 0) {
+                    viewModel.loadMoreHistory()
+                }
+            }
+        })
+
+// Show loading indicator while fetching history
+        viewModel.isLoadingHistory.observe(viewLifecycleOwner) { isLoading ->
+            binding.historyProgress.visibility = if (isLoading) View.VISIBLE else View.GONE
+        }
     }
 
     override fun goBack(): Boolean {

@@ -42,6 +42,18 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"/>
 
+        <com.google.android.material.progressindicator.CircularProgressIndicator
+            android:id="@+id/history_progress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:indeterminate="true"
+            android:visibility="gone"
+            app:indicatorColor="?attr/color_main1_500"
+            app:layout_constraintTop_toTopOf="@id/messages_list"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"/>
+
         <!-- Messages list -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/messages_list"

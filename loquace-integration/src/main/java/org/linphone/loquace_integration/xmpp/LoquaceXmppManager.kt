@@ -20,8 +20,10 @@ import org.jivesoftware.smack.packet.Message
 import org.jivesoftware.smack.roster.Roster
 import org.jivesoftware.smack.tcp.XMPPTCPConnection
 import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration
+import org.jivesoftware.smackx.mam.MamManager
 import org.jivesoftware.smackx.muc.MultiUserChat
 import org.jivesoftware.smackx.muc.MultiUserChatManager
+import org.jivesoftware.smackx.rsm.packet.RSMSet
 import org.jxmpp.jid.EntityBareJid
 import org.jxmpp.jid.impl.JidCreate
 import org.jxmpp.jid.parts.Resourcepart
@@ -61,6 +63,14 @@ object LoquaceXmppManager {
     val messages: StateFlow<Map<String, List<XmppMessage>>> = _messages
 
     private val joinedRooms = mutableMapOf<String, MultiUserChat>()
+
+    private val groupNames = mutableMapOf<String, String>()
+
+    private val contactNames = mutableMapOf<String, String>()
+
+    private val contactPictureUrls = mutableMapOf<String, String>()
+
+    private val contactIds = mutableMapOf<String, String>()
 
     fun connect(account: XmppAccountEntity, userAgent: String) {
         if (isConnected() || isConnecting) {
@@ -313,15 +323,18 @@ object LoquaceXmppManager {
     private suspend fun updateConversationWithMessage(message: XmppMessage) {
         storeMessage(message)
         val peerJid = if (message.isOutgoing) message.to else message.from
+        val isGroup = groupNames.containsKey(peerJid)
         val currentList = _conversations.value.toMutableList()
         val existing = currentList.find { it.peerJid == peerJid }
+        Log.d(TAG, "Conversation display name: ${existing?.displayName}")
 
         if (existing != null) {
             val updated = existing.copy(
                 lastMessage   = message.body,
                 lastTimestamp = message.timestamp,
                 unreadCount   = if (message.isOutgoing) existing.unreadCount
-                else existing.unreadCount + 1
+                else existing.unreadCount + 1,
+                displayName   = if (isGroup) groupNames[peerJid] else existing.displayName
             )
             currentList[currentList.indexOf(existing)] = updated
         } else {
@@ -329,7 +342,9 @@ object LoquaceXmppManager {
                 peerJid       = peerJid,
                 lastMessage   = message.body,
                 lastTimestamp = message.timestamp,
-                unreadCount   = if (message.isOutgoing) 0 else 1
+                unreadCount   = if (message.isOutgoing) 0 else 1,
+                displayName   = if (isGroup) groupNames[peerJid] else null,
+                isGroup       = isGroup
             ))
         }
 
@@ -410,7 +425,7 @@ object LoquaceXmppManager {
         return MultiUserChatManager.getInstanceFor(conn)
     }
 
-    suspend fun joinRoom(roomJid: String, nickname: String) {
+    suspend fun joinRoom(roomJid: String, nickname: String, groupName: String? = null) {
         try {
             val mucManager = getMucManager() ?: return
             val entityBareJid = JidCreate.entityBareFrom(roomJid)
@@ -420,6 +435,19 @@ object LoquaceXmppManager {
                 val resource = Resourcepart.from(nickname)
                 muc.join(resource)
                 Log.d(TAG, "Joined MUC room: $roomJid")
+            }
+
+            // Store group name and update conversation immediately
+            groupNames[roomJid] = groupName ?: roomJid
+            val currentList = _conversations.value.toMutableList()
+            val existing = currentList.find { it.peerJid == roomJid }
+            if (existing != null && groupName != null) {
+                val updated = existing.copy(
+                    displayName = groupName,
+                    isGroup     = true
+                )
+                currentList[currentList.indexOf(existing)] = updated
+                _conversations.value = currentList
             }
 
             // Add message listener for this room
@@ -439,10 +467,6 @@ object LoquaceXmppManager {
                         return@launch
                     }
 
-                    // Use room JID as the conversation identifier
-                    val conversationJid = message.from?.asEntityBareJidIfPossible()?.toString()
-                        ?: roomJid
-
                     val attachmentType = detectAttachmentType(body)
                     val attachmentName = if (attachmentType != AttachmentType.NONE) {
                         body.substringAfterLast("/").substringBefore("?")
@@ -450,7 +474,7 @@ object LoquaceXmppManager {
 
                     val xmppMessage = XmppMessage(
                         id             = message.stanzaId ?: System.currentTimeMillis().toString(),
-                        from           = roomJid,  // Use roomJid so storeMessage keys correctly
+                        from           = roomJid,
                         to             = roomJid,
                         body           = if (attachmentType != AttachmentType.NONE) "" else body,
                         timestamp      = System.currentTimeMillis(),
@@ -458,7 +482,7 @@ object LoquaceXmppManager {
                         attachmentUrl  = if (attachmentType != AttachmentType.NONE) body else null,
                         attachmentType = attachmentType,
                         attachmentName = attachmentName,
-                        senderName = senderNickname
+                        senderName     = senderNickname
                     )
 
                     Log.d(TAG, "Received MUC message in $roomJid from $senderNickname")
@@ -471,4 +495,151 @@ object LoquaceXmppManager {
             Log.e(TAG, "Failed to join room $roomJid: ${e.message}")
         }
     }
+
+    suspend fun fetchMessageHistory(
+        peerJid: String,
+        isGroup: Boolean,
+        before: String? = null,
+        limit: Int = 50
+    ): Pair<List<XmppMessage>, String?> {
+        return try {
+            Log.d(TAG, "Fetching history for $peerJid, isGroup=$isGroup, before=$before, limit=$limit")
+
+            val conn = connection ?: return Pair(emptyList(), null)
+            val mamManager = MamManager.getInstanceFor(conn)
+
+            if (!mamManager.isSupported) {
+                Log.w(TAG, "MAM not supported by server")
+                return Pair(emptyList(), null)
+            }
+
+            val queryArgs = MamManager.MamQueryArgs.builder()
+                .setResultPageSizeTo(limit)
+                .apply {
+                    if (before != null) {
+                        beforeUid(before)
+                    } else {
+                        queryLastPage()
+                    }
+                    if (!isGroup) {
+                        limitResultsToJid(JidCreate.entityBareFrom(peerJid))
+                    }
+                }
+                .build()
+
+            val result = if (isGroup) {
+                val roomJid = JidCreate.entityBareFrom(peerJid)
+                val mucMamManager = MamManager.getInstanceFor(conn, roomJid)
+                if (!mucMamManager.isSupported) {
+                    Log.w(TAG, "MAM not supported by room $peerJid")
+                    return Pair(emptyList(), null)
+                }
+                mucMamManager.queryArchive(queryArgs)
+            } else {
+                mamManager.queryArchive(queryArgs)
+            }
+
+            Log.d(TAG, "MAM result: ${result.messages.size} messages, ${result.mamResultExtensions.size} extensions")
+            Log.d(TAG, "First UID: ${result.mamResultExtensions.firstOrNull()?.id}")
+            Log.d(TAG, "Last UID: ${result.mamResultExtensions.lastOrNull()?.id}")
+
+            val myJid = conn.user.asEntityBareJidIfPossible()?.toString() ?: ""
+
+            val messages = result.messages.mapNotNull { message ->
+                val body = message.body ?: run {
+                    Log.d(TAG, "Skipping message: no body")
+                    return@mapNotNull null
+                }
+                if (body.isEmpty()) {
+                    Log.d(TAG, "Skipping message: empty body")
+                    return@mapNotNull null
+                }
+                val fromJid = message.from?.asEntityBareJidIfPossible()?.toString() ?: run {
+                    Log.d(TAG, "Skipping message: no fromJid, from=${message.from}")
+                    return@mapNotNull null
+                }
+                // For group messages, to can be null - use peerJid instead
+                val toJid = if (isGroup) {
+                    peerJid
+                } else {
+                    message.to?.asEntityBareJidIfPossible()?.toString() ?: run {
+                        Log.d(TAG, "Skipping message: no toJid, to=${message.to}")
+                        return@mapNotNull null
+                    }
+                }
+
+                val isOutgoing = if (isGroup) {
+                    val senderNickname = message.from?.resourceOrNull?.toString()
+                    val myNickname = connection?.user?.asEntityBareJidIfPossible()
+                        ?.localpartOrNull?.toString()
+                    senderNickname == myNickname
+                } else {
+                    fromJid.substringBefore("/") == myJid.substringBefore("/")
+                }
+
+                val attachmentType = detectAttachmentType(body)
+                val attachmentName = if (attachmentType != AttachmentType.NONE) {
+                    body.substringAfterLast("/").substringBefore("?")
+                } else null
+
+                val timestamp = message.getExtension<org.jivesoftware.smackx.delay.packet.DelayInformation>(
+                    org.jivesoftware.smackx.delay.packet.DelayInformation.ELEMENT,
+                    org.jivesoftware.smackx.delay.packet.DelayInformation.NAMESPACE
+                )?.stamp?.time ?: System.currentTimeMillis()
+
+                XmppMessage(
+                    id             = message.stanzaId ?: System.currentTimeMillis().toString(),
+                    from           = if (isGroup) peerJid else fromJid,
+                    to             = if (isGroup) peerJid else toJid,
+                    body           = if (attachmentType != AttachmentType.NONE) "" else body,
+                    timestamp      = timestamp,
+                    isOutgoing     = isOutgoing,
+                    attachmentUrl  = if (attachmentType != AttachmentType.NONE) body else null,
+                    attachmentType = attachmentType,
+                    attachmentName = attachmentName,
+                    senderName     = if (isGroup) message.from?.resourceOrNull?.toString() else null
+                )
+            }.let { it }
+
+            // Get first message UID for pagination
+            val firstUid = result.mamResultExtensions.firstOrNull()?.id
+
+            Log.d(TAG, "Fetched ${messages.size} history messages for $peerJid, firstUid=$firstUid")
+            Pair(messages, firstUid)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to fetch message history: ${e.message}")
+            Pair(emptyList(), null)
+        }
+    }
+
+    fun prependMessages(peerJid: String, messages: List<XmppMessage>) {
+        scope.launch {
+            val current = _messages.value.toMutableMap()
+            val existing = (current[peerJid] ?: emptyList()).toMutableList()
+            val existingIds = existing.map { it.id }.toSet()
+            val newMessages = messages.filter { !existingIds.contains(it.id) }
+            val combined = (newMessages + existing).distinctBy { it.id }
+            current[peerJid] = combined
+            _messages.value = current
+        }
+    }
+
+    fun setContactName(jid: String, name: String) {
+        contactNames[jid] = name
+    }
+
+    fun getContactName(jid: String): String? = contactNames[jid]
+
+
+    fun setContactPictureUrl(jid: String, pictureUrl: String) {
+        contactPictureUrls[jid] = pictureUrl
+    }
+
+    fun getContactPictureUrl(jid: String): String? = contactPictureUrls[jid]
+
+    fun setContactId(jid: String, contactId: String) {
+        contactIds[jid] = contactId
+    }
+
+    fun getContactId(jid: String): String? = contactIds[jid]
 }

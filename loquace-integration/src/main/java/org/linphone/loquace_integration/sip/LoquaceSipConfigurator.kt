@@ -10,7 +10,7 @@ object LoquaceSipConfigurator {
 
     private const val TAG = "LoquaceSip"
 
-    fun configure(core: Core, sip: SipAccountEntity, userAgent: String) {
+    fun configure(core: Core, sip: SipAccountEntity, userAgent: String, context: android.content.Context) {
         val factory = Factory.instance()
 
         Log.d(TAG, "Configuring SIP account for user: ${sip.username} on domain: ${sip.domain}")
@@ -50,6 +50,15 @@ object LoquaceSipConfigurator {
         core.addAccount(account)
         core.defaultAccount = account
         Log.d(TAG, "SIP account added and set as default")
+
+        // Set avatar
+        val avatarFile = java.io.File(context.filesDir, "my_avatar.jpg")
+        if (avatarFile.exists()) {
+            val updatedParams = account.params.clone()
+            updatedParams.pictureUri = avatarFile.absolutePath
+            account.params = updatedParams
+            Log.d(TAG, "Avatar set from: ${avatarFile.absolutePath}")
+        }
     }
 
     fun logout(core: Core) {

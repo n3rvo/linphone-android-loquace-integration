@@ -18,10 +18,12 @@ import org.linphone.loquace_integration.R
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import org.linphone.loquace_integration.network.LoquaceMediaDownloader
 import org.linphone.loquace_integration.sip.LoquaceCoreProvider
 import org.linphone.loquace_integration.sip.LoquaceSipConfigurator
 import org.linphone.loquace_integration.xmpp.LoquaceXmppManager
 import org.linphone.loquace_integration.xmpp.XmppConnectionService
+import java.io.File
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
@@ -65,7 +67,19 @@ class LoquaceLoginViewModel(
 
                 Log.d(TAG, "Fetching initial settings...")
                 val settingsRepository = SettingsRepository(db)
-                settingsRepository.fetchAndStore(domain, response.token, userAgent)
+                settingsRepository.fetchAndStore(domain, response.token, userAgent, sessionManager)
+                val avatarUrl = sessionManager.getAvatarUrl()
+                if (!avatarUrl.isNullOrEmpty()) {
+                    val bytes = LoquaceMediaDownloader.downloadBytes(
+                        url    = avatarUrl,
+                        token  = response.token,
+                        domain = domain
+                    )
+                    if (bytes != null) {
+                        val avatarFile = File(context.filesDir, "my_avatar.jpg")
+                        avatarFile.writeBytes(bytes)
+                    }
+                }
 
                 Log.d(TAG, "Fetching initial presence...")
                 val presenceRepository = PresenceRepository(db)
@@ -76,7 +90,7 @@ class LoquaceLoginViewModel(
                 Log.d(TAG, "Configuring SIP account...")
                 val sipEntity = db.sipAccountDao().get()
                 if (sipEntity != null) {
-                    LoquaceSipConfigurator.configure(LoquaceCoreProvider.getCore(), sipEntity, userAgent)
+                    LoquaceSipConfigurator.configure(LoquaceCoreProvider.getCore(), sipEntity, userAgent, context)
                     Log.d(TAG, "SIP account configured successfully")
                 } else {
                     Log.e(TAG, "SIP account data not found in database")
