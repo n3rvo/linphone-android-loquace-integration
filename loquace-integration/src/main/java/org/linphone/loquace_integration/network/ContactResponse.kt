@@ -22,7 +22,7 @@ data class ContactResponse(
 data class ContactPhone(
     val number: String,
     val type: String,
-    val status: String
+    val status: String? = null
 )
 
 data class ContactPresence(

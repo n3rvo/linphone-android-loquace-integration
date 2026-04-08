@@ -18,7 +18,7 @@ class SettingsRepository(private val db: LoquaceDatabase) {
             userAgent = userAgent,
             tenant    = domain
         )
-        sessionManager.saveAvatarUrl(response.profile.avatarUrl)
+        response.profile.avatarUrl?.let { sessionManager.saveAvatarUrl(it) }
         Log.d(TAG, "Settings received for user: ${response.profile.firstName} ${response.profile.lastName}")
         Log.d(TAG, "SIP domain: ${response.sipAccount.domain}")
         Log.d(TAG, "SIP username: ${response.sipAccount.username}")

@@ -93,14 +93,14 @@ data class Device(
 )
 
 data class Profile(
-    val lastName: String,
-    val organization: String,
-    val email: String,
-    val avatarUrl: String,
-    val role: String,
-    val firstName: String,
-    val organizationalUnit: String,
-    val phones: List<Phone>
+    val lastName: String? = null,
+    val organization: String? = null,
+    val email: String? = null,
+    val avatarUrl: String? = null,
+    val role: String? = null,
+    val firstName: String? = null,
+    val organizationalUnit: String? = null,
+    val phones: List<Phone>? = null
 )
 
 data class Phone(

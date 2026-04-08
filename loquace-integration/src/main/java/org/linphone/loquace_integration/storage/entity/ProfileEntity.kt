@@ -6,12 +6,12 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "profile")
 data class ProfileEntity(
     @PrimaryKey val id: Int = 0,
-    val firstName: String,
-    val lastName: String,
-    val email: String,
-    val organization: String,
-    val organizationalUnit: String,
-    val role: String,
-    val avatarUrl: String,
-    val phones: String             // JSON array string
+    val firstName: String? = null,
+    val lastName: String? = null,
+    val email: String? = null,
+    val organization: String? = null,
+    val organizationalUnit: String? = null,
+    val role: String? = null,
+    val avatarUrl: String? = null,
+    val phones: String? = null
 )

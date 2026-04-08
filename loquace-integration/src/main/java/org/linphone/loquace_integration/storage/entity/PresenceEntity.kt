@@ -6,9 +6,9 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "presence")
 data class PresenceEntity(
     @PrimaryKey val id: Int = 0,
-    val message: String,
-    val status: String,
-    val name: String,
-    val account: String,
-    val photoUrl: String
+    val message: String? = null,
+    val status: String? = null,
+    val name: String? = null,
+    val account: String? = null,
+    val photoUrl: String? = null
 )

@@ -6,7 +6,7 @@ data class GroupResponse(
     val name: String,
     val jid: String,
     val type: String,
-    val participants: List<GroupParticipant>
+    val participants: List<GroupParticipant> = emptyList()
 )
 
 data class GroupParticipant(
