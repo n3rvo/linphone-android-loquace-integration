@@ -117,4 +117,29 @@ constructor() : GenericViewModel() {
             loadHistory(jid, group, before = oldestMessageUid)
         }
     }
+
+    fun editMessage(message: XmppMessage, newBody: String) {
+        val jid = peerJid.value ?: return
+        val group = isGroup.value ?: false
+        viewModelScope.launch(Dispatchers.IO) {
+            LoquaceXmppManager.editMessage(
+                toJid   = jid,
+                message = message,
+                newBody = newBody,
+                isGroup = group
+            )
+        }
+    }
+
+    fun deleteMessage(message: XmppMessage) {
+        val jid = peerJid.value ?: return
+        val group = isGroup.value ?: false
+        viewModelScope.launch(Dispatchers.IO) {
+            LoquaceXmppManager.retractMessage(
+                toJid   = jid,
+                message = message,
+                isGroup = group
+            )
+        }
+    }
 }

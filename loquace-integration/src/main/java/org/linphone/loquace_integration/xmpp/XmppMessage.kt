@@ -12,7 +12,8 @@ data class XmppMessage(
     val attachmentName: String? = null,
     var localPath: String? = null,
     val isUploading: Boolean = false,
-    val senderName: String? = null
+    val senderName: String? = null,
+    val isRetracted: Boolean = false
 ) {
     val formattedTime: String
         get() {

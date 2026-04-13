@@ -225,6 +225,11 @@ Shown only when Groups tab is active.
 <string name="group_remove_member_confirmation">Are you sure you want to remove %1$s from the group?</string>
 <string name="delete">Delete</string>
 <string name="loading">Loading...</string>
+<string name="message_edit">Edit message</string>
+<string name="message_delete">Delete message</string>
+<string name="message_delete_confirmation">Are you sure you want to delete this message for everyone?</string>
+<string name="save">Save</string>
+<string name="confirm">Confirm</string>
 ```
 
 ---
@@ -267,6 +272,8 @@ implementation(libs.gson)
 - `loadHistory()` — fetches MAM history, prepends to existing messages
 - `loadMoreHistory()` — triggered by scroll to top, loads next page
 - `isPrependingHistory` flag — prevents scroll-to-bottom when prepending
+- `deleteMessage()` — calls `LoquaceXmppManager.retractMessage()`
+- `editMessage()` — calls `LoquaceXmppManager.editMessage()`
 
 ### `app/src/main/java/org/linphone/ui/main/chat/adapter/XmppMessagesAdapter.kt` *(NEW)*
 
@@ -278,10 +285,10 @@ implementation(libs.gson)
 - All audio formats (mp3, m4a, ogg, wav, mka) treated as VOICE_NOTE
 - Visibility of attachment views controlled entirely in code, not data binding
 - `attachmentClickedEvent` fires when tapping image, video or file bubble
+- `messageLongPressedEvent` fires on long press of outgoing bubble
 - Upload progress shown via `CircularProgressIndicator` while `isUploading=true`
+- Retracted messages shown in gray italic text
 - Sent message IDs tracked in `sentMessageIds` to avoid carbon copy duplicates
-- `addPendingMessage()` shows message immediately while uploading
-- `updateMessage()` updates pending message after upload completes
 
 ### `app/src/main/res/layout/loquace_chat_bubble_incoming.xml` *(NEW)*
 ### `app/src/main/res/layout/loquace_chat_bubble_outgoing.xml` *(NEW)*
@@ -307,41 +314,30 @@ Extends `SlidingPaneChildFragment`. Handles:
 - Voice note recording via hold-to-record mic button
 - `RECORD_AUDIO` permission handling
 - Recording timer display
-- Group room joining via `LoquaceXmppManager.joinRoom()` with `displayName` when `isGroup=true`
+- Group room joining via `LoquaceXmppManager.joinRoom()` with `displayName`
 - Group details bottom sheet via header tap
 - Scroll listener → `loadMoreHistory()` when reaching top
+- Long press on outgoing bubble → context menu (Edit / Delete)
+- `showMessageContextMenu()`, `showEditMessageDialog()`, `deleteMessage()`
 
 ### `app/src/main/java/org/linphone/ui/main/chat/LoquaceVoiceRecorder.kt` *(NEW)*
 ### `app/src/main/res/layout/loquace_group_details_bottom_sheet.xml` *(NEW)*
 ### `app/src/main/res/layout/loquace_group_member_cell.xml` *(NEW)*
-
-**Avatar container:** `FrameLayout` with `ImageView` (loaded progressively) and
-`AppCompatTextView` for initials (shown immediately).
-
 ### `app/src/main/java/org/linphone/ui/main/chat/adapter/GroupMembersAdapter.kt` *(NEW)*
-
-**Key notes:**
-- `updateAvatar()` — updates single member avatar without full list refresh
-- Shows initials immediately, avatars load progressively
-
 ### `app/src/main/java/org/linphone/ui/main/chat/fragment/XmppGroupDetailsBottomSheet.kt` *(NEW)*
-
-Expands to 2/3 of screen height. Owner-only features: add member, remove member
-(with confirmation), delete group (with confirmation). Progressive avatar loading.
-
 ### `app/src/main/java/org/linphone/ui/main/history/model/LoquaceCallLogModel.kt` *(NEW)*
 
 ---
 
 ## Pending features
+- Attachment message retraction (currently only text messages can be deleted)
 - Round avatars in group details screen
-- Conversation list avatars for single chats (contact info fetched on demand)
-- Top bar avatar from `profile.avatarUrl` via settings API (in progress)
+- Conversation list avatars for single chats
+- Top bar avatar from `profile.avatarUrl`
 - Improved contact picker with avatars and search (post-prototype)
 - Push notifications (requires updated `google-services.json`)
 - Video upload optimization for longer videos
 - In-app media viewer (future phase)
-- Delete message for all chat types (future phase)
 - Contact list caching (post-prototype optimization)
 
 ---
@@ -359,14 +355,18 @@ Entirely new module — no merge conflicts expected here.
 - `network/ChatsApi.kt` — group CRUD endpoints
 - `network/LoquaceGroupsRepository.kt` — group API calls + `fetchChatEnabledContacts()`
     + `getContactByJid()`
-- `network/SettingsRepository.kt` — added `sessionManager` parameter to `fetchAndStore()`,
-  saves `profile.avatarUrl` via `sessionManager.saveAvatarUrl()`
-- `storage/SessionManager.kt` — added `saveAvatarUrl()` and `getAvatarUrl()`
-- `sip/LoquaceSipConfigurator.kt` — added `context` parameter, sets avatar from
-  `my_avatar.jpg` on account params after login
-- `ui/` — LoquaceLoginActivity
-- `viewmodel/LoquaceLoginViewModel.kt` — downloads and caches `my_avatar.jpg` after
-  settings fetch, passes `context` to `LoquaceSipConfigurator.configure()`
+- `network/SettingsRepository.kt` — added `sessionManager` parameter, saves `avatarUrl`
+- `storage/SessionManager.kt` — added `saveAvatarUrl()`, `getAvatarUrl()`
+- `storage/entity/PresenceEntity.kt` — all fields made nullable
+- `storage/entity/ProfileEntity.kt` — all fields made nullable
+- `network/PresenceResponse.kt` — all fields made nullable
+- `network/SettingsResponse.kt` — `Profile` fields made nullable
+- `network/GroupResponse.kt` — `participants` defaults to `emptyList()`
+- `network/ContactResponse.kt` — `ContactPhone.status` made nullable
+- `sip/LoquaceSipConfigurator.kt` — added `context` parameter, sets avatar
+  from `my_avatar.jpg` on account params after login
+- `viewmodel/LoquaceLoginViewModel.kt` — downloads and caches `my_avatar.jpg`
+  after settings fetch, passes `context` to `LoquaceSipConfigurator.configure()`
 - `xmpp/LoquaceXmppManager.kt` — Smack XMPP singleton with:
     - Message store per conversation (`_messages` StateFlow)
     - `isConnecting` flag to prevent double connection
@@ -375,20 +375,24 @@ Entirely new module — no merge conflicts expected here.
     - Attachment type detection (strips query params, all audio → VOICE_NOTE)
     - `addPendingMessage()`, `updateMessage()`, `uploadAndSendFile()`
     - `joinRoom()` — joins MUC, stores group name, updates conversation display name
-    - `groupNames` map — roomJid → group name for display
-    - `contactNames` map — JID → full name for single chat display
-    - `contactIds` map — JID → contactId for avatar file lookup
-    - `contactPictureUrls` map — JID → pictureUrl for on-demand avatar download
-    - `hasContactInfo()` — checks if contact info is already cached
-    - `fetchAndCacheContactInfo()` — fetches and caches contact info on demand
-    - `prependMessages()` — prepends history without sorting (preserves MAM order)
-    - `fetchMessageHistory()` — MAM XEP-0313, supports 1-1 and MUC, paginated,
-      uses `DelayInformation` for timestamps, returns `Pair<List<XmppMessage>, String?>`
-    - MUC `isOutgoing` detection uses nickname comparison
-    - Group display name shown in conversations list via `groupNames` map
-- `xmpp/XmppConnectionService.kt` — foreground service
-- `xmpp/XmppConnectionState.kt` — sealed class
-- `xmpp/XmppMessage.kt` — includes `senderName`, `isUploading`, `formattedTime`
+    - `groupNames` map — roomJid → group name
+    - `contactNames` map — JID → full name
+    - `contactIds` map — JID → contactId for avatar lookup
+    - `contactPictureUrls` map — JID → pictureUrl
+    - `prependMessages()` — prepends history preserving MAM order
+    - `fetchMessageHistory()` — MAM XEP-0313, paginated, handles retractions,
+      merges retracted messages with originals, uses `message.stanzaId` as ID
+    - `retractMessage()` — sends XEP-0424 retraction with body fallback,
+      updates local store to show "This message was deleted" in gray italic
+    - `retractLocalMessage()` — updates local message store on retraction received
+    - `editMessage()` — sends XEP-0308 correction, updates local store
+    - `updateMessageBody()` — updates local message body on correction received
+    - Incoming listener handles retraction and correction stanzas
+    - MUC listener handles retraction and correction stanzas
+    - `sendMessage()` uses `sentMessage.stanzaId` for consistent message IDs
+    - Group display name shown via `groupNames` map
+- `xmpp/XmppMessage.kt` — added `isRetracted: Boolean = false`, `senderName`,
+  `isUploading`, `formattedTime`
 - `xmpp/XmppConversation.kt` — includes `displayName`, `pictureUrl`, `isGroup`
 - `xmpp/XmppHttpUploadManager.kt` — XEP-0363 HTTP file upload
 - `xmpp/AttachmentType.kt` — NONE, IMAGE, VIDEO, AUDIO, FILE, VOICE_NOTE

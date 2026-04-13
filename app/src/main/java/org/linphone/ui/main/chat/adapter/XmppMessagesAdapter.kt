@@ -31,6 +31,10 @@ import java.io.File
 
 class XmppMessagesAdapter : ListAdapter<XmppMessage, RecyclerView.ViewHolder>(DiffCallback()) {
 
+    val messageLongPressedEvent: MutableLiveData<Event<XmppMessage>> by lazy {
+        MutableLiveData()
+    }
+
     companion object {
         private const val INCOMING = 0
         private const val OUTGOING = 1
@@ -63,6 +67,10 @@ class XmppMessagesAdapter : ListAdapter<XmppMessage, RecyclerView.ViewHolder>(Di
                 }
                 attachmentFile.setOnClickListener {
                     attachmentClickedEvent.value = Event(viewHolder.binding.model!!)
+                }
+                bubble.setOnLongClickListener {
+                    messageLongPressedEvent.value = Event(viewHolder.binding.model!!)
+                    true
                 }
             }
             viewHolder
@@ -103,6 +111,18 @@ class XmppMessagesAdapter : ListAdapter<XmppMessage, RecyclerView.ViewHolder>(Di
             binding.model = message
             binding.executePendingBindings()
 
+            binding.textContent.setTypeface(
+                null,
+                if (message.isRetracted) android.graphics.Typeface.ITALIC
+                else android.graphics.Typeface.NORMAL
+            )
+            binding.textContent.setTextColor(
+                if (message.isRetracted)
+                    binding.root.context.getColor(android.R.color.darker_gray)
+                else
+                    binding.root.context.getColor(android.R.color.black)
+            )
+
             Log.d("XmppAdapter", "Message: body=${message.body}, isImage=${message.isImage}, isVideo=${message.isVideo}, isFile=${message.isFile}, attachmentUrl=${message.attachmentUrl}, attachmentType=${message.attachmentType}")
 
             binding.attachmentImage.visibility = if (message.isImage) View.VISIBLE else View.GONE
@@ -124,6 +144,18 @@ class XmppMessagesAdapter : ListAdapter<XmppMessage, RecyclerView.ViewHolder>(Di
         fun bind(message: XmppMessage) {
             binding.model = message
             binding.executePendingBindings()
+
+            binding.textContent.setTypeface(
+                null,
+                if (message.isRetracted) android.graphics.Typeface.ITALIC
+                else android.graphics.Typeface.NORMAL
+            )
+            binding.textContent.setTextColor(
+                if (message.isRetracted)
+                    binding.root.context.getColor(android.R.color.darker_gray)
+                else
+                    binding.root.context.getColor(android.R.color.black)
+            )
 
             Log.d("XmppAdapter", "Message: body=${message.body}, isImage=${message.isImage}, isVideo=${message.isVideo}, isFile=${message.isFile}, attachmentUrl=${message.attachmentUrl}, attachmentType=${message.attachmentType}")
 

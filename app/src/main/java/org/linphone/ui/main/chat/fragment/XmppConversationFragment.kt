@@ -226,6 +226,12 @@ class XmppConversationFragment : SlidingPaneChildFragment() {
             }
         }
 
+        adapter.messageLongPressedEvent.observe(viewLifecycleOwner) {
+            it.consume { message ->
+                showMessageContextMenu(message)
+            }
+        }
+
         // Wire up text input to toggle send/mic button
         binding.messageInput.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -563,5 +569,50 @@ class XmppConversationFragment : SlidingPaneChildFragment() {
                 else -> false
             }
         }
+    }
+
+    private fun showMessageContextMenu(message: XmppMessage) {
+        val options = arrayOf(
+            getString(R.string.message_edit),
+            getString(R.string.message_delete)
+        )
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> showEditMessageDialog(message)
+                    1 -> deleteMessage(message)
+                }
+            }
+            .show()
+    }
+
+    private fun deleteMessage(message: XmppMessage) {
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.message_delete))
+            .setMessage(getString(R.string.message_delete_confirmation))
+            .setPositiveButton(getString(R.string.delete)) { _, _ ->
+                viewModel.deleteMessage(message)
+            }
+            .setNegativeButton(getString(R.string.cancel), null)
+            .show()
+    }
+
+    private fun showEditMessageDialog(message: XmppMessage) {
+        val input = android.widget.EditText(requireContext()).apply {
+            setText(message.body)
+            setPadding(48, 32, 48, 32)
+        }
+
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.message_edit))
+            .setView(input)
+            .setPositiveButton(getString(R.string.save)) { _, _ ->
+                val newText = input.text.toString().trim()
+                if (newText.isNotEmpty() && newText != message.body) {
+                    viewModel.editMessage(message, newText)
+                }
+            }
+            .setNegativeButton(getString(R.string.cancel), null)
+            .show()
     }
 }
