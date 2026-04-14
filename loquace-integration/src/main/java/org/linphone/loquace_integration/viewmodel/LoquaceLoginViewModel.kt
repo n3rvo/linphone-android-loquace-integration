@@ -120,7 +120,10 @@ class LoquaceLoginViewModel(
     private suspend fun getFcmToken(): String = suspendCoroutine { cont ->
         FirebaseMessaging.getInstance().token
             .addOnSuccessListener { token -> cont.resume(token) }
-            .addOnFailureListener { e -> cont.resumeWithException(e) }
+            .addOnFailureListener { e ->
+                Log.w("LoquaceLogin", "Failed to get FCM token: ${e.message}")
+                cont.resume("") // Return empty string instead of crashing
+            }
     }
 
     private fun buildUserAgent(context: Context): String {

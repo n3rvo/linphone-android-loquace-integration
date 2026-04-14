@@ -81,12 +81,12 @@ Added `loquaceDialerFragment` with actions to/from all other main tabs.
 </fragment>
 
 <action
-android:id="@+id/action_global_xmppConversationFragment"
-app:destination="@id/xmppConversationFragment"
-app:enterAnim="@anim/slide_in_right"
-app:exitAnim="@anim/slide_out_left"
-app:popEnterAnim="@anim/slide_in_left"
-app:popExitAnim="@anim/slide_out_right"/>
+    android:id="@+id/action_global_xmppConversationFragment"
+    app:destination="@id/xmppConversationFragment"
+    app:enterAnim="@anim/slide_in_right"
+    app:exitAnim="@anim/slide_out_left"
+    app:popEnterAnim="@anim/slide_in_left"
+    app:popExitAnim="@anim/slide_out_right"/>
 ```
 
 ---
@@ -330,7 +330,6 @@ Extends `SlidingPaneChildFragment`. Handles:
 ---
 
 ## Pending features
-- Attachment message retraction (currently only text messages can be deleted)
 - Round avatars in group details screen
 - Conversation list avatars for single chats
 - Top bar avatar from `profile.avatarUrl`
@@ -350,46 +349,51 @@ Entirely new module — no merge conflicts expected here.
 - `network/` — Retrofit API clients for auth, settings, presence, contacts, call history, media, chats
 - `network/MediaApi.kt` — authenticated media download endpoint
 - `network/LoquaceMediaDownloader.kt` — downloads media bytes with auth headers
-- `network/ContactResponse.kt` — includes `chats: List<ContactChat>?` for XMPP JID
-- `network/GroupResponse.kt` — group and participant data models
+- `network/ContactResponse.kt` — includes `chats: List<ContactChat>?` for XMPP JID,
+  `ContactPhone.status` nullable
+- `network/GroupResponse.kt` — group and participant data models,
+  `participants` defaults to `emptyList()`
 - `network/ChatsApi.kt` — group CRUD endpoints
 - `network/LoquaceGroupsRepository.kt` — group API calls + `fetchChatEnabledContacts()`
     + `getContactByJid()`
 - `network/SettingsRepository.kt` — added `sessionManager` parameter, saves `avatarUrl`
+- `network/PresenceResponse.kt` — all fields made nullable
+- `network/SettingsResponse.kt` — `Profile` fields made nullable
 - `storage/SessionManager.kt` — added `saveAvatarUrl()`, `getAvatarUrl()`
 - `storage/entity/PresenceEntity.kt` — all fields made nullable
 - `storage/entity/ProfileEntity.kt` — all fields made nullable
-- `network/PresenceResponse.kt` — all fields made nullable
-- `network/SettingsResponse.kt` — `Profile` fields made nullable
-- `network/GroupResponse.kt` — `participants` defaults to `emptyList()`
-- `network/ContactResponse.kt` — `ContactPhone.status` made nullable
 - `sip/LoquaceSipConfigurator.kt` — added `context` parameter, sets avatar
   from `my_avatar.jpg` on account params after login
-- `viewmodel/LoquaceLoginViewModel.kt` — downloads and caches `my_avatar.jpg`
-  after settings fetch, passes `context` to `LoquaceSipConfigurator.configure()`
+- `viewmodel/LoquaceLoginViewModel.kt` — FCM token failure handled gracefully
+  (returns empty string instead of crashing), downloads and caches `my_avatar.jpg`,
+  passes `context` to `LoquaceSipConfigurator.configure()`
 - `xmpp/LoquaceXmppManager.kt` — Smack XMPP singleton with:
     - Message store per conversation (`_messages` StateFlow)
     - `isConnecting` flag to prevent double connection
     - `sentMessageIds` set to ignore carbon copies
+    - `roomsWithListeners` set to prevent duplicate MUC message listeners
     - Roster loading disabled, resource set to user agent
     - Attachment type detection (strips query params, all audio → VOICE_NOTE)
     - `addPendingMessage()`, `updateMessage()`, `uploadAndSendFile()`
-    - `joinRoom()` — joins MUC, stores group name, updates conversation display name
+    - `uploadAndSendFile()` uses `sentMessage.stanzaId` for consistent message IDs
+      in both 1-1 and MUC (via `muc.createMessage()`)
+    - `joinRoom()` — joins MUC, stores group name, updates conversation display name,
+      only adds message listener once per room via `roomsWithListeners`
     - `groupNames` map — roomJid → group name
     - `contactNames` map — JID → full name
     - `contactIds` map — JID → contactId for avatar lookup
     - `contactPictureUrls` map — JID → pictureUrl
     - `prependMessages()` — prepends history preserving MAM order
-    - `fetchMessageHistory()` — MAM XEP-0313, paginated, handles retractions,
-      merges retracted messages with originals, uses `message.stanzaId` as ID
+    - `fetchMessageHistory()` — MAM XEP-0313, paginated, detects and merges
+      retracted messages, uses `message.stanzaId` as ID
     - `retractMessage()` — sends XEP-0424 retraction with body fallback,
-      updates local store to show "This message was deleted" in gray italic
-    - `retractLocalMessage()` — updates local message store on retraction received
+      clears attachment fields, updates local store
+    - `retractLocalMessage()` — clears body, attachment fields, sets `isRetracted=true`
     - `editMessage()` — sends XEP-0308 correction, updates local store
     - `updateMessageBody()` — updates local message body on correction received
+    - `sendMessage()` uses `sentMessage.stanzaId` for consistent message IDs
     - Incoming listener handles retraction and correction stanzas
     - MUC listener handles retraction and correction stanzas
-    - `sendMessage()` uses `sentMessage.stanzaId` for consistent message IDs
     - Group display name shown via `groupNames` map
 - `xmpp/XmppMessage.kt` — added `isRetracted: Boolean = false`, `senderName`,
   `isUploading`, `formattedTime`

@@ -64,6 +64,8 @@ object LoquaceXmppManager {
 
     private val joinedRooms = mutableMapOf<String, MultiUserChat>()
 
+    private val roomsWithListeners = mutableSetOf<String>()
+
     private val groupNames = mutableMapOf<String, String>()
 
     private val contactNames = mutableMapOf<String, String>()
@@ -152,6 +154,7 @@ object LoquaceXmppManager {
                             return@launch
                         }
                         val attachmentType = detectAttachmentType(body)
+                        Log.d(TAG, "Incoming message id=${message.stanzaId}, attachmentType=$attachmentType, body=$body")
                         val attachmentName = if (attachmentType != AttachmentType.NONE) {
                             body.substringAfterLast("/").substringBefore("?")
                         } else null
@@ -337,14 +340,41 @@ object LoquaceXmppManager {
         }
 
         // Send the message and update
-        // Send the message and update
         val muc = joinedRooms[toJid]
         if (muc != null) {
-            muc.sendMessage(uploadedUrl)
+            val mucMessage = muc.createMessage().apply {
+                body = uploadedUrl
+            }
+            muc.sendMessage(mucMessage)
+            Log.d(TAG, "Sent MUC attachment stanzaId: ${mucMessage.stanzaId}")
+
+            val finalMessage = pendingMessage.copy(
+                id            = mucMessage.stanzaId ?: messageId,
+                attachmentUrl = uploadedUrl,
+                isUploading   = false
+            )
+            updateMessage(messageId, toJid, finalMessage)
+            Log.d(TAG, "File uploaded and MUC message updated: $uploadedUrl")
+            return finalMessage
         } else {
-            val jid: EntityBareJid = JidCreate.entityBareFrom(toJid)
-            val chat: Chat = ChatManager.getInstanceFor(conn).chatWith(jid)
-            chat.send(uploadedUrl)
+            val sentMessage = org.jivesoftware.smack.packet.Message(
+                JidCreate.entityBareFrom(toJid),
+                org.jivesoftware.smack.packet.Message.Type.chat
+            ).apply {
+                body = uploadedUrl
+            }
+            conn.sendStanza(sentMessage)
+            Log.d(TAG, "Sent attachment stanzaId: ${sentMessage.stanzaId}")
+
+            // Use stanzaId as the message ID
+            val finalMessage = pendingMessage.copy(
+                id            = sentMessage.stanzaId ?: messageId,
+                attachmentUrl = uploadedUrl,
+                isUploading   = false
+            )
+            updateMessage(messageId, toJid, finalMessage)
+            Log.d(TAG, "File uploaded and message updated: $uploadedUrl")
+            return finalMessage
         }
 
         val finalMessage = pendingMessage.copy(
@@ -499,71 +529,74 @@ object LoquaceXmppManager {
             }
 
             // Add message listener for this room
-            muc.addMessageListener { message ->
-                scope.launch {
-                    val body = message.body ?: return@launch
-                    if (body.isEmpty()) return@launch
+            if (!roomsWithListeners.contains(roomJid)) {
+                muc.addMessageListener { message ->
+                    scope.launch {
+                        val body = message.body ?: return@launch
+                        if (body.isEmpty()) return@launch
 
-                    // Check for retraction
-                    val retractExtension = message.extensions.find {
-                        it.namespace == "urn:xmpp:message-retract:1" && it.elementName == "retract"
+                        // Check for retraction
+                        val retractExtension = message.extensions.find {
+                            it.namespace == "urn:xmpp:message-retract:1" && it.elementName == "retract"
+                        }
+                        if (retractExtension != null) {
+                            val retractedId = retractExtension.toXML()
+                                .toString()
+                                .substringAfter("id='")
+                                .substringBefore("'")
+                            Log.d(TAG, "Received MUC retraction for message $retractedId")
+                            retractLocalMessage(roomJid, retractedId)
+                            return@launch
+                        }
+
+                        // Check for correction
+                        val correctionExtension = message.extensions.find {
+                            it.namespace == "urn:xmpp:message-correct:0" && it.elementName == "replace"
+                        }
+                        if (correctionExtension != null) {
+                            val correctedId = correctionExtension.toXML()
+                                .toString()
+                                .substringAfter("id='")
+                                .substringBefore("'")
+                            Log.d(TAG, "Received MUC correction for message $correctedId")
+                            updateMessageBody(roomJid, correctedId, body)
+                            return@launch
+                        }
+
+                        val senderNickname = message.from?.resourceOrNull?.toString()
+                        val myNickname = connection?.user?.asEntityBareJidIfPossible()
+                            ?.localpartOrNull?.toString()
+
+                        Log.d(TAG, "MUC message from nickname: $senderNickname, my nickname: $myNickname")
+
+                        if (senderNickname != null && senderNickname == myNickname) {
+                            Log.d(TAG, "Ignoring own MUC message")
+                            return@launch
+                        }
+
+                        val attachmentType = detectAttachmentType(body)
+                        val attachmentName = if (attachmentType != AttachmentType.NONE) {
+                            body.substringAfterLast("/").substringBefore("?")
+                        } else null
+
+                        val xmppMessage = XmppMessage(
+                            id             = message.stanzaId ?: System.currentTimeMillis().toString(),
+                            from           = roomJid,
+                            to             = roomJid,
+                            body           = if (attachmentType != AttachmentType.NONE) "" else body,
+                            timestamp      = System.currentTimeMillis(),
+                            isOutgoing     = false,
+                            attachmentUrl  = if (attachmentType != AttachmentType.NONE) body else null,
+                            attachmentType = attachmentType,
+                            attachmentName = attachmentName,
+                            senderName     = senderNickname
+                        )
+
+                        Log.d(TAG, "Received MUC message in $roomJid from $senderNickname")
+                        updateConversationWithMessage(xmppMessage)
                     }
-                    if (retractExtension != null) {
-                        val retractedId = retractExtension.toXML()
-                            .toString()
-                            .substringAfter("id='")
-                            .substringBefore("'")
-                        Log.d(TAG, "Received MUC retraction for message $retractedId")
-                        retractLocalMessage(roomJid, retractedId)
-                        return@launch
-                    }
-
-                    // Check for correction
-                    val correctionExtension = message.extensions.find {
-                        it.namespace == "urn:xmpp:message-correct:0" && it.elementName == "replace"
-                    }
-                    if (correctionExtension != null) {
-                        val correctedId = correctionExtension.toXML()
-                            .toString()
-                            .substringAfter("id='")
-                            .substringBefore("'")
-                        Log.d(TAG, "Received MUC correction for message $correctedId")
-                        updateMessageBody(roomJid, correctedId, body)
-                        return@launch
-                    }
-
-                    val senderNickname = message.from?.resourceOrNull?.toString()
-                    val myNickname = connection?.user?.asEntityBareJidIfPossible()
-                        ?.localpartOrNull?.toString()
-
-                    Log.d(TAG, "MUC message from nickname: $senderNickname, my nickname: $myNickname")
-
-                    if (senderNickname != null && senderNickname == myNickname) {
-                        Log.d(TAG, "Ignoring own MUC message")
-                        return@launch
-                    }
-
-                    val attachmentType = detectAttachmentType(body)
-                    val attachmentName = if (attachmentType != AttachmentType.NONE) {
-                        body.substringAfterLast("/").substringBefore("?")
-                    } else null
-
-                    val xmppMessage = XmppMessage(
-                        id             = message.stanzaId ?: System.currentTimeMillis().toString(),
-                        from           = roomJid,
-                        to             = roomJid,
-                        body           = if (attachmentType != AttachmentType.NONE) "" else body,
-                        timestamp      = System.currentTimeMillis(),
-                        isOutgoing     = false,
-                        attachmentUrl  = if (attachmentType != AttachmentType.NONE) body else null,
-                        attachmentType = attachmentType,
-                        attachmentName = attachmentName,
-                        senderName     = senderNickname
-                    )
-
-                    Log.d(TAG, "Received MUC message in $roomJid from $senderNickname")
-                    updateConversationWithMessage(xmppMessage)
                 }
+                roomsWithListeners.add(roomJid)
             }
 
             joinedRooms[roomJid] = muc
@@ -667,13 +700,16 @@ object LoquaceXmppManager {
                         .substringAfter("id='")
                         .substringBefore("'")
                     return@mapNotNull XmppMessage(
-                        id          = retractedId,
-                        from        = if (isGroup) peerJid else fromJid,
-                        to          = if (isGroup) peerJid else toJid,
-                        body        = "This message was deleted",
-                        timestamp   = timestamp,
-                        isOutgoing  = isOutgoing,
-                        isRetracted = true
+                        id             = retractedId,
+                        from           = if (isGroup) peerJid else fromJid,
+                        to             = if (isGroup) peerJid else toJid,
+                        body           = "This message was deleted",
+                        timestamp      = timestamp,
+                        isOutgoing     = isOutgoing,
+                        isRetracted    = true,
+                        attachmentUrl  = null,
+                        attachmentType = AttachmentType.NONE,
+                        attachmentName = null
                     )
                 }
 
@@ -837,14 +873,15 @@ object LoquaceXmppManager {
     private suspend fun retractLocalMessage(peerJid: String, messageId: String) {
         val current = _messages.value.toMutableMap()
         val conversationMessages = (current[peerJid] ?: emptyList()).toMutableList()
-        Log.d(TAG, "Retracting message $messageId from $peerJid, total messages: ${conversationMessages.size}")
-        Log.d(TAG, "Available message IDs: ${conversationMessages.map { it.id }}")
         val index = conversationMessages.indexOfFirst { it.id == messageId }
-        Log.d(TAG, "Found message at index: $index")
         if (index != -1) {
             conversationMessages[index] = conversationMessages[index].copy(
-                body        = "This message was deleted",
-                isRetracted = true
+                body           = "This message was deleted",
+                isRetracted    = true,
+                attachmentUrl  = null,
+                attachmentType = AttachmentType.NONE,
+                attachmentName = null,
+                localPath      = null
             )
             current[peerJid] = conversationMessages
             _messages.value = current
