@@ -81,12 +81,12 @@ Added `loquaceDialerFragment` with actions to/from all other main tabs.
 </fragment>
 
 <action
-    android:id="@+id/action_global_xmppConversationFragment"
-    app:destination="@id/xmppConversationFragment"
-    app:enterAnim="@anim/slide_in_right"
-    app:exitAnim="@anim/slide_out_left"
-    app:popEnterAnim="@anim/slide_in_left"
-    app:popExitAnim="@anim/slide_out_right"/>
+android:id="@+id/action_global_xmppConversationFragment"
+app:destination="@id/xmppConversationFragment"
+app:enterAnim="@anim/slide_in_right"
+app:exitAnim="@anim/slide_out_left"
+app:popEnterAnim="@anim/slide_in_left"
+app:popExitAnim="@anim/slide_out_right"/>
 ```
 
 ---
@@ -189,6 +189,38 @@ Shown only when Groups tab is active.
 
 ---
 
+## `app/src/main/res/layout/main_drawer_menu.xml`
+
+### Change: Replace Linphone drawer with Loquace custom drawer
+Completely replaced with new Loquace drawer layout containing:
+- Original Linphone header (app name + logo + close button)
+- Original Linphone account list with avatar and profile button
+- Incoming Calls accordion section (Mobile/Browser/Phone switches with icons)
+- Presence accordion section (status spinner with colors + message input)
+- Settings row → navigates to Linphone's existing settings fragment
+- About row → navigates to about fragment
+- Language row → navigates to settings fragment
+- Logout button at bottom (red, styled like other rows)
+- Rounded right corners via `drawer_background.xml` drawable
+- Accordion panels toggle on row click (collapsed by default)
+- Submit buttons styled as compact pill-shaped text buttons
+
+---
+
+## `app/src/main/java/org/linphone/ui/main/fragment/DrawerMenuFragment.kt`
+
+### Change: Wire up Loquace drawer sections
+- Added `LoquaceDrawerMenuViewModel` alongside existing `DrawerMenuViewModel`
+- `loquaceViewModel.fetchData()` called when drawer opens
+- Accordion toggle for Incoming Calls and Presence panels
+- Presence spinner with colored text per status (ONLINE/AWAY/BUSY/OFFLINE)
+- Switch listeners update ViewModel state without submitting
+- Submit buttons call `submitCallsSettings()` and `submitPresence()`
+- Logout button placeholder (full implementation deferred)
+- Kept all original Linphone observers (account list, profile, notifications)
+
+---
+
 ## `app/src/main/res/values/strings.xml`
 
 ### Change: Add new string resources
@@ -230,6 +262,40 @@ Shown only when Groups tab is active.
 <string name="message_delete_confirmation">Are you sure you want to delete this message for everyone?</string>
 <string name="save">Save</string>
 <string name="confirm">Confirm</string>
+<string name="drawer_incoming_calls_title">Incoming Calls</string>
+<string name="drawer_device_mobile">Mobile</string>
+<string name="drawer_device_browser">Browser</string>
+<string name="drawer_device_phone">Phone</string>
+<string name="drawer_presence_title">Presence</string>
+<string name="drawer_presence_status_label">Status</string>
+<string name="drawer_presence_message_label">Status message</string>
+<string name="drawer_presence_message_hint">Add a status message...</string>
+<string name="drawer_status_online">Online</string>
+<string name="drawer_status_away">Away</string>
+<string name="drawer_status_busy">Busy</string>
+<string name="drawer_status_offline">Offline</string>
+<string name="drawer_about_title">About</string>
+<string name="drawer_language_title">Language</string>
+<string name="drawer_logout">Logout</string>
+<string name="drawer_submit">Save</string>
+```
+
+---
+
+## `app/src/main/res/drawable/drawer_background.xml` *(NEW)*
+Custom drawable with rounded right corners for the drawer panel.
+
+---
+
+## `app/src/main/res/values/styles.xml`
+
+### Change: Add LoquaceSwitch style
+```xml
+<style name="LoquaceSwitch" parent="Widget.MaterialComponents.CompoundButton.Switch">
+    <item name="colorPrimary">?attr/color_main1_500</item>
+    <item name="colorSwitchThumbNormal">?attr/color_main2_200</item>
+    <item name="android:colorForeground">?attr/color_main2_200</item>
+</style>
 ```
 
 ---
@@ -327,9 +393,20 @@ Extends `SlidingPaneChildFragment`. Handles:
 ### `app/src/main/java/org/linphone/ui/main/chat/fragment/XmppGroupDetailsBottomSheet.kt` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/history/model/LoquaceCallLogModel.kt` *(NEW)*
 
+### `app/src/main/java/org/linphone/ui/main/viewmodel/LoquaceDrawerMenuViewModel.kt` *(NEW)*
+Handles presence and incoming calls API calls for the drawer menu.
+
+**Key methods:**
+- `fetchData()` — fetches presence and calls settings from API on drawer open
+- `submitPresence()` — POSTs updated status and message to `status/presence`
+- `submitCallsSettings()` — POSTs full inbound devices object to `settings/calls`
+
 ---
 
 ## Pending features
+- About screen implementation
+- Language selection implementation
+- Logout implementation
 - Round avatars in group details screen
 - Conversation list avatars for single chats
 - Top bar avatar from `profile.avatarUrl`
@@ -357,6 +434,8 @@ Entirely new module — no merge conflicts expected here.
 - `network/LoquaceGroupsRepository.kt` — group API calls + `fetchChatEnabledContacts()`
     + `getContactByJid()`
 - `network/SettingsRepository.kt` — added `sessionManager` parameter, saves `avatarUrl`
+- `network/SettingsApi.kt` — added `updateCallsSettings()` POST endpoint
+- `network/PresenceApi.kt` — added `updatePresence()` POST endpoint
 - `network/PresenceResponse.kt` — all fields made nullable
 - `network/SettingsResponse.kt` — `Profile` fields made nullable
 - `storage/SessionManager.kt` — added `saveAvatarUrl()`, `getAvatarUrl()`
@@ -364,9 +443,8 @@ Entirely new module — no merge conflicts expected here.
 - `storage/entity/ProfileEntity.kt` — all fields made nullable
 - `sip/LoquaceSipConfigurator.kt` — added `context` parameter, sets avatar
   from `my_avatar.jpg` on account params after login
-- `viewmodel/LoquaceLoginViewModel.kt` — FCM token failure handled gracefully
-  (returns empty string instead of crashing), downloads and caches `my_avatar.jpg`,
-  passes `context` to `LoquaceSipConfigurator.configure()`
+- `viewmodel/LoquaceLoginViewModel.kt` — FCM token failure handled gracefully,
+  downloads and caches `my_avatar.jpg`, passes `context` to configure()
 - `xmpp/LoquaceXmppManager.kt` — Smack XMPP singleton with:
     - Message store per conversation (`_messages` StateFlow)
     - `isConnecting` flag to prevent double connection
@@ -375,14 +453,11 @@ Entirely new module — no merge conflicts expected here.
     - Roster loading disabled, resource set to user agent
     - Attachment type detection (strips query params, all audio → VOICE_NOTE)
     - `addPendingMessage()`, `updateMessage()`, `uploadAndSendFile()`
-    - `uploadAndSendFile()` uses `sentMessage.stanzaId` for consistent message IDs
-      in both 1-1 and MUC (via `muc.createMessage()`)
+    - `uploadAndSendFile()` uses `sentMessage.stanzaId` for consistent IDs
+      in both 1-1 (via `conn.sendStanza()`) and MUC (via `muc.createMessage()`)
     - `joinRoom()` — joins MUC, stores group name, updates conversation display name,
       only adds message listener once per room via `roomsWithListeners`
-    - `groupNames` map — roomJid → group name
-    - `contactNames` map — JID → full name
-    - `contactIds` map — JID → contactId for avatar lookup
-    - `contactPictureUrls` map — JID → pictureUrl
+    - `groupNames`, `contactNames`, `contactIds`, `contactPictureUrls` maps
     - `prependMessages()` — prepends history preserving MAM order
     - `fetchMessageHistory()` — MAM XEP-0313, paginated, detects and merges
       retracted messages, uses `message.stanzaId` as ID
@@ -392,8 +467,7 @@ Entirely new module — no merge conflicts expected here.
     - `editMessage()` — sends XEP-0308 correction, updates local store
     - `updateMessageBody()` — updates local message body on correction received
     - `sendMessage()` uses `sentMessage.stanzaId` for consistent message IDs
-    - Incoming listener handles retraction and correction stanzas
-    - MUC listener handles retraction and correction stanzas
+    - Incoming and MUC listeners handle retraction and correction stanzas
     - Group display name shown via `groupNames` map
 - `xmpp/XmppMessage.kt` — added `isRetracted: Boolean = false`, `senderName`,
   `isUploading`, `formattedTime`

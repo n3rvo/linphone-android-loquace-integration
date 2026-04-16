@@ -26,6 +26,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.annotation.UiThread
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
@@ -41,6 +42,7 @@ import org.linphone.ui.main.MainActivity
 import org.linphone.ui.main.settings.fragment.AccountProfileFragmentDirections
 import org.linphone.ui.main.viewmodel.DrawerMenuViewModel
 import androidx.core.net.toUri
+import org.linphone.ui.main.viewmodel.LoquaceDrawerMenuViewModel
 
 @UiThread
 class DrawerMenuFragment : GenericMainFragment() {
@@ -67,48 +69,17 @@ class DrawerMenuFragment : GenericMainFragment() {
         viewModel = requireActivity().run {
             ViewModelProvider(this)[DrawerMenuViewModel::class.java]
         }
+        val loquaceViewModel = ViewModelProvider(requireActivity())[LoquaceDrawerMenuViewModel::class.java]
 
         binding.lifecycleOwner = viewLifecycleOwner
         binding.viewModel = viewModel
+        binding.loquaceViewModel = loquaceViewModel
         observeToastEvents(viewModel)
 
-        binding.setSettingsClickedListener {
-            val navController = (requireActivity() as MainActivity).findNavController()
-            navController.navigate(R.id.action_global_settingsFragment)
-            (requireActivity() as MainActivity).closeDrawerMenu()
-        }
+        // Fetch data when drawer opens
+        loquaceViewModel.fetchData(requireContext())
 
-        binding.setRecordingsClickListener {
-            val navController = (requireActivity() as MainActivity).findNavController()
-            navController.navigate(R.id.action_global_recordingsListFragment)
-            (requireActivity() as MainActivity).closeDrawerMenu()
-        }
-
-        binding.setHelpClickedListener {
-            val navController = (requireActivity() as MainActivity).findNavController()
-            navController.navigate(R.id.action_global_helpFragment)
-            (requireActivity() as MainActivity).closeDrawerMenu()
-        }
-
-        binding.setQuitClickedListener {
-            coreContext.stopKeepAliveService()
-
-            coreContext.postOnCoreThread {
-                Log.i("$TAG Stopping Core Context")
-                coreContext.quitSafely()
-            }
-
-            Log.i("$TAG Quitting app")
-            requireActivity().finishAndRemoveTask()
-        }
-
-        viewModel.startAssistantEvent.observe(viewLifecycleOwner) {
-            it.consume {
-                startActivity(Intent(requireActivity(), AssistantActivity::class.java))
-                (requireActivity() as MainActivity).closeDrawerMenu()
-            }
-        }
-
+        // Close button
         viewModel.closeDrawerEvent.observe(viewLifecycleOwner) {
             it.consume {
                 (requireActivity() as MainActivity).closeDrawerMenu()
@@ -121,47 +92,8 @@ class DrawerMenuFragment : GenericMainFragment() {
                 val action = AccountProfileFragmentDirections.actionGlobalAccountProfileFragment(
                     model.identity
                 )
-                Log.i("$TAG Going to account [${model.identity}] profile")
                 navController.navigate(action)
                 (requireActivity() as MainActivity).closeDrawerMenu()
-            }
-        }
-
-        viewModel.defaultAccountChangedEvent.observe(viewLifecycleOwner) {
-            it.consume { identity ->
-                Log.w(
-                    "$TAG Default account has changed, now is [$identity], closing side menu in 500ms"
-                )
-
-                lifecycleScope.launch {
-                    withContext(Dispatchers.IO) {
-                        delay(500)
-                        withContext(Dispatchers.Main) {
-                            (requireActivity() as MainActivity).closeDrawerMenu()
-                        }
-                    }
-                }
-            }
-        }
-
-        viewModel.openLinkInBrowserEvent.observe(viewLifecycleOwner) {
-            it.consume { link ->
-                try {
-                    val browserIntent = Intent(Intent.ACTION_VIEW, link.toUri())
-                    startActivity(browserIntent)
-                } catch (ise: IllegalStateException) {
-                    Log.e(
-                        "$TAG Can't start ACTION_VIEW intent for URL [$link], IllegalStateException: $ise"
-                    )
-                } catch (anfe: ActivityNotFoundException) {
-                    Log.e(
-                        "$TAG Can't start ACTION_VIEW intent for URL [$link], ActivityNotFoundException: $anfe"
-                    )
-                } catch (e: Exception) {
-                    Log.e(
-                        "$TAG Can't start ACTION_VIEW intent for URL [$link]: $e"
-                    )
-                }
             }
         }
 
@@ -175,12 +107,119 @@ class DrawerMenuFragment : GenericMainFragment() {
             }
         }
 
-        sharedViewModel.refreshDrawerMenuQuitButtonEvent.observe(viewLifecycleOwner) {
-            it.consume {
-                coreContext.postOnCoreThread {
-                    viewModel.checkIfKeepAliveServiceIsEnabled()
-                }
+        // Accordion toggle for incoming calls
+        var callsPanelOpen = false
+        binding.incomingCallsRow.setOnClickListener {
+            callsPanelOpen = !callsPanelOpen
+            binding.incomingCallsPanel.visibility = if (callsPanelOpen) View.VISIBLE else View.GONE
+        }
+
+        // Accordion toggle for presence
+        var presencePanelOpen = false
+        binding.presenceRow.setOnClickListener {
+            presencePanelOpen = !presencePanelOpen
+            binding.presencePanel.visibility = if (presencePanelOpen) View.VISIBLE else View.GONE
+        }
+
+        // Settings
+        binding.settings.setOnClickListener {
+            val navController = (requireActivity() as MainActivity).findNavController()
+            navController.navigate(R.id.action_global_settingsFragment)
+            (requireActivity() as MainActivity).closeDrawerMenu()
+        }
+
+        // About
+        binding.about.setOnClickListener {
+            val navController = (requireActivity() as MainActivity).findNavController()
+            navController.navigate(R.id.helpFragment)
+            (requireActivity() as MainActivity).closeDrawerMenu()
+        }
+
+        // Language - reuse Linphone's existing language settings
+        binding.language.setOnClickListener {
+            val navController = (requireActivity() as MainActivity).findNavController()
+            navController.navigate(R.id.action_global_settingsFragment)
+            (requireActivity() as MainActivity).closeDrawerMenu()
+        }
+
+        // Presence spinner setup
+        val statusOptions = listOf("ONLINE", "AWAY", "BUSY", "OFFLINE")
+        val statusLabels = listOf(
+            getString(R.string.drawer_status_online),
+            getString(R.string.drawer_status_away),
+            getString(R.string.drawer_status_busy),
+            getString(R.string.drawer_status_offline)
+        )
+        val statusColors = listOf(
+            R.color.green_success_500,  // ONLINE
+            R.color.orange_warning_600, // AWAY
+            R.color.red_danger_500,     // BUSY
+            R.color.gray_400            // OFFLINE — use an existing grey color
+        )
+
+        val spinnerAdapter = object : android.widget.ArrayAdapter<String>(
+            requireContext(),
+            android.R.layout.simple_spinner_item,
+            statusLabels
+        ) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = super.getView(position, convertView, parent)
+                (view as? android.widget.TextView)?.setTextColor(
+                    ContextCompat.getColor(requireContext(), statusColors[position])
+                )
+                return view
             }
+
+            override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = super.getDropDownView(position, convertView, parent)
+                (view as? android.widget.TextView)?.setTextColor(
+                    ContextCompat.getColor(requireContext(), statusColors[position])
+                )
+                return view
+            }
+        }.apply {
+            setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        }
+        binding.presenceStatusSpinner.adapter = spinnerAdapter
+
+        loquaceViewModel.presenceStatus.observe(viewLifecycleOwner) { status ->
+            val index = statusOptions.indexOf(status)
+            if (index >= 0) binding.presenceStatusSpinner.setSelection(index)
+        }
+
+        loquaceViewModel.presenceMessage.observe(viewLifecycleOwner) { message ->
+            binding.presenceMessageInput.setText(message)
+        }
+
+        // Submit presence
+        binding.submitPresenceButton.setOnClickListener {
+            val selectedStatus = statusOptions[binding.presenceStatusSpinner.selectedItemPosition]
+            val message = binding.presenceMessageInput.text?.toString() ?: ""
+            loquaceViewModel.presenceStatus.value = selectedStatus
+            loquaceViewModel.presenceMessage.value = message
+            loquaceViewModel.submitPresence(requireContext())
+        }
+
+        // Calls switches - just update ViewModel, don't submit yet
+        binding.mobileSwitch.setOnCheckedChangeListener { _, isChecked ->
+            loquaceViewModel.mobileEnabled.value = isChecked
+        }
+        binding.browserSwitch.setOnCheckedChangeListener { _, isChecked ->
+            loquaceViewModel.browserEnabled.value = isChecked
+        }
+        binding.phoneSwitch.setOnCheckedChangeListener { _, isChecked ->
+            loquaceViewModel.phoneEnabled.value = isChecked
+        }
+
+        // Submit calls
+        binding.submitCallsButton.setOnClickListener {
+            loquaceViewModel.submitCallsSettings(requireContext())
+        }
+
+        // Logout
+        binding.logoutButton.setOnClickListener {
+            // TODO: implement logout properly later
+            (requireActivity() as MainActivity).closeDrawerMenu()
         }
     }
 }

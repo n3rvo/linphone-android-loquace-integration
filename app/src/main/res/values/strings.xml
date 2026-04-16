@@ -1082,4 +1082,20 @@
     <string name="confirm">Confirm</string>
     <string name="message_delete">Delete message</string>
     <string name="message_delete_confirmation">Are you sure you want to delete this message for everyone?</string>
+    <string name="drawer_incoming_calls_title">Incoming Calls</string>
+    <string name="drawer_device_mobile">Mobile</string>
+    <string name="drawer_device_browser">Browser</string>
+    <string name="drawer_device_phone">Phone</string>
+    <string name="drawer_presence_title">Presence</string>
+    <string name="drawer_presence_status_label">Status</string>
+    <string name="drawer_presence_message_label">Status message</string>
+    <string name="drawer_presence_message_hint">Add a status message...</string>
+    <string name="drawer_status_online">Online</string>
+    <string name="drawer_status_away">Away</string>
+    <string name="drawer_status_busy">Busy</string>
+    <string name="drawer_status_offline">Offline</string>
+    <string name="drawer_about_title">About</string>
+    <string name="drawer_language_title">Language</string>
+    <string name="drawer_logout">Logout</string>
+    <string name="drawer_submit">Save</string>
 </resources>

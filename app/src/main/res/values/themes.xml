@@ -175,4 +175,10 @@
         <item name="android:windowAnimationStyle">@null</item>
         <item name="android:windowBackground">@color/transparent_color</item>
     </style>
+
+    <style name="LoquaceSwitch" parent="Widget.MaterialComponents.CompoundButton.Switch">
+        <item name="colorPrimary">?attr/color_main1_500</item>
+        <item name="colorSwitchThumbNormal">?attr/color_main2_200</item>
+        <item name="android:colorForeground">?attr/color_main2_200</item>
+    </style>
 </resources>

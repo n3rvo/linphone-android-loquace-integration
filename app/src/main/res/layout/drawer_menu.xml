@@ -3,22 +3,13 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <data>
-        <import type="android.view.View" />
-        <variable
-            name="settingsClickedListener"
-            type="View.OnClickListener" />
-        <variable
-            name="recordingsClickListener"
-            type="View.OnClickListener" />
-        <variable
-            name="helpClickedListener"
-            type="View.OnClickListener" />
-        <variable
-            name="quitClickedListener"
-            type="View.OnClickListener" />
+        <import type="android.view.View"/>
         <variable
             name="viewModel"
-            type="org.linphone.ui.main.viewmodel.DrawerMenuViewModel" />
+            type="org.linphone.ui.main.viewmodel.DrawerMenuViewModel"/>
+        <variable
+            name="loquaceViewModel"
+            type="org.linphone.ui.main.viewmodel.LoquaceDrawerMenuViewModel"/>
     </data>
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -39,13 +30,14 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
 
+            <!-- Header - same as original -->
             <ImageView
                 android:id="@+id/brand_icon"
                 android:onClick="@{() -> viewModel.closeDrawerMenu()}"
                 android:layout_width="@dimen/large_icon_size"
                 android:layout_height="@dimen/large_icon_size"
                 android:layout_marginStart="26dp"
-                android:layout_marginTop="15dp"
+                android:layout_marginTop="25dp"
                 android:src="@drawable/linphone_notification"
                 android:contentDescription="@string/app_name"
                 app:layout_constraintTop_toTopOf="parent"
@@ -67,33 +59,33 @@
                 app:layout_constraintBottom_toBottomOf="@id/brand_icon"
                 app:layout_constraintEnd_toStartOf="@id/close_drawer" />
 
+            <!-- Header -->
             <ImageView
                 android:id="@+id/close_drawer"
                 android:onClick="@{() -> viewModel.closeDrawerMenu()}"
                 android:layout_width="@dimen/large_icon_size"
                 android:layout_height="@dimen/large_icon_size"
                 android:layout_marginEnd="16dp"
+                android:layout_marginTop="3dp"
                 android:padding="5dp"
                 android:src="@drawable/x"
-                android:adjustViewBounds="true"
                 android:contentDescription="@string/content_description_close_drawer_menu"
                 android:background="@drawable/circle_transparent_button_background"
                 app:tint="?attr/color_main2_600"
-                app:layout_constraintTop_toTopOf="@id/brand_name"
-                app:layout_constraintStart_toEndOf="@id/brand_name"
-                app:layout_constraintBottom_toBottomOf="@id/brand_name"
+                app:layout_constraintTop_toTopOf="@id/brand_icon"
+                app:layout_constraintBottom_toBottomOf="@id/brand_icon"
                 app:layout_constraintEnd_toEndOf="parent"/>
 
+            <!-- Account list - same as original Linphone -->
             <ScrollView
-                android:layout_width="0dp"
-                android:layout_height="0dp"
+                android:id="@+id/accounts_scroll"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="15dp"
-                android:layout_marginBottom="15dp"
-                android:fillViewport="true"
+                android:layout_marginBottom="8dp"
+                app:layout_constraintTop_toBottomOf="@id/close_drawer"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/brand_name"
-                app:layout_constraintBottom_toTopOf="@id/add_account">
+                app:layout_constraintEnd_toEndOf="parent">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -102,170 +94,321 @@
                     entries="@{viewModel.accounts}"
                     layout="@{@layout/account_list_cell}">
 
-                    <ImageView
-                        android:id="@+id/no_account_image"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:src="@drawable/illu"
-                        android:layout_margin="10dp"
-                        android:contentDescription="@null" />
-
-                    <androidx.appcompat.widget.AppCompatTextView
-                        style="@style/section_header_style"
-                        android:id="@+id/no_account_label"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/drawer_menu_no_account_configured_yet"
-                        android:gravity="center" />
-
                 </LinearLayout>
 
             </ScrollView>
 
-            <androidx.appcompat.widget.AppCompatTextView
-                android:onClick="@{() -> viewModel.addAccount()}"
-                style="@style/secondary_button_label_style"
-                android:id="@+id/add_account"
+            <ScrollView
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:layout_marginEnd="16dp"
-                android:layout_marginBottom="15dp"
-                android:paddingStart="20dp"
-                android:paddingEnd="20dp"
-                android:text="@string/drawer_menu_add_account"
-                android:drawableStart="@drawable/plus_circle"
-                android:drawablePadding="8dp"
-                android:visibility="@{viewModel.hideAddAccount ? View.GONE : View.VISIBLE}"
-                app:drawableTint="@color/secondary_button_label_color"
-                app:layout_constraintWidth_max="@dimen/button_max_width"
+                android:layout_height="0dp"
+                android:layout_marginTop="8dp"
+                android:fillViewport="true"
+                app:layout_constraintTop_toBottomOf="@id/accounts_scroll"
+                app:layout_constraintBottom_toTopOf="@id/separator_logout"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintBottom_toTopOf="@id/separator" />
+                app:layout_constraintEnd_toEndOf="parent">
 
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingBottom="8dp">
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginBottom="8dp"
+                        android:background="?attr/color_separator"/>
+
+                    <!-- INCOMING CALLS ROW -->
+                    <androidx.appcompat.widget.AppCompatTextView
+                        android:id="@+id/incoming_calls_row"
+                        style="@style/header_style"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:layout_marginEnd="10dp"
+                        android:padding="5dp"
+                        android:text="@string/drawer_incoming_calls_title"
+                        android:textSize="15sp"
+                        android:drawableStart="@drawable/phone"
+                        android:drawableEnd="@drawable/caret_right"
+                        android:drawablePadding="8dp"
+                        android:background="@drawable/squircle_transparent_button_background"
+                        app:drawableTint="?attr/color_main2_500"/>
+
+                    <!-- Incoming calls expandable panel -->
+                    <LinearLayout
+                        android:id="@+id/incoming_calls_panel"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:paddingTop="10dp"
+                        android:paddingBottom="10dp"
+                        android:visibility="gone">
+
+                        <!-- Mobile -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginBottom="4dp">
+
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:src="@drawable/cell_signal_full"
+                                android:contentDescription="@null"
+                                android:layout_marginEnd="8dp"
+                                app:tint="?attr/color_main2_500"/>
+
+                            <androidx.appcompat.widget.AppCompatTextView
+                                style="@style/default_text_style_300"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/drawer_device_mobile"
+                                android:textSize="13sp"/>
+
+                            <com.google.android.material.switchmaterial.SwitchMaterial
+                                android:id="@+id/mobile_switch"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:theme="@style/LoquaceSwitch"
+                                android:checked="@{loquaceViewModel.mobileEnabled}"/>
+                        </LinearLayout>
+
+                        <!-- Browser -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginBottom="4dp">
+
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:src="@drawable/desktop"
+                                android:contentDescription="@null"
+                                android:layout_marginEnd="8dp"
+                                app:tint="?attr/color_main2_500"/>
+
+                            <androidx.appcompat.widget.AppCompatTextView
+                                style="@style/default_text_style_300"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/drawer_device_browser"
+                                android:textSize="13sp"/>
+
+                            <com.google.android.material.switchmaterial.SwitchMaterial
+                                android:id="@+id/browser_switch"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:theme="@style/LoquaceSwitch"
+                                android:checked="@{loquaceViewModel.browserEnabled}"/>
+                        </LinearLayout>
+
+                        <!-- Phone -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginBottom="8dp">
+
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:src="@drawable/phone"
+                                android:contentDescription="@null"
+                                android:layout_marginEnd="8dp"
+                                app:tint="?attr/color_main2_500"/>
+
+                            <androidx.appcompat.widget.AppCompatTextView
+                                style="@style/default_text_style_300"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/drawer_device_phone"
+                                android:textSize="13sp"/>
+
+                            <com.google.android.material.switchmaterial.SwitchMaterial
+                                android:id="@+id/phone_switch"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:theme="@style/LoquaceSwitch"
+                                android:checked="@{loquaceViewModel.phoneEnabled}"/>
+                        </LinearLayout>
+
+                        <androidx.appcompat.widget.AppCompatTextView
+                            android:id="@+id/submit_calls_button"
+                            style="@style/secondary_dialog_button_label_style"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:layout_marginBottom="4dp"
+                            android:text="@string/drawer_submit"
+                            android:textColor="@color/bc_white"
+                            android:paddingStart="16dp"
+                            android:paddingEnd="16dp"
+                            android:backgroundTint="@color/main1_500"/>
+
+                    </LinearLayout>
+
+                    <!-- PRESENCE ROW -->
+                    <androidx.appcompat.widget.AppCompatTextView
+                        android:id="@+id/presence_row"
+                        style="@style/header_style"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:layout_marginEnd="10dp"
+                        android:padding="5dp"
+                        android:text="@string/drawer_presence_title"
+                        android:textSize="15sp"
+                        android:drawableStart="@drawable/user_circle"
+                        android:drawableEnd="@drawable/caret_right"
+                        android:drawablePadding="8dp"
+                        android:background="@drawable/squircle_transparent_button_background"
+                        app:drawableTint="?attr/color_main2_500"/>
+
+                    <!-- Presence expandable panel -->
+                    <LinearLayout
+                        android:id="@+id/presence_panel"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:paddingTop="10dp"
+                        android:paddingBottom="10dp"
+                        android:visibility="gone">
+
+                        <Spinner
+                            android:id="@+id/presence_status_spinner"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp"/>
+
+                        <androidx.appcompat.widget.AppCompatEditText
+                            android:id="@+id/presence_message_input"
+                            style="@style/default_text_style"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="@string/drawer_presence_message_hint"
+                            android:inputType="text"
+                            android:layout_marginBottom="8dp"
+                            android:background="@drawable/chat_message_sending_edit_text_background"
+                            android:padding="8dp"
+                            android:textSize="13sp"/>
+
+                        <androidx.appcompat.widget.AppCompatTextView
+                            android:id="@+id/submit_presence_button"
+                            style="@style/secondary_dialog_button_label_style"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:layout_marginBottom="4dp"
+                            android:text="@string/drawer_submit"
+                            android:textColor="@color/bc_white"
+                            android:paddingStart="16dp"
+                            android:paddingEnd="16dp"
+                            android:backgroundTint="@color/main1_500"/>
+
+                    </LinearLayout>
+
+                    <!-- SETTINGS ROW -->
+                    <androidx.appcompat.widget.AppCompatTextView
+                        android:id="@+id/settings"
+                        style="@style/header_style"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:layout_marginEnd="10dp"
+                        android:padding="5dp"
+                        android:text="@string/settings_title"
+                        android:textSize="15sp"
+                        android:drawableStart="@drawable/gear"
+                        android:drawableEnd="@drawable/caret_right"
+                        android:drawablePadding="8dp"
+                        android:background="@drawable/squircle_transparent_button_background"
+                        app:drawableTint="?attr/color_main2_500"/>
+
+                    <!-- ABOUT ROW -->
+                    <androidx.appcompat.widget.AppCompatTextView
+                        android:id="@+id/about"
+                        style="@style/header_style"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:layout_marginEnd="10dp"
+                        android:padding="5dp"
+                        android:text="@string/drawer_about_title"
+                        android:textSize="15sp"
+                        android:drawableStart="@drawable/info"
+                        android:drawableEnd="@drawable/caret_right"
+                        android:drawablePadding="8dp"
+                        android:background="@drawable/squircle_transparent_button_background"
+                        app:drawableTint="?attr/color_main2_500"/>
+
+                    <!-- LANGUAGE ROW -->
+                    <androidx.appcompat.widget.AppCompatTextView
+                        android:id="@+id/language"
+                        style="@style/header_style"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:layout_marginEnd="10dp"
+                        android:padding="5dp"
+                        android:text="@string/drawer_language_title"
+                        android:textSize="15sp"
+                        android:drawableStart="@drawable/globe_hemisphere_west"
+                        android:drawableEnd="@drawable/caret_right"
+                        android:drawablePadding="8dp"
+                        android:background="@drawable/squircle_transparent_button_background"
+                        app:drawableTint="?attr/color_main2_500"/>
+
+                </LinearLayout>
+            </ScrollView>
+
+            <!-- Separator before logout -->
             <View
-                android:id="@+id/separator"
+                android:id="@+id/separator_logout"
                 android:layout_width="0dp"
                 android:layout_height="1dp"
-                android:layout_marginBottom="15dp"
                 android:layout_marginStart="16dp"
                 android:layout_marginEnd="16dp"
-                android:background="?attr/color_separator"
-                android:importantForAccessibility="no"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintBottom_toTopOf="@id/shortcuts" />
-
-            <LinearLayout
-                android:id="@+id/shortcuts"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="10dp"
-                android:layout_marginStart="10dp"
-                android:layout_marginEnd="10dp"
-                android:orientation="vertical"
-                android:visibility="@{viewModel.shortcuts.empty ? View.GONE : View.VISIBLE, default=gone}"
-                app:entries="@{viewModel.shortcuts}"
-                app:layout="@{@layout/drawer_shortcuts_list_cell}"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintBottom_toTopOf="@id/settings" />
-
-            <androidx.appcompat.widget.AppCompatTextView
-                android:onClick="@{settingsClickedListener}"
-                style="@style/header_style"
-                android:id="@+id/settings"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="10dp"
-                android:layout_marginStart="10dp"
-                android:layout_marginEnd="10dp"
-                android:padding="5dp"
-                android:text="@string/settings_title"
-                android:drawableStart="@drawable/gear"
-                android:drawableEnd="@drawable/caret_right"
-                android:drawablePadding="8dp"
-                android:background="@drawable/squircle_transparent_button_background"
-                android:visibility="@{viewModel.hideSettings ? View.GONE : View.VISIBLE}"
-                app:drawableTint="?attr/color_main2_500"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintBottom_toTopOf="@id/recordings" />
-
-            <androidx.appcompat.widget.AppCompatTextView
-                android:onClick="@{recordingsClickListener}"
-                style="@style/header_style"
-                android:id="@+id/recordings"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="10dp"
-                android:layout_marginStart="10dp"
-                android:layout_marginEnd="10dp"
-                android:padding="5dp"
-                android:text="@string/recordings_title"
-                android:drawableStart="@drawable/record_fill"
-                android:drawableEnd="@drawable/caret_right"
-                android:drawablePadding="8dp"
-                android:background="@drawable/squircle_transparent_button_background"
-                android:visibility="@{viewModel.hideRecordings ? View.GONE : View.VISIBLE}"
-                app:drawableTint="?attr/color_main2_500"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintBottom_toTopOf="@id/help" />
-
-            <androidx.appcompat.widget.AppCompatTextView
-                android:onClick="@{helpClickedListener}"
-                style="@style/header_style"
-                android:id="@+id/help"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="10dp"
-                android:layout_marginStart="10dp"
-                android:layout_marginEnd="10dp"
-                android:padding="5dp"
-                android:text="@string/help_title"
-                android:drawableStart="@drawable/question"
-                android:drawableEnd="@drawable/caret_right"
-                android:drawablePadding="8dp"
-                android:background="@drawable/squircle_transparent_button_background"
-                app:drawableTint="?attr/color_main2_500"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintBottom_toTopOf="@id/separator_2" />
-
-            <View
-                android:id="@+id/separator_2"
-                android:layout_width="0dp"
-                android:layout_height="1dp"
                 android:layout_marginBottom="15dp"
-                android:layout_marginStart="16dp"
-                android:layout_marginEnd="16dp"
                 android:background="?attr/color_separator"
-                android:importantForAccessibility="no"
-                android:visibility="@{viewModel.hideQuitButton ? View.GONE : View.VISIBLE, default=gone}"
+                app:layout_constraintBottom_toTopOf="@id/logout_button"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintBottom_toTopOf="@id/quit" />
+                app:layout_constraintEnd_toEndOf="parent"/>
 
+            <!-- Logout -->
             <androidx.appcompat.widget.AppCompatTextView
-                android:onClick="@{quitClickedListener}"
+                android:id="@+id/logout_button"
                 style="@style/header_style"
-                android:id="@+id/quit"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="10dp"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="20dp"
                 android:layout_marginStart="10dp"
                 android:layout_marginEnd="10dp"
-                android:padding="5dp"
-                android:text="@string/help_quit_title"
-                android:visibility="@{viewModel.hideQuitButton ? View.GONE : View.VISIBLE, default=gone}"
+                android:text="@string/drawer_logout"
+                android:textSize="15sp"
                 android:drawableStart="@drawable/power"
-                android:drawablePadding="8dp"
+                android:drawablePadding="9dp"
                 android:background="@drawable/squircle_transparent_button_background"
-                app:drawableTint="?attr/color_main2_500"
+                app:drawableTint="@color/red_danger_500"
+                android:textColor="@color/red_danger_500"
+                app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent" />
+                app:layout_constraintEnd_toEndOf="parent"/>
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
