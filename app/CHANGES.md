@@ -202,8 +202,7 @@ Completely replaced with new Loquace drawer layout containing:
 - Language row → navigates to settings fragment
 - Logout button at bottom (red, styled like other rows)
 - Rounded right corners via `drawer_background.xml` drawable
-- Accordion panels toggle on row click (collapsed by default)
-- Submit buttons styled as compact pill-shaped text buttons
+- Accordion panels toggle on row click with caret up/down animation
 
 ---
 
@@ -212,12 +211,85 @@ Completely replaced with new Loquace drawer layout containing:
 ### Change: Wire up Loquace drawer sections
 - Added `LoquaceDrawerMenuViewModel` alongside existing `DrawerMenuViewModel`
 - `loquaceViewModel.fetchData()` called when drawer opens
-- Accordion toggle for Incoming Calls and Presence panels
+- Accordion toggle for Incoming Calls and Presence panels with caret animation
 - Presence spinner with colored text per status (ONLINE/AWAY/BUSY/OFFLINE)
 - Switch listeners update ViewModel state without submitting
 - Submit buttons call `submitCallsSettings()` and `submitPresence()`
 - Logout button placeholder (full implementation deferred)
 - Kept all original Linphone observers (account list, profile, notifications)
+
+---
+
+## `app/src/main/res/layout/settings_fragment.xml`
+
+### Change: Hide unwanted settings sections
+Hidden via `android:visibility="gone"`:
+- Security section
+- Conversations section
+- Contacts section
+- Meetings section
+- User Interface section
+- Tunnel section
+- Developer Settings
+
+Kept: Calls, Network, Advanced Settings.
+
+---
+
+## `app/src/main/res/layout/settings_calls.xml`
+
+### Change: Hide unwanted call settings
+Hidden: `echo_canceller` toggle, `adaptive_rate_control`, `auto_record`,
+`advanced_call_settings`.
+Kept: `calibrate_echo_canceller`, `enable_video`, `vibrate`, `change_ringtone`.
+Fixed constraints after hiding items.
+
+---
+
+## `app/src/main/res/layout/settings_network.xml`
+
+### Change: Hide IPv6, add push notifications placeholder
+Hidden: `ipv6_enabled`.
+Added: `push_notifications_switch` (disabled placeholder, to be wired up when
+push notifications are implemented).
+
+---
+
+## `app/src/main/res/layout/settings_advanced_fragment.xml`
+
+### Change: Hide unwanted advanced settings, add permissions section
+Hidden: `crashlytics`, `device_id`, `remote_provisioning`, `download_and_apply`,
+`audio_devices`.
+Kept: `start_at_boot`, `keep_alive_service`, `android_settings`.
+Added: `permissions_title` accordion header and `permissions_list` RecyclerView
+before `android_settings`.
+Fixed constraints after hiding items.
+
+---
+
+## `app/src/main/java/org/linphone/ui/main/settings/fragment/SettingsAdvancedFragment.kt`
+
+### Change: Add permissions section
+- Added `permissionsPanelOpen` flag
+- `permissions_title` click toggles panel and swaps caret drawable
+- `setupPermissionsList()` builds list of: Microphone, Camera, Contacts,
+  Notifications, Bluetooth
+- Each item shows green check or red X based on grant status
+- Clicking a denied permission requests it via `requestPermissionLauncher`
+- List refreshes on `onResume()` if panel is open
+- Removed audio device picker setup (hidden in layout)
+- Removed `onPause()` device name/provisioning URL update (hidden in layout)
+
+---
+
+## `app/src/main/java/org/linphone/core/CorePreferences.kt`
+
+### Change: Default `disableCallRecordings` to `true`
+**Reason:** Recording toggle hidden from UI, always enable recordings.
+```kotlin
+val disableCallRecordings: Boolean
+    get() = config.getBool("ui", "disable_call_recordings_feature", true)
+```
 
 ---
 
@@ -278,24 +350,13 @@ Completely replaced with new Loquace drawer layout containing:
 <string name="drawer_language_title">Language</string>
 <string name="drawer_logout">Logout</string>
 <string name="drawer_submit">Save</string>
-```
-
----
-
-## `app/src/main/res/drawable/drawer_background.xml` *(NEW)*
-Custom drawable with rounded right corners for the drawer panel.
-
----
-
-## `app/src/main/res/values/styles.xml`
-
-### Change: Add LoquaceSwitch style
-```xml
-<style name="LoquaceSwitch" parent="Widget.MaterialComponents.CompoundButton.Switch">
-    <item name="colorPrimary">?attr/color_main1_500</item>
-    <item name="colorSwitchThumbNormal">?attr/color_main2_200</item>
-    <item name="android:colorForeground">?attr/color_main2_200</item>
-</style>
+<string name="settings_network_push_notifications">Enable push notifications</string>
+<string name="settings_advanced_permissions_title">Permissions</string>
+<string name="permission_record_audio">Microphone</string>
+<string name="permission_camera">Camera</string>
+<string name="permission_read_contacts">Contacts</string>
+<string name="permission_post_notifications">Notifications</string>
+<string name="permission_bluetooth">Bluetooth</string>
 ```
 
 ---
@@ -310,6 +371,24 @@ implementation(libs.gson)
 ---
 
 ## New files in `app` module
+
+### `app/src/main/res/drawable/drawer_background.xml` *(NEW)*
+Custom drawable with rounded right corners for the drawer panel.
+
+### `app/src/main/res/drawable/ic_permission_granted.xml` *(NEW)*
+Green circle with white checkmark for granted permissions.
+
+### `app/src/main/res/drawable/ic_permission_denied.xml` *(NEW)*
+Red circle with white X for denied permissions.
+
+### `app/src/main/res/layout/loquace_permission_item.xml` *(NEW)*
+Permission list item with name on left and status icon on right.
+Wrapped in `<layout>` tag for data binding.
+
+### `app/src/main/java/org/linphone/ui/main/settings/LoquacePermissionsAdapter.kt` *(NEW)*
+RecyclerView adapter for permissions list.
+- Shows green check or red X based on grant status
+- Click on denied permission triggers permission request
 
 ### `app/src/main/res/layout/loquace_dialer_fragment.xml` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/dialer/viewmodel/LoquaceDialerViewModel.kt` *(NEW)*
@@ -392,14 +471,7 @@ Extends `SlidingPaneChildFragment`. Handles:
 ### `app/src/main/java/org/linphone/ui/main/chat/adapter/GroupMembersAdapter.kt` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/chat/fragment/XmppGroupDetailsBottomSheet.kt` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/history/model/LoquaceCallLogModel.kt` *(NEW)*
-
 ### `app/src/main/java/org/linphone/ui/main/viewmodel/LoquaceDrawerMenuViewModel.kt` *(NEW)*
-Handles presence and incoming calls API calls for the drawer menu.
-
-**Key methods:**
-- `fetchData()` — fetches presence and calls settings from API on drawer open
-- `submitPresence()` — POSTs updated status and message to `status/presence`
-- `submitCallsSettings()` — POSTs full inbound devices object to `settings/calls`
 
 ---
 
@@ -407,6 +479,7 @@ Handles presence and incoming calls API calls for the drawer menu.
 - About screen implementation
 - Language selection implementation
 - Logout implementation
+- Push notifications toggle wiring (placeholder exists in network settings)
 - Round avatars in group details screen
 - Conversation list avatars for single chats
 - Top bar avatar from `profile.avatarUrl`
@@ -445,32 +518,9 @@ Entirely new module — no merge conflicts expected here.
   from `my_avatar.jpg` on account params after login
 - `viewmodel/LoquaceLoginViewModel.kt` — FCM token failure handled gracefully,
   downloads and caches `my_avatar.jpg`, passes `context` to configure()
-- `xmpp/LoquaceXmppManager.kt` — Smack XMPP singleton with:
-    - Message store per conversation (`_messages` StateFlow)
-    - `isConnecting` flag to prevent double connection
-    - `sentMessageIds` set to ignore carbon copies
-    - `roomsWithListeners` set to prevent duplicate MUC message listeners
-    - Roster loading disabled, resource set to user agent
-    - Attachment type detection (strips query params, all audio → VOICE_NOTE)
-    - `addPendingMessage()`, `updateMessage()`, `uploadAndSendFile()`
-    - `uploadAndSendFile()` uses `sentMessage.stanzaId` for consistent IDs
-      in both 1-1 (via `conn.sendStanza()`) and MUC (via `muc.createMessage()`)
-    - `joinRoom()` — joins MUC, stores group name, updates conversation display name,
-      only adds message listener once per room via `roomsWithListeners`
-    - `groupNames`, `contactNames`, `contactIds`, `contactPictureUrls` maps
-    - `prependMessages()` — prepends history preserving MAM order
-    - `fetchMessageHistory()` — MAM XEP-0313, paginated, detects and merges
-      retracted messages, uses `message.stanzaId` as ID
-    - `retractMessage()` — sends XEP-0424 retraction with body fallback,
-      clears attachment fields, updates local store
-    - `retractLocalMessage()` — clears body, attachment fields, sets `isRetracted=true`
-    - `editMessage()` — sends XEP-0308 correction, updates local store
-    - `updateMessageBody()` — updates local message body on correction received
-    - `sendMessage()` uses `sentMessage.stanzaId` for consistent message IDs
-    - Incoming and MUC listeners handle retraction and correction stanzas
-    - Group display name shown via `groupNames` map
-- `xmpp/XmppMessage.kt` — added `isRetracted: Boolean = false`, `senderName`,
-  `isUploading`, `formattedTime`
+- `xmpp/LoquaceXmppManager.kt` — Smack XMPP singleton with full message/attachment
+  handling, MAM history, retraction, correction, MUC support
+- `xmpp/XmppMessage.kt` — added `isRetracted`, `senderName`, `isUploading`, `formattedTime`
 - `xmpp/XmppConversation.kt` — includes `displayName`, `pictureUrl`, `isGroup`
 - `xmpp/XmppHttpUploadManager.kt` — XEP-0363 HTTP file upload
 - `xmpp/AttachmentType.kt` — NONE, IMAGE, VIDEO, AUDIO, FILE, VOICE_NOTE

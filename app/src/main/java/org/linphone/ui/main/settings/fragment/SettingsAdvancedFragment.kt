@@ -1,61 +1,43 @@
-/*
- * Copyright (c) 2010-2023 Belledonne Communications SARL.
- *
- * This file is part of linphone-android
- * (see https://www.linphone.org).
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
 package org.linphone.ui.main.settings.fragment
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.AdapterView
-import android.widget.ArrayAdapter
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.UiThread
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
+import androidx.recyclerview.widget.LinearLayoutManager
 import org.linphone.R
 import org.linphone.databinding.SettingsAdvancedFragmentBinding
 import org.linphone.ui.GenericActivity
 import org.linphone.ui.main.fragment.GenericMainFragment
+import org.linphone.ui.main.settings.LoquacePermissionsAdapter
+import org.linphone.ui.main.settings.PermissionItem
 import org.linphone.ui.main.settings.viewmodel.SettingsViewModel
 import org.linphone.utils.Event
 
 @UiThread
 class SettingsAdvancedFragment : GenericMainFragment() {
     private lateinit var binding: SettingsAdvancedFragmentBinding
-
     private lateinit var viewModel: SettingsViewModel
+    private var permissionsAdapter: LoquacePermissionsAdapter? = null
+    private var permissionsPanelOpen = false
 
-    private val inputAudioDeviceDropdownListener = object : AdapterView.OnItemSelectedListener {
-        override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-            viewModel.setInputAudioDevice(position)
-        }
-
-        override fun onNothingSelected(parent: AdapterView<*>?) {
-        }
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        // Refresh permissions list after request
+        setupPermissionsList()
     }
 
-    private val outputAudioDeviceDropdownListener = object : AdapterView.OnItemSelectedListener {
-        override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-            viewModel.setOutputAudioDevice(position)
-        }
-
-        override fun onNothingSelected(parent: AdapterView<*>?) {
-        }
+    private val requestMultiplePermissionsLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { _ ->
+        setupPermissionsList()
     }
 
     override fun onCreateView(
@@ -85,53 +67,92 @@ class SettingsAdvancedFragment : GenericMainFragment() {
             (requireActivity() as GenericActivity).goToAndroidPermissionSettings()
         }
 
-        viewModel.inputAudioDeviceIndex.observe(viewLifecycleOwner) {
-            setupInputAudioDevicePicker()
-        }
-
-        viewModel.outputAudioDeviceIndex.observe(viewLifecycleOwner) {
-            setupOutputAudioDevicePicker()
-        }
-
         viewModel.keepAliveServiceSettingChangedEvent.observe(viewLifecycleOwner) {
             it.consume {
                 sharedViewModel.refreshDrawerMenuQuitButtonEvent.postValue(Event(true))
             }
         }
 
+        // Permissions accordion
+        binding.permissionsTitle.setOnClickListener {
+            permissionsPanelOpen = !permissionsPanelOpen
+            binding.permissionsList.visibility =
+                if (permissionsPanelOpen) View.VISIBLE else View.GONE
+            binding.permissionsTitle.setCompoundDrawablesWithIntrinsicBounds(
+                0, 0,
+                if (permissionsPanelOpen) R.drawable.caret_up else R.drawable.caret_down,
+                0
+            )
+            if (permissionsPanelOpen) setupPermissionsList()
+        }
+
         startPostponedEnterTransition()
     }
 
-    override fun onPause() {
-        viewModel.updateDeviceName()
-        viewModel.updateRemoteProvisioningUrl()
-
-        super.onPause()
+    override fun onResume() {
+        super.onResume()
+        if (permissionsPanelOpen) setupPermissionsList()
     }
 
-    private fun setupInputAudioDevicePicker() {
-        val index = viewModel.inputAudioDeviceIndex.value ?: 0
-        val adapter = ArrayAdapter(
-            requireContext(),
-            R.layout.drop_down_item,
-            viewModel.inputAudioDeviceLabels
+    private fun setupPermissionsList() {
+        val permissions = listOf(
+            PermissionItem(
+                name = getString(R.string.permission_record_audio),
+                isGranted = ContextCompat.checkSelfPermission(
+                    requireContext(), Manifest.permission.RECORD_AUDIO
+                ) == PackageManager.PERMISSION_GRANTED,
+                onClickRequest = {
+                    requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                }
+            ),
+            PermissionItem(
+                name = getString(R.string.permission_camera),
+                isGranted = ContextCompat.checkSelfPermission(
+                    requireContext(), Manifest.permission.CAMERA
+                ) == PackageManager.PERMISSION_GRANTED,
+                onClickRequest = {
+                    requestPermissionLauncher.launch(Manifest.permission.CAMERA)
+                }
+            ),
+            PermissionItem(
+                name = getString(R.string.permission_read_contacts),
+                isGranted = ContextCompat.checkSelfPermission(
+                    requireContext(), Manifest.permission.READ_CONTACTS
+                ) == PackageManager.PERMISSION_GRANTED,
+                onClickRequest = {
+                    requestPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+                }
+            ),
+            PermissionItem(
+                name = getString(R.string.permission_bluetooth),
+                isGranted = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                    ContextCompat.checkSelfPermission(
+                        requireContext(), Manifest.permission.BLUETOOTH_CONNECT
+                    ) == PackageManager.PERMISSION_GRANTED
+                } else true,
+                onClickRequest = {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                        requestPermissionLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT)
+                    }
+                }
+            ),
+            PermissionItem(
+                name = getString(R.string.permission_post_notifications),
+                isGranted = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                    ContextCompat.checkSelfPermission(
+                        requireContext(), Manifest.permission.POST_NOTIFICATIONS
+                    ) == PackageManager.PERMISSION_GRANTED
+                } else true,
+                onClickRequest = {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                        requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                }
+            )
         )
-        adapter.setDropDownViewResource(R.layout.generic_dropdown_cell)
-        binding.inputAudioDevice.adapter = adapter
-        binding.inputAudioDevice.onItemSelectedListener = inputAudioDeviceDropdownListener
-        binding.inputAudioDevice.setSelection(index)
-    }
 
-    private fun setupOutputAudioDevicePicker() {
-        val index = viewModel.outputAudioDeviceIndex.value ?: 0
-        val adapter = ArrayAdapter(
-            requireContext(),
-            R.layout.drop_down_item,
-            viewModel.outputAudioDeviceLabels
-        )
-        adapter.setDropDownViewResource(R.layout.generic_dropdown_cell)
-        binding.outputAudioDevice.adapter = adapter
-        binding.outputAudioDevice.onItemSelectedListener = outputAudioDeviceDropdownListener
-        binding.outputAudioDevice.setSelection(index)
+        permissionsAdapter = LoquacePermissionsAdapter(permissions)
+        binding.permissionsList.layoutManager = LinearLayoutManager(requireContext())
+        binding.permissionsList.adapter = permissionsAdapter
     }
 }

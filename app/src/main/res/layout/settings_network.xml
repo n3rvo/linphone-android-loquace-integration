@@ -47,6 +47,33 @@
 
         <androidx.appcompat.widget.AppCompatTextView
             style="@style/settings_title_style"
+            android:id="@+id/push_notifications_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="10dp"
+            android:text="@string/settings_network_push_notifications"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:labelFor="@id/push_notifications_switch"
+            app:layout_constraintTop_toTopOf="@id/push_notifications_switch"
+            app:layout_constraintBottom_toBottomOf="@id/push_notifications_switch"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/push_notifications_switch"/>
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            style="@style/material_switch_style"
+            android:id="@+id/push_notifications_switch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:layout_marginEnd="16dp"
+            android:enabled="false"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/wifi_only_switch"/>
+
+        <androidx.appcompat.widget.AppCompatTextView
+            style="@style/settings_title_style"
             android:onClick="@{() -> viewModel.toggleIpv6()}"
             android:id="@+id/ipv6_enabled_title"
             android:layout_width="0dp"
@@ -60,7 +87,8 @@
             app:layout_constraintTop_toTopOf="@id/ipv6_enabled_switch"
             app:layout_constraintBottom_toBottomOf="@id/ipv6_enabled_switch"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/ipv6_enabled_switch"/>
+            app:layout_constraintEnd_toStartOf="@id/ipv6_enabled_switch"
+            android:visibility="gone"/>
 
         <com.google.android.material.materialswitch.MaterialSwitch
             style="@style/material_switch_style"
@@ -72,7 +100,8 @@
             android:layout_marginEnd="16dp"
             android:checked="@{viewModel.allowIpv6}"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/wifi_only_switch" />
+            app:layout_constraintTop_toBottomOf="@id/wifi_only_switch"
+            android:visibility="gone"/>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

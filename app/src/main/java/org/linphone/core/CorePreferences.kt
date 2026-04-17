@@ -377,7 +377,7 @@ class CorePreferences
 
     @get:AnyThread
     val disableCallRecordings: Boolean
-        get() = config.getBool("ui", "disable_call_recordings_feature", false)
+        get() = config.getBool("ui", "disable_call_recordings_feature", true)
 
     @get:AnyThread
     val maxAccountsCount: Int

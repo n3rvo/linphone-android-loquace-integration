@@ -67,6 +67,7 @@
                     android:layout_marginStart="16dp"
                     android:layout_marginEnd="16dp"
                     android:layout_marginTop="20dp"
+                    android:paddingBottom="20dp"
                     android:background="@drawable/shape_squircle_white_background"
                     app:layout_constraintWidth_max="@dimen/section_max_width"
                     app:layout_constraintTop_toTopOf="parent"
@@ -84,7 +85,7 @@
                         android:maxLines="3"
                         android:ellipsize="end"
                         android:labelFor="@id/crashlytics_switch"
-                        android:visibility="@{viewModel.isCrashlyticsAvailable ? View.VISIBLE : View.GONE}"
+                        android:visibility="gone"
                         app:layout_constraintTop_toTopOf="@id/crashlytics_switch"
                         app:layout_constraintBottom_toBottomOf="@id/crashlytics_switch"
                         app:layout_constraintStart_toStartOf="parent"
@@ -99,7 +100,7 @@
                         android:layout_marginEnd="16dp"
                         android:checked="@{viewModel.sendLogsToCrashlytics}"
                         android:onClick="@{() -> viewModel.toggleSendLogsToCrashlytics()}"
-                        android:visibility="@{viewModel.isCrashlyticsAvailable ? View.VISIBLE : View.GONE}"
+                        android:visibility="gone"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintTop_toTopOf="parent"/>
 
@@ -129,6 +130,7 @@
                         android:checked="@{viewModel.startAtBoot}"
                         android:onClick="@{() -> viewModel.toggleStartAtBoot()}"
                         app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
                         app:layout_constraintTop_toBottomOf="@id/crashlytics_switch"/>
 
                     <androidx.appcompat.widget.AppCompatTextView
@@ -169,7 +171,8 @@
                         android:text="@string/settings_advanced_device_id"
                         android:labelFor="@id/device_id"
                         app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toBottomOf="@id/keep_alive_service_switch"/>
+                        app:layout_constraintTop_toBottomOf="@id/keep_alive_service_switch"
+                        android:visibility="gone"/>
 
                     <androidx.appcompat.widget.AppCompatEditText
                         style="@style/default_text_style"
@@ -189,7 +192,8 @@
                         app:layout_constraintWidth_max="@dimen/text_input_max_width"
                         app:layout_constraintTop_toBottomOf="@id/device_id_label"
                         app:layout_constraintStart_toStartOf="@id/device_id_label"
-                        app:layout_constraintEnd_toEndOf="parent"/>
+                        app:layout_constraintEnd_toEndOf="parent"
+                        android:visibility="gone"/>
 
                     <androidx.appcompat.widget.AppCompatTextView
                         style="@style/settings_title_padding_style"
@@ -201,7 +205,8 @@
                         android:text="@string/settings_advanced_remote_provisioning_url"
                         android:labelFor="@id/remote_provisioning"
                         app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toBottomOf="@id/device_id"/>
+                        app:layout_constraintTop_toBottomOf="@id/device_id"
+                        android:visibility="gone"/>
 
                     <androidx.appcompat.widget.AppCompatEditText
                         style="@style/default_text_style"
@@ -221,7 +226,8 @@
                         app:layout_constraintWidth_max="@dimen/text_input_max_width"
                         app:layout_constraintTop_toBottomOf="@id/remote_provisioning_label"
                         app:layout_constraintStart_toStartOf="@id/remote_provisioning_label"
-                        app:layout_constraintEnd_toEndOf="parent"/>
+                        app:layout_constraintEnd_toEndOf="parent"
+                        android:visibility="gone"/>
 
                     <androidx.appcompat.widget.AppCompatTextView
                         style="@style/tertiary_button_label_style"
@@ -245,7 +251,8 @@
                         android:ellipsize="end"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintTop_toBottomOf="@id/remote_provisioning"
-                        app:layout_constraintBottom_toBottomOf="parent"/>
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        android:visibility="gone"/>
 
                 </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -266,7 +273,8 @@
                     app:layout_constraintWidth_max="@dimen/section_max_width"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/main_section"/>
+                    app:layout_constraintTop_toBottomOf="@id/main_section"
+                    android:visibility="gone"/>
 
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:id="@+id/audio_devices"
@@ -384,13 +392,44 @@
                 </androidx.constraintlayout.widget.ConstraintLayout>
 
                 <androidx.appcompat.widget.AppCompatTextView
+                    style="@style/section_header_style"
+                    android:id="@+id/permissions_title"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:padding="10dp"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginEnd="16dp"
+                    android:layout_marginTop="16dp"
+                    android:text="@string/settings_advanced_permissions_title"
+                    android:drawableEnd="@drawable/caret_down"
+                    android:drawableTint="?attr/color_main2_600"
+                    android:background="@drawable/squircle_transparent_button_background"
+                    app:layout_constraintWidth_max="@dimen/section_max_width"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/main_section"/>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/permissions_list"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginEnd="16dp"
+                    android:visibility="gone"
+                    android:background="@drawable/shape_squircle_white_background"
+                    app:layout_constraintWidth_max="@dimen/section_max_width"
+                    app:layout_constraintTop_toBottomOf="@id/permissions_title"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"/>
+
+                <androidx.appcompat.widget.AppCompatTextView
                     style="@style/settings_title_style"
                     android:id="@+id/android_settings"
                     android:onClick="@{androidSettingsClickListener}"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:padding="5dp"
-                    android:layout_marginTop="20dp"
+                    android:padding="10dp"
+                    android:layout_marginTop="5dp"
                     android:layout_marginStart="16dp"
                     android:layout_marginEnd="16dp"
                     android:layout_marginBottom="@dimen/screen_bottom_margin"
@@ -402,7 +441,7 @@
                     app:layout_constraintVertical_bias="0"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/audio_devices"
+                    app:layout_constraintTop_toBottomOf="@id/permissions_list"
                     app:layout_constraintBottom_toBottomOf="parent"/>
 
             </androidx.constraintlayout.widget.ConstraintLayout>

@@ -112,6 +112,11 @@ class DrawerMenuFragment : GenericMainFragment() {
         binding.incomingCallsRow.setOnClickListener {
             callsPanelOpen = !callsPanelOpen
             binding.incomingCallsPanel.visibility = if (callsPanelOpen) View.VISIBLE else View.GONE
+            binding.incomingCallsRow.setCompoundDrawablesWithIntrinsicBounds(
+                R.drawable.phone, 0,
+                if (callsPanelOpen) R.drawable.caret_up else R.drawable.caret_down,
+                0
+            )
         }
 
         // Accordion toggle for presence
@@ -119,6 +124,11 @@ class DrawerMenuFragment : GenericMainFragment() {
         binding.presenceRow.setOnClickListener {
             presencePanelOpen = !presencePanelOpen
             binding.presencePanel.visibility = if (presencePanelOpen) View.VISIBLE else View.GONE
+            binding.presenceRow.setCompoundDrawablesWithIntrinsicBounds(
+                R.drawable.user_circle, 0,
+                if (presencePanelOpen) R.drawable.caret_up else R.drawable.caret_down,
+                0
+            )
         }
 
         // Settings

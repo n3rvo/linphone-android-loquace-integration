@@ -1098,4 +1098,11 @@
     <string name="drawer_language_title">Language</string>
     <string name="drawer_logout">Logout</string>
     <string name="drawer_submit">Save</string>
+    <string name="settings_network_push_notifications">Enable push notifications</string>
+    <string name="settings_advanced_permissions_title">Permissions</string>
+    <string name="permission_record_audio">Microphone</string>
+    <string name="permission_camera">Camera</string>
+    <string name="permission_read_contacts">Contacts</string>
+    <string name="permission_bluetooth">Bluetooth</string>
+    <string name="permission_post_notifications">Notifications</string>
 </resources>

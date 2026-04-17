@@ -30,7 +30,7 @@
             android:text="@string/settings_calls_echo_canceller_title"
             android:maxLines="1"
             android:ellipsize="end"
-            android:visibility="gone"
+            android:visibility="visible"
             app:layout_constraintTop_toTopOf="@id/echo_canceller_switch"
             app:layout_constraintBottom_toTopOf="@id/echo_canceller_subtitle"
             app:layout_constraintStart_toStartOf="parent"
@@ -45,7 +45,7 @@
             android:layout_marginStart="16dp"
             android:layout_marginEnd="10dp"
             android:text="@string/settings_calls_echo_canceller_subtitle"
-            android:visibility="gone"
+            android:visibility="visible"
             app:layout_constraintTop_toBottomOf="@id/echo_canceller_title"
             app:layout_constraintBottom_toBottomOf="@id/echo_canceller_switch"
             app:layout_constraintStart_toStartOf="parent"
@@ -60,7 +60,7 @@
             android:layout_marginTop="20dp"
             android:layout_marginEnd="16dp"
             android:checked="@{viewModel.echoCancellerEnabled}"
-            android:visibility="gone"
+            android:visibility="visible"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
@@ -110,7 +110,8 @@
             app:layout_constraintTop_toTopOf="@id/adaptive_rate_control_switch"
             app:layout_constraintBottom_toBottomOf="@id/adaptive_rate_control_switch"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/adaptive_rate_control_switch"/>
+            app:layout_constraintEnd_toStartOf="@id/adaptive_rate_control_switch"
+            android:visibility="gone"/>
 
         <com.google.android.material.materialswitch.MaterialSwitch
             style="@style/material_switch_style"
@@ -122,7 +123,8 @@
             android:layout_marginEnd="16dp"
             android:checked="@{viewModel.adaptiveRateControlEnabled}"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/calibrate_echo_canceller" />
+            app:layout_constraintTop_toBottomOf="@id/calibrate_echo_canceller"
+            android:visibility="gone"/>
 
         <androidx.appcompat.widget.AppCompatTextView
             style="@style/settings_title_style"
@@ -199,7 +201,8 @@
             app:layout_constraintTop_toTopOf="@id/auto_record_switch"
             app:layout_constraintBottom_toBottomOf="@id/auto_record_switch"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/auto_record_switch"/>
+            app:layout_constraintEnd_toStartOf="@id/auto_record_switch"
+            android:visibility="gone"/>
 
         <com.google.android.material.materialswitch.MaterialSwitch
             style="@style/material_switch_style"
@@ -211,7 +214,8 @@
             android:layout_marginEnd="16dp"
             android:checked="@{viewModel.autoRecordCalls}"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/vibrate_switch" />
+            app:layout_constraintTop_toBottomOf="@id/vibrate_switch"
+            android:visibility="gone"/>
 
         <androidx.appcompat.widget.AppCompatTextView
             style="@style/settings_title_style"
@@ -219,7 +223,6 @@
             android:onClick="@{() -> viewModel.changeRingtone()}"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:padding="5dp"
             android:layout_marginStart="16dp"
             android:layout_marginEnd="10dp"
             android:layout_marginTop="20dp"
@@ -230,7 +233,7 @@
             android:background="@drawable/squircle_transparent_button_background"
             app:layout_constraintHorizontal_bias="1"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintEnd_toEndOf="@id/vibrate_switch"
             app:layout_constraintTop_toBottomOf="@id/auto_record_switch"/>
 
         <androidx.appcompat.widget.AppCompatTextView
@@ -251,7 +254,8 @@
             app:layout_constraintHorizontal_bias="1"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/change_ringtone"/>
+            app:layout_constraintTop_toBottomOf="@id/change_ringtone"
+            android:visibility="gone"/>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
