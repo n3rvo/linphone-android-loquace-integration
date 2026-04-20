@@ -201,6 +201,25 @@
         app:launchSingleTop="true"/>
 
     <fragment
+        android:id="@+id/loquaceAboutFragment"
+        android:name="org.linphone.ui.main.help.fragment.LoquaceAboutFragment"
+        android:label="LoquaceAboutFragment"
+        tools:layout="@layout/loquace_about_fragment">
+        <action
+            android:id="@+id/action_loquaceAboutFragment_to_back"
+            app:popUpTo="@id/loquaceAboutFragment"
+            app:popUpToInclusive="true"/>
+    </fragment>
+
+    <action
+        android:id="@+id/action_global_loquaceAboutFragment"
+        app:destination="@id/loquaceAboutFragment"
+        app:enterAnim="@anim/slide_in_right"
+        app:exitAnim="@anim/slide_out_left"
+        app:popEnterAnim="@anim/slide_in_left"
+        app:popExitAnim="@anim/slide_out_right"/>
+
+    <fragment
         android:id="@+id/recordingsListFragment"
         android:name="org.linphone.ui.main.recordings.fragment.RecordingsListFragment"
         android:label="RecordingsListFragment"

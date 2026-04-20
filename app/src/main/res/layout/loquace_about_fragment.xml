@@ -1,0 +1,356 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <data>
+        <variable
+            name="backClickListener"
+            type="android.view.View.OnClickListener"/>
+        <variable
+            name="viewModel"
+            type="org.linphone.ui.main.help.viewmodel.HelpViewModel"/>
+    </data>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="?attr/color_background_contrast_in_dark_mode">
+
+        <!-- Top bar -->
+        <ImageView
+            style="@style/icon_top_bar_button_style"
+            android:id="@+id/back"
+            android:onClick="@{backClickListener}"
+            android:layout_width="wrap_content"
+            android:layout_height="0dp"
+            android:src="@drawable/caret_left"
+            android:contentDescription="@string/content_description_go_back_icon"
+            app:tint="?attr/color_main1_500"
+            app:layout_constraintBottom_toBottomOf="@id/title"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="@id/title"/>
+
+        <androidx.appcompat.widget.AppCompatTextView
+            style="@style/main_page_title_style"
+            android:id="@+id/title"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/top_bar_height"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="10dp"
+            android:text="@string/drawer_about_title"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/back"
+            app:layout_constraintTop_toTopOf="parent"/>
+
+        <ScrollView
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:fillViewport="true"
+            android:background="?attr/color_grey_100"
+            app:layout_constraintTop_toBottomOf="@id/title"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingBottom="@dimen/screen_bottom_margin">
+
+                <!-- App logo + name + description -->
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/app_section"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginEnd="16dp"
+                    android:layout_marginTop="20dp"
+                    android:padding="24dp"
+                    android:background="@drawable/shape_squircle_white_background"
+                    app:layout_constraintWidth_max="@dimen/section_max_width"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent">
+
+                    <ImageView
+                        android:id="@+id/app_logo"
+                        android:layout_width="72dp"
+                        android:layout_height="72dp"
+                        android:src="@drawable/linphone_notification"
+                        android:contentDescription="@null"
+                        app:tint="?attr/color_main1_500"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"/>
+
+                    <androidx.appcompat.widget.AppCompatTextView
+                        style="@style/section_header_style"
+                        android:id="@+id/app_name"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="@string/app_name"
+                        android:textSize="22sp"
+                        app:layout_constraintTop_toBottomOf="@id/app_logo"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"/>
+
+                    <androidx.appcompat.widget.AppCompatTextView
+                        style="@style/default_text_style_300"
+                        android:id="@+id/app_version"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="@{viewModel.version}"
+                        android:textSize="13sp"
+                        android:textColor="?attr/color_main2_500"
+                        app:layout_constraintTop_toBottomOf="@id/app_name"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"/>
+
+                    <androidx.appcompat.widget.AppCompatTextView
+                        style="@style/default_text_style"
+                        android:id="@+id/app_description"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:text="@string/about_app_description"
+                        android:textSize="14sp"
+                        android:gravity="center"
+                        android:textColor="?attr/color_main2_600"
+                        app:layout_constraintTop_toBottomOf="@id/app_version"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"/>
+
+                </androidx.constraintlayout.widget.ConstraintLayout>
+
+                <!-- Links section -->
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/links_section"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginEnd="16dp"
+                    android:layout_marginTop="16dp"
+                    android:background="@drawable/shape_squircle_white_background"
+                    app:layout_constraintWidth_max="@dimen/section_max_width"
+                    app:layout_constraintTop_toBottomOf="@id/app_section"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent">
+
+                    <!-- Privacy Policy -->
+                    <ImageView
+                        android:id="@+id/privacy_icon"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_marginStart="16dp"
+                        android:src="@drawable/detective"
+                        android:contentDescription="@null"
+                        app:tint="?attr/color_main1_500"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="@id/privacy_title"/>
+
+                    <androidx.appcompat.widget.AppCompatTextView
+                        style="@style/header_style"
+                        android:id="@+id/privacy_title"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginEnd="16dp"
+                        android:layout_marginTop="16dp"
+                        android:text="@string/help_about_privacy_policy_title"
+                        android:drawableEnd="@drawable/arrow_square_out"
+                        android:drawablePadding="5dp"
+                        app:drawableTint="?attr/color_main2_600"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintStart_toEndOf="@id/privacy_icon"
+                        app:layout_constraintEnd_toEndOf="parent"/>
+
+                    <androidx.appcompat.widget.AppCompatTextView
+                        style="@style/default_text_style"
+                        android:id="@+id/privacy_subtitle"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginEnd="16dp"
+                        android:text="@string/about_privacy_subtitle"
+                        android:textSize="14sp"
+                        android:textColor="?attr/color_main2_600"
+                        app:layout_constraintTop_toBottomOf="@id/privacy_title"
+                        app:layout_constraintStart_toEndOf="@id/privacy_icon"
+                        app:layout_constraintEnd_toEndOf="parent"/>
+
+                    <!-- Separator -->
+                    <View
+                        android:id="@+id/separator_1"
+                        android:layout_width="0dp"
+                        android:layout_height="1dp"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginEnd="16dp"
+                        android:layout_marginTop="16dp"
+                        android:background="?attr/color_separator"
+                        app:layout_constraintTop_toBottomOf="@id/privacy_subtitle"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"/>
+
+                    <!-- Open Source Licenses -->
+                    <ImageView
+                        android:id="@+id/licenses_icon"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_marginStart="16dp"
+                        android:src="@drawable/check_square_offset"
+                        android:contentDescription="@null"
+                        app:tint="?attr/color_main1_500"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="@id/licenses_title"/>
+
+                    <androidx.appcompat.widget.AppCompatTextView
+                        style="@style/header_style"
+                        android:id="@+id/licenses_title"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginEnd="16dp"
+                        android:layout_marginTop="16dp"
+                        android:text="@string/help_about_open_source_licenses_title"
+                        android:drawableEnd="@drawable/arrow_square_out"
+                        android:drawablePadding="5dp"
+                        app:drawableTint="?attr/color_main2_600"
+                        app:layout_constraintTop_toBottomOf="@id/separator_1"
+                        app:layout_constraintStart_toEndOf="@id/licenses_icon"
+                        app:layout_constraintEnd_toEndOf="parent"/>
+
+                    <androidx.appcompat.widget.AppCompatTextView
+                        style="@style/default_text_style"
+                        android:id="@+id/licenses_subtitle"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginEnd="16dp"
+                        android:text="@string/help_about_open_source_licenses_subtitle"
+                        android:textSize="14sp"
+                        android:textColor="?attr/color_main2_600"
+                        app:layout_constraintTop_toBottomOf="@id/licenses_title"
+                        app:layout_constraintStart_toEndOf="@id/licenses_icon"
+                        app:layout_constraintEnd_toEndOf="parent"/>
+
+                    <!-- Separator -->
+                    <View
+                        android:id="@+id/separator_2"
+                        android:layout_width="0dp"
+                        android:layout_height="1dp"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginEnd="16dp"
+                        android:layout_marginTop="16dp"
+                        android:background="?attr/color_separator"
+                        app:layout_constraintTop_toBottomOf="@id/licenses_subtitle"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"/>
+
+                    <!-- Based on Linphone (GPLv3 compliance) -->
+                    <ImageView
+                        android:id="@+id/linphone_icon"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_marginStart="16dp"
+                        android:src="@drawable/linphone_notification"
+                        android:contentDescription="@null"
+                        app:tint="?attr/color_main1_500"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="@id/linphone_title"/>
+
+                    <androidx.appcompat.widget.AppCompatTextView
+                        style="@style/header_style"
+                        android:id="@+id/linphone_title"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginEnd="16dp"
+                        android:layout_marginTop="16dp"
+                        android:text="@string/about_based_on_linphone_title"
+                        android:drawableEnd="@drawable/arrow_square_out"
+                        android:drawablePadding="5dp"
+                        app:drawableTint="?attr/color_main2_600"
+                        app:layout_constraintTop_toBottomOf="@id/separator_2"
+                        app:layout_constraintStart_toEndOf="@id/linphone_icon"
+                        app:layout_constraintEnd_toEndOf="parent"/>
+
+                    <androidx.appcompat.widget.AppCompatTextView
+                        style="@style/default_text_style"
+                        android:id="@+id/linphone_subtitle"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginEnd="16dp"
+                        android:text="@string/about_based_on_linphone_subtitle"
+                        android:textSize="14sp"
+                        android:textColor="?attr/color_main2_600"
+                        app:layout_constraintTop_toBottomOf="@id/linphone_title"
+                        app:layout_constraintStart_toEndOf="@id/linphone_icon"
+                        app:layout_constraintEnd_toEndOf="parent"/>
+
+                    <!-- Separator -->
+                    <View
+                        android:id="@+id/separator_3"
+                        android:layout_width="0dp"
+                        android:layout_height="1dp"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginEnd="16dp"
+                        android:layout_marginTop="16dp"
+                        android:background="?attr/color_separator"
+                        app:layout_constraintTop_toBottomOf="@id/linphone_subtitle"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"/>
+
+                    <!-- GPLv3 License -->
+                    <ImageView
+                        android:id="@+id/gpl_icon"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_marginStart="16dp"
+                        android:src="@drawable/file_text"
+                        android:contentDescription="@null"
+                        app:tint="?attr/color_main1_500"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="@id/gpl_title"/>
+
+                    <androidx.appcompat.widget.AppCompatTextView
+                        style="@style/header_style"
+                        android:id="@+id/gpl_title"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginEnd="16dp"
+                        android:layout_marginTop="16dp"
+                        android:text="@string/about_gpl_license_title"
+                        android:drawableEnd="@drawable/arrow_square_out"
+                        android:drawablePadding="5dp"
+                        app:drawableTint="?attr/color_main2_600"
+                        app:layout_constraintTop_toBottomOf="@id/separator_3"
+                        app:layout_constraintStart_toEndOf="@id/gpl_icon"
+                        app:layout_constraintEnd_toEndOf="parent"/>
+
+                    <androidx.appcompat.widget.AppCompatTextView
+                        style="@style/default_text_style"
+                        android:id="@+id/gpl_subtitle"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginEnd="16dp"
+                        android:layout_marginBottom="16dp"
+                        android:text="@string/about_gpl_license_subtitle"
+                        android:textSize="14sp"
+                        android:textColor="?attr/color_main2_600"
+                        app:layout_constraintTop_toBottomOf="@id/gpl_title"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintStart_toEndOf="@id/gpl_icon"
+                        app:layout_constraintEnd_toEndOf="parent"/>
+
+                </androidx.constraintlayout.widget.ConstraintLayout>
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+        </ScrollView>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</layout>

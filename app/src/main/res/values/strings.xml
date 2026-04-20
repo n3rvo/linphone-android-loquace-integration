@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='UTF-8'?>
 
 <!DOCTYPE resources [
-    <!ENTITY appName "Linphone">
+    <!ENTITY appName "Loquace Mobile">
 ]>
 
 <resources>
@@ -1105,4 +1105,13 @@
     <string name="permission_read_contacts">Contacts</string>
     <string name="permission_bluetooth">Bluetooth</string>
     <string name="permission_post_notifications">Notifications</string>
+    <string name="about_app_description">Your business communication platform</string>
+    <string name="about_privacy_subtitle">Read our privacy policy</string>
+    <string name="about_based_on_linphone_title">Based on Linphone</string>
+    <string name="about_based_on_linphone_subtitle">This app is built on top of Linphone, an open-source VoIP project</string>
+    <string name="about_gpl_license_title">GNU GPL v3 License</string>
+    <string name="about_gpl_license_subtitle">This app is distributed under the GNU General Public License v3</string>
+    <string name="about_privacy_policy_url">https://www.loquace.it/informativa-privacy/</string>
+    <string name="about_linphone_url">https://www.linphone.org</string>
+    <string name="about_gpl_url">https://www.gnu.org/licenses/gpl-3.0.html</string>
 </resources>

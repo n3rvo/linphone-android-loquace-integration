@@ -141,7 +141,7 @@ class DrawerMenuFragment : GenericMainFragment() {
         // About
         binding.about.setOnClickListener {
             val navController = (requireActivity() as MainActivity).findNavController()
-            navController.navigate(R.id.helpFragment)
+            navController.navigate(R.id.action_global_loquaceAboutFragment)
             (requireActivity() as MainActivity).closeDrawerMenu()
         }
 
