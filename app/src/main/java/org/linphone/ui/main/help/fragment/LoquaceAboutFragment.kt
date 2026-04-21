@@ -55,16 +55,6 @@ class LoquaceAboutFragment : GenericMainFragment() {
             openUrl(getString(R.string.about_privacy_policy_url))
         }
 
-        binding.licensesTitle.setOnClickListener {
-            openUrl(getString(R.string.website_open_source_licences_usage_url))
-        }
-        binding.licensesSubtitle.setOnClickListener {
-            openUrl(getString(R.string.website_open_source_licences_usage_url))
-        }
-        binding.licensesIcon.setOnClickListener {
-            openUrl(getString(R.string.website_open_source_licences_usage_url))
-        }
-
         binding.linphoneTitle.setOnClickListener {
             openUrl(getString(R.string.about_linphone_url))
         }

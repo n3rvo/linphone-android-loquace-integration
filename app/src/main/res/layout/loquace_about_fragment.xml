@@ -182,61 +182,6 @@
 
                     <!-- Separator -->
                     <View
-                        android:id="@+id/separator_1"
-                        android:layout_width="0dp"
-                        android:layout_height="1dp"
-                        android:layout_marginStart="16dp"
-                        android:layout_marginEnd="16dp"
-                        android:layout_marginTop="16dp"
-                        android:background="?attr/color_separator"
-                        app:layout_constraintTop_toBottomOf="@id/privacy_subtitle"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintEnd_toEndOf="parent"/>
-
-                    <!-- Open Source Licenses -->
-                    <ImageView
-                        android:id="@+id/licenses_icon"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
-                        android:layout_marginStart="16dp"
-                        android:src="@drawable/check_square_offset"
-                        android:contentDescription="@null"
-                        app:tint="?attr/color_main1_500"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toTopOf="@id/licenses_title"/>
-
-                    <androidx.appcompat.widget.AppCompatTextView
-                        style="@style/header_style"
-                        android:id="@+id/licenses_title"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="16dp"
-                        android:layout_marginEnd="16dp"
-                        android:layout_marginTop="16dp"
-                        android:text="@string/help_about_open_source_licenses_title"
-                        android:drawableEnd="@drawable/arrow_square_out"
-                        android:drawablePadding="5dp"
-                        app:drawableTint="?attr/color_main2_600"
-                        app:layout_constraintTop_toBottomOf="@id/separator_1"
-                        app:layout_constraintStart_toEndOf="@id/licenses_icon"
-                        app:layout_constraintEnd_toEndOf="parent"/>
-
-                    <androidx.appcompat.widget.AppCompatTextView
-                        style="@style/default_text_style"
-                        android:id="@+id/licenses_subtitle"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="16dp"
-                        android:layout_marginEnd="16dp"
-                        android:text="@string/help_about_open_source_licenses_subtitle"
-                        android:textSize="14sp"
-                        android:textColor="?attr/color_main2_600"
-                        app:layout_constraintTop_toBottomOf="@id/licenses_title"
-                        app:layout_constraintStart_toEndOf="@id/licenses_icon"
-                        app:layout_constraintEnd_toEndOf="parent"/>
-
-                    <!-- Separator -->
-                    <View
                         android:id="@+id/separator_2"
                         android:layout_width="0dp"
                         android:layout_height="1dp"
@@ -244,7 +189,7 @@
                         android:layout_marginEnd="16dp"
                         android:layout_marginTop="16dp"
                         android:background="?attr/color_separator"
-                        app:layout_constraintTop_toBottomOf="@id/licenses_subtitle"
+                        app:layout_constraintTop_toBottomOf="@id/privacy_subtitle"
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintEnd_toEndOf="parent"/>
 
