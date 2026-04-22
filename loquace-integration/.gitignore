@@ -27,3 +27,6 @@ app/release/
 
 # Keystore
 *.keystore
+
+# google-services.json File
+app/google-services.json
