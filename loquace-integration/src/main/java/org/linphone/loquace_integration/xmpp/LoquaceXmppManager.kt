@@ -99,11 +99,6 @@ object LoquaceXmppManager {
                 Roster.getInstanceFor(conn).isRosterLoadedAtLogin = false  // Add this
                 connection = conn
 
-                ReconnectionManager.getInstanceFor(conn).apply {
-                    enableAutomaticReconnection()
-                    setReconnectionPolicy(ReconnectionManager.ReconnectionPolicy.RANDOM_INCREASING_DELAY)
-                }
-
                 Log.d(TAG, "Connecting as ${account.username}@${account.domain} to ${account.serverAddress}:${account.serverPort}")
                 conn.connect()
                 conn.login()
@@ -204,6 +199,7 @@ object LoquaceXmppManager {
                 connection?.disconnect()
                 connection = null
                 chatManager = null
+                isConnecting = false
                 _connectionState.value = XmppConnectionState.Disconnected
                 Log.d(TAG, "Disconnected from XMPP server")
             } catch (e: Exception) {

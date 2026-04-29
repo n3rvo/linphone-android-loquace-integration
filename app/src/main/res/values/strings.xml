@@ -1114,4 +1114,5 @@
     <string name="about_privacy_policy_url">https://www.loquace.it/informativa-privacy/</string>
     <string name="about_linphone_url">https://www.linphone.org</string>
     <string name="about_gpl_url">https://www.gnu.org/licenses/gpl-3.0.html</string>
+    <string name="notification_incoming_call_title">Incoming Call</string>
 </resources>

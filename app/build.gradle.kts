@@ -104,7 +104,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = packageName
+        applicationId = "it.nems.loquacemobile"
         minSdk = 28
         targetSdk = 36
         versionCode = 601006 // 6.01.006

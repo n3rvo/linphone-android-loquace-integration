@@ -186,13 +186,22 @@
             android:stopWithTask="false"
             android:label="@string/app_name" />
 
-        <service android:name="org.linphone.core.tools.firebase.FirebaseMessaging"
+        <!--<service android:name="org.linphone.core.tools.firebase.FirebaseMessaging"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>-->
+
+        <service android:name="org.linphone.core.LoquaceFirebaseMessagingService"
             android:enabled="true"
             android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
+
 
         <service
             android:name=".core.CoreKeepAliveThirdPartyAccountsService"

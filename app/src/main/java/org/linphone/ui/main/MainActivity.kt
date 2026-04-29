@@ -78,6 +78,7 @@ import org.linphone.utils.FileUtils
 import org.linphone.utils.LinphoneUtils
 import androidx.core.content.edit
 import org.linphone.loquace_integration.ui.LoquaceLoginActivity
+import org.linphone.loquace_integration.xmpp.LoquaceXmppManager
 import org.linphone.ui.assistant.AssistantActivity
 
 @UiThread
@@ -435,6 +436,25 @@ class MainActivity : GenericActivity() {
         viewModel.enableAccountMonitoring(true)
         viewModel.updateMissingPermissionAlert()
         viewModel.updateAccountsAndNetworkReachability()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // App going to background - disconnect XMPP so pushes are delivered
+        Log.i("$TAG App going to background, disconnecting XMPP")
+        LoquaceXmppManager.disconnect()
+        stopService(Intent(this, org.linphone.loquace_integration.xmpp.XmppConnectionService::class.java))
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // App coming to foreground - reconnect XMPP
+        val sessionManager = org.linphone.loquace_integration.storage.SessionManager(this)
+        if (sessionManager.getToken() != null) {
+            Log.i("$TAG App coming to foreground, reconnecting XMPP")
+            val serviceIntent = Intent(this, org.linphone.loquace_integration.xmpp.XmppConnectionService::class.java)
+            startForegroundService(serviceIntent)
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
