@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 import net.zetetic.database.sqlcipher.SQLiteDatabase
 import org.linphone.loquace_integration.storage.dao.*
@@ -15,9 +17,10 @@ import org.linphone.loquace_integration.storage.entity.*
         ProfileEntity::class,
         XmppAccountEntity::class,
         CallsEntity::class,
-        PresenceEntity::class
+        PresenceEntity::class,
+        XmppConversationEntity::class
     ],
-    version = 2,         // bump version since we added a table
+    version = 3,
     exportSchema = false
 )
 abstract class LoquaceDatabase : RoomDatabase() {
@@ -26,13 +29,30 @@ abstract class LoquaceDatabase : RoomDatabase() {
     abstract fun xmppAccountDao(): XmppAccountDao
     abstract fun callsDao(): CallsDao
     abstract fun presenceDao(): PresenceDao
+    abstract fun xmppConversationDao(): XmppConversationDao
 
     companion object {
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("""
+                CREATE TABLE IF NOT EXISTS xmpp_conversations (
+                    peerJid TEXT NOT NULL PRIMARY KEY,
+                    displayName TEXT,
+                    lastMessage TEXT,
+                    lastTimestamp INTEGER NOT NULL,
+                    unreadCount INTEGER NOT NULL,
+                    isGroup INTEGER NOT NULL,
+                    pictureUrl TEXT
+                )
+            """)
+            }
+        }
+
         @Volatile private var INSTANCE: LoquaceDatabase? = null
 
         fun getInstance(context: Context): LoquaceDatabase {
             return INSTANCE ?: synchronized(this) {
-                System.loadLibrary("sqlcipher") // Add this line
+                System.loadLibrary("sqlcipher")
 
                 val passphrase = getDatabaseKey(context).toByteArray(Charsets.UTF_8)
                 val factory = SupportOpenHelperFactory(passphrase)
@@ -43,6 +63,7 @@ abstract class LoquaceDatabase : RoomDatabase() {
                     "loquace_db"
                 )
                     .openHelperFactory(factory)
+                    .addMigrations(MIGRATION_2_3)
                     .build()
                     .also { INSTANCE = it }
             }

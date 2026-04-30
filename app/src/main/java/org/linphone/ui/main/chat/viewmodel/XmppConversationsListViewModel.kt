@@ -7,10 +7,8 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.linphone.LinphoneApplication.Companion.coreContext
 import org.linphone.core.tools.Log
-import org.linphone.loquace_integration.network.ContactResponse
 import org.linphone.loquace_integration.network.LoquaceAvatarHelper
 import org.linphone.loquace_integration.network.LoquaceConfig
-import org.linphone.loquace_integration.network.LoquaceContactsRepository
 import org.linphone.loquace_integration.network.LoquaceGroupsRepository
 import org.linphone.loquace_integration.xmpp.LoquaceXmppManager
 import org.linphone.loquace_integration.xmpp.XmppConversation
@@ -129,11 +127,11 @@ constructor() : AbstractMainViewModel() {
 
                         XmppConversationModel(
                             XmppConversation(
-                                peerJid       = jid,
-                                lastMessage   = "",
+                                peerJid = jid,
+                                lastMessage = "",
                                 lastTimestamp = 0L,
-                                displayName   = friend.name,
-                                pictureUrl    = contact.pictureUrl
+                                displayName = friend.name,
+                                pictureUrl = contact.pictureUrl
                             ),
                             prebuiltAvatarModel = avatarModel
                         )
@@ -165,11 +163,11 @@ constructor() : AbstractMainViewModel() {
                 val models = groupList.map { group ->
                     XmppConversationModel(
                         XmppConversation(
-                            peerJid       = group.jid,
-                            lastMessage   = "${group.participants.size} members",
+                            peerJid = group.jid,
+                            lastMessage = "${group.participants.size} members",
                             lastTimestamp = group.createdAt,
-                            displayName   = group.name,
-                            isGroup       = true
+                            displayName = group.name,
+                            isGroup = true
                         )
                     )
                 }

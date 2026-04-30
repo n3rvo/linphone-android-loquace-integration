@@ -142,4 +142,11 @@ constructor() : GenericViewModel() {
             )
         }
     }
+
+    fun markAsRead() {
+        val jid = peerJid.value ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            LoquaceXmppManager.markConversationAsRead(jid)
+        }
+    }
 }

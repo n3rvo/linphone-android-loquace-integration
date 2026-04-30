@@ -155,6 +155,7 @@ class XmppConversationFragment : SlidingPaneChildFragment() {
             name  = args.displayName,
             group = args.isGroup
         )
+        viewModel.markAsRead()
 
         if (args.isGroup) {
             viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
@@ -261,7 +262,7 @@ class XmppConversationFragment : SlidingPaneChildFragment() {
             }
         })
 
-// Show loading indicator while fetching history
+        // Show loading indicator while fetching history
         viewModel.isLoadingHistory.observe(viewLifecycleOwner) { isLoading ->
             binding.historyProgress.visibility = if (isLoading) View.VISIBLE else View.GONE
         }

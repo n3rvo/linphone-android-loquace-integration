@@ -14,6 +14,7 @@ directly importing `LinphoneApplication`.
 coreContext = CoreContext(context)
 coreContext.start()
 LoquaceCoreProvider.init { coreContext.core } // Added
+LoquaceXmppManager.init(this) // Added
 ```
 
 ### Change: App-wide block on Night Mode
@@ -21,7 +22,7 @@ LoquaceCoreProvider.init { coreContext.core } // Added
 
 **Location:** first line of `onCreate()` function
 ```kotlin
-AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO) // Added this
+AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
 ```
 
 ---
@@ -36,6 +37,25 @@ AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO) // Added 
 
 ### Change: Redirect to Loquace login when last account is removed
 **Location:** `lastAccountRemovedEvent` observer in `onCreate()`
+
+### Change: Add XMPP reconnection on app foreground/background
+Added `onStart()` and `onStop()` to manage XMPP connection lifecycle:
+```kotlin
+override fun onStart() {
+    super.onStart()
+    val sessionManager = SessionManager(this)
+    if (sessionManager.getToken() != null) {
+        val serviceIntent = Intent(this, XmppConnectionService::class.java)
+        startForegroundService(serviceIntent)
+    }
+}
+
+override fun onStop() {
+    super.onStop()
+    LoquaceXmppManager.disconnect()
+    stopService(Intent(this, XmppConnectionService::class.java))
+}
+```
 
 ---
 
@@ -56,6 +76,21 @@ AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO) // Added 
 ### Change: Remove duplicate FileProvider
 **Reason:** Using Linphone's existing one with authority `@string/file_provider`
 pointing to `@xml/provider_paths`.
+
+### Change: Replace Linphone's Firebase service with Loquace's
+```xml
+<!-- Replaced -->
+<service android:name="org.linphone.core.tools.firebase.FirebaseMessaging" .../>
+
+<!-- With -->
+<service android:name="org.linphone.core.LoquaceFirebaseMessagingService"
+    android:enabled="true"
+    android:exported="false">
+    <intent-filter>
+        <action android:name="com.google.firebase.MESSAGING_EVENT"/>
+    </intent-filter>
+</service>
+```
 
 ---
 
@@ -81,12 +116,12 @@ Added `loquaceDialerFragment` with actions to/from all other main tabs.
 </fragment>
 
 <action
-android:id="@+id/action_global_xmppConversationFragment"
-app:destination="@id/xmppConversationFragment"
-app:enterAnim="@anim/slide_in_right"
-app:exitAnim="@anim/slide_out_left"
-app:popEnterAnim="@anim/slide_in_left"
-app:popExitAnim="@anim/slide_out_right"/>
+    android:id="@+id/action_global_xmppConversationFragment"
+    app:destination="@id/xmppConversationFragment"
+    app:enterAnim="@anim/slide_in_right"
+    app:exitAnim="@anim/slide_out_left"
+    app:popEnterAnim="@anim/slide_in_left"
+    app:popExitAnim="@anim/slide_out_right"/>
 ```
 
 ---
@@ -269,11 +304,11 @@ Fixed constraints after hiding items.
 
 ## `app/src/main/java/org/linphone/ui/main/settings/fragment/SettingsAdvancedFragment.kt`
 
-### Change: Add permissions section
+### Change: Add permissions section, remove audio device pickers
 - Added `permissionsPanelOpen` flag
 - `permissions_title` click toggles panel and swaps caret drawable
 - `setupPermissionsList()` builds list of: Microphone, Camera, Contacts,
-  Notifications, Bluetooth
+  Notifications (Android 13+), Bluetooth (Android 12+)
 - Each item shows green check or red X based on grant status
 - Clicking a denied permission requests it via `requestPermissionLauncher`
 - List refreshes on `onResume()` if panel is open
@@ -357,6 +392,16 @@ val disableCallRecordings: Boolean
 <string name="permission_read_contacts">Contacts</string>
 <string name="permission_post_notifications">Notifications</string>
 <string name="permission_bluetooth">Bluetooth</string>
+<string name="notification_incoming_call_title">Incoming Call</string>
+<string name="about_app_description">Your business communication platform</string>
+<string name="about_privacy_subtitle">Read our privacy policy</string>
+<string name="about_based_on_linphone_title">Based on Linphone</string>
+<string name="about_based_on_linphone_subtitle">This app is built on top of Linphone, an open-source VoIP project</string>
+<string name="about_gpl_license_title">GNU GPL v3 License</string>
+<string name="about_gpl_license_subtitle">This app is distributed under the GNU General Public License v3</string>
+<string name="about_privacy_policy_url">https://your-privacy-policy-url.com</string>
+<string name="about_linphone_url">https://www.linphone.org</string>
+<string name="about_gpl_url">https://www.gnu.org/licenses/gpl-3.0.html</string>
 ```
 
 ---
@@ -368,177 +413,16 @@ val disableCallRecordings: Boolean
 implementation(libs.gson)
 ```
 
----
-
-## New files in `app` module
-
-### `app/src/main/res/drawable/drawer_background.xml` *(NEW)*
-Custom drawable with rounded right corners for the drawer panel.
-
-### `app/src/main/res/drawable/ic_permission_granted.xml` *(NEW)*
-Green circle with white checkmark for granted permissions.
-
-### `app/src/main/res/drawable/ic_permission_denied.xml` *(NEW)*
-Red circle with white X for denied permissions.
-
-### `app/src/main/res/layout/loquace_permission_item.xml` *(NEW)*
-Permission list item with name on left and status icon on right.
-Wrapped in `<layout>` tag for data binding.
-
-### `app/src/main/java/org/linphone/ui/main/settings/LoquacePermissionsAdapter.kt` *(NEW)*
-RecyclerView adapter for permissions list.
-- Shows green check or red X based on grant status
-- Click on denied permission triggers permission request
-
-### `app/src/main/res/layout/loquace_dialer_fragment.xml` *(NEW)*
-### `app/src/main/java/org/linphone/ui/main/dialer/viewmodel/LoquaceDialerViewModel.kt` *(NEW)*
-### `app/src/main/java/org/linphone/ui/main/dialer/fragment/LoquaceDialerFragment.kt` *(NEW)*
-### `app/src/main/res/layout/loquace_chat_list_cell.xml` *(NEW)*
-### `app/src/main/java/org/linphone/ui/main/chat/model/XmppConversationModel.kt` *(NEW)*
-
-**Key implementation notes:**
-- `prebuiltAvatarModel` parameter for pre-fetched avatars (contacts tab)
-- Falls back to `LoquaceXmppManager.getContactName()` for display name
-- Uses cached avatar file via `LoquaceXmppManager.getContactId()` → `avatar_{contactId}.jpg`
-- `subject` uses `displayName ?? getContactName(peerJid) ?? peerJid`
-
-### `app/src/main/java/org/linphone/ui/main/chat/adapter/XmppConversationsAdapter.kt` *(NEW)*
-### `app/src/main/java/org/linphone/ui/main/chat/viewmodel/XmppConversationsListViewModel.kt` *(NEW)*
-
-**Key methods:**
-- `loadContacts()` — fetches chat-enabled contacts via `chats=true`, paginated,
-  with avatar pre-fetching, stores `contactId`, `contactName` in `LoquaceXmppManager`
-- `loadGroups()` — fetches groups from Loquace API
-
-### `app/src/main/java/org/linphone/ui/main/chat/viewmodel/XmppConversationViewModel.kt` *(NEW)*
-
-**Key additions:**
-- `isLoadingHistory`, `hasMoreHistory`, `oldestMessageUid`
-- `loadHistory()` — fetches MAM history, prepends to existing messages
-- `loadMoreHistory()` — triggered by scroll to top, loads next page
-- `isPrependingHistory` flag — prevents scroll-to-bottom when prepending
-- `deleteMessage()` — calls `LoquaceXmppManager.retractMessage()`
-- `editMessage()` — calls `LoquaceXmppManager.editMessage()`
-
-### `app/src/main/java/org/linphone/ui/main/chat/adapter/XmppMessagesAdapter.kt` *(NEW)*
-
-**Key implementation notes:**
-- Images loaded via `LoquaceMediaDownloader` with auth headers
-- Camera photos/videos load instantly from local path
-- Videos cached locally after first download for faster reopening
-- Attachment type detection strips query parameters before checking extension
-- All audio formats (mp3, m4a, ogg, wav, mka) treated as VOICE_NOTE
-- Visibility of attachment views controlled entirely in code, not data binding
-- `attachmentClickedEvent` fires when tapping image, video or file bubble
-- `messageLongPressedEvent` fires on long press of outgoing bubble
-- Upload progress shown via `CircularProgressIndicator` while `isUploading=true`
-- Retracted messages shown in gray italic text
-- Sent message IDs tracked in `sentMessageIds` to avoid carbon copy duplicates
-
-### `app/src/main/res/layout/loquace_chat_bubble_incoming.xml` *(NEW)*
-### `app/src/main/res/layout/loquace_chat_bubble_outgoing.xml` *(NEW)*
-
-**Attachment views:** `attachment_image`, `attachment_video`, `attachment_file`,
-`attachment_voice`, `upload_progress` — all default `gone`, visibility set in adapter.
-Voice note bubble has `voice_play_button` and `voice_seekbar`.
-Incoming bubble has `sender_name` TextView (visible only when `senderName` is not null).
-
-### `app/src/main/res/layout/loquace_chat_conversation_fragment.xml` *(NEW)*
-Chat screen with header, message list, attach button, text input, send/mic buttons
-in a `FrameLayout` container, recording area with timer, and `history_progress`
-indicator at top of messages list.
-
-### `app/src/main/java/org/linphone/ui/main/chat/fragment/XmppConversationFragment.kt` *(NEW)*
-Extends `SlidingPaneChildFragment`. Handles:
-- File picking (Image, Video, File, Camera Photo, Camera Video)
-- File upload via `LoquaceXmppManager.uploadAndSendFile()`
-- Message sending
-- Attachment tap → `openMediaFullScreen()` or `openDocument()`
-- Full screen media via Android's built-in viewer with `FileProvider`
-- Document opening via `ACTION_VIEW` intent
-- Voice note recording via hold-to-record mic button
-- `RECORD_AUDIO` permission handling
-- Recording timer display
-- Group room joining via `LoquaceXmppManager.joinRoom()` with `displayName`
-- Group details bottom sheet via header tap
-- Scroll listener → `loadMoreHistory()` when reaching top
-- Long press on outgoing bubble → context menu (Edit / Delete)
-- `showMessageContextMenu()`, `showEditMessageDialog()`, `deleteMessage()`
-
-### `app/src/main/java/org/linphone/ui/main/chat/LoquaceVoiceRecorder.kt` *(NEW)*
-### `app/src/main/res/layout/loquace_group_details_bottom_sheet.xml` *(NEW)*
-### `app/src/main/res/layout/loquace_group_member_cell.xml` *(NEW)*
-### `app/src/main/java/org/linphone/ui/main/chat/adapter/GroupMembersAdapter.kt` *(NEW)*
-### `app/src/main/java/org/linphone/ui/main/chat/fragment/XmppGroupDetailsBottomSheet.kt` *(NEW)*
-### `app/src/main/java/org/linphone/ui/main/history/model/LoquaceCallLogModel.kt` *(NEW)*
-### `app/src/main/java/org/linphone/ui/main/viewmodel/LoquaceDrawerMenuViewModel.kt` *(NEW)*
+### Change: Update applicationId to match Java predecessor
+**Reason:** Allows the Kotlin app to be published as an update to the existing
+Java app on the Play Store. The signing keystore must also match.
+```kotlin
+applicationId = "it.nems.loquacemobile" // Updated to match Java app
+```
 
 ---
 
-## Pending features
-- About screen implementation
-- Language selection implementation
-- Logout implementation
-- Push notifications toggle wiring (placeholder exists in network settings)
-- Round avatars in group details screen
-- Conversation list avatars for single chats
-- Top bar avatar from `profile.avatarUrl`
-- Improved contact picker with avatars and search (post-prototype)
-- Push notifications (requires updated `google-services.json`)
-- Video upload optimization for longer videos
-- In-app media viewer (future phase)
-- Contact list caching (post-prototype optimization)
+## `.gitignore`
 
----
-
-## New Module: `loquace-integration`
-
-Entirely new module — no merge conflicts expected here.
-
-**Key files:**
-- `network/` — Retrofit API clients for auth, settings, presence, contacts, call history, media, chats
-- `network/MediaApi.kt` — authenticated media download endpoint
-- `network/LoquaceMediaDownloader.kt` — downloads media bytes with auth headers
-- `network/ContactResponse.kt` — includes `chats: List<ContactChat>?` for XMPP JID,
-  `ContactPhone.status` nullable
-- `network/GroupResponse.kt` — group and participant data models,
-  `participants` defaults to `emptyList()`
-- `network/ChatsApi.kt` — group CRUD endpoints
-- `network/LoquaceGroupsRepository.kt` — group API calls + `fetchChatEnabledContacts()`
-    + `getContactByJid()`
-- `network/SettingsRepository.kt` — added `sessionManager` parameter, saves `avatarUrl`
-- `network/SettingsApi.kt` — added `updateCallsSettings()` POST endpoint
-- `network/PresenceApi.kt` — added `updatePresence()` POST endpoint
-- `network/PresenceResponse.kt` — all fields made nullable
-- `network/SettingsResponse.kt` — `Profile` fields made nullable
-- `storage/SessionManager.kt` — added `saveAvatarUrl()`, `getAvatarUrl()`
-- `storage/entity/PresenceEntity.kt` — all fields made nullable
-- `storage/entity/ProfileEntity.kt` — all fields made nullable
-- `sip/LoquaceSipConfigurator.kt` — added `context` parameter, sets avatar
-  from `my_avatar.jpg` on account params after login
-- `viewmodel/LoquaceLoginViewModel.kt` — FCM token failure handled gracefully,
-  downloads and caches `my_avatar.jpg`, passes `context` to configure()
-- `xmpp/LoquaceXmppManager.kt` — Smack XMPP singleton with full message/attachment
-  handling, MAM history, retraction, correction, MUC support
-- `xmpp/XmppMessage.kt` — added `isRetracted`, `senderName`, `isUploading`, `formattedTime`
-- `xmpp/XmppConversation.kt` — includes `displayName`, `pictureUrl`, `isGroup`
-- `xmpp/XmppHttpUploadManager.kt` — XEP-0363 HTTP file upload
-- `xmpp/AttachmentType.kt` — NONE, IMAGE, VIDEO, AUDIO, FILE, VOICE_NOTE
-- `network/LoquaceAvatarHelper.kt` — shared avatar fetch utility
-
-**Dependencies added:**
-- `retrofit2:retrofit`
-- `retrofit2:converter-gson`
-- `androidx.security:security-crypto`
-- `net.zetetic:sqlcipher-android`
-- `androidx.sqlite:sqlite`
-- `androidx.room:room-runtime`
-- `androidx.room:room-ktx`
-- `androidx.room:room-compiler`
-- `com.google.firebase:firebase-messaging`
-- `org.linphone:linphone-sdk-android`
-- `org.igniterealtime.smack:smack-android:4.4.8` (xpp3 excluded)
-- `org.igniterealtime.smack:smack-tcp:4.4.8` (xpp3 excluded)
-- `org.igniterealtime.smack:smack-im:4.4.8` (xpp3 excluded)
-- `org.igniterealtime.smack:smack-extensions:4.4.8` (xpp3 excluded)
-- `org.igniterealtime.smack:smack-sasl-provided:4.4.8` (xpp3 excluded)
+### Change: Exclude google-services.json from version control
+**Reason:** Contains Firebase project credentials that should not be public.

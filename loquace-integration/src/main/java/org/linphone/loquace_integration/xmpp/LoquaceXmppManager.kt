@@ -1,44 +1,41 @@
 package org.linphone.loquace_integration.xmpp
 
+import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import org.jivesoftware.smack.ConnectionConfiguration
-import org.jivesoftware.smack.ReconnectionManager
 import org.jivesoftware.smack.SmackException
 import org.jivesoftware.smack.XMPPException
 import org.jivesoftware.smack.chat2.Chat
 import org.jivesoftware.smack.chat2.ChatManager
 import org.jivesoftware.smack.chat2.IncomingChatMessageListener
-import org.jivesoftware.smack.packet.Message
 import org.jivesoftware.smack.roster.Roster
 import org.jivesoftware.smack.tcp.XMPPTCPConnection
 import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration
 import org.jivesoftware.smackx.mam.MamManager
 import org.jivesoftware.smackx.muc.MultiUserChat
 import org.jivesoftware.smackx.muc.MultiUserChatManager
-import org.jivesoftware.smackx.rsm.packet.RSMSet
 import org.jxmpp.jid.EntityBareJid
 import org.jxmpp.jid.impl.JidCreate
 import org.jxmpp.jid.parts.Resourcepart
 import org.linphone.loquace_integration.storage.LoquaceDatabase
 import org.linphone.loquace_integration.storage.entity.XmppAccountEntity
+import org.linphone.loquace_integration.storage.entity.XmppConversationEntity
 import java.io.File
-import java.security.SecureRandom
-import javax.net.ssl.SSLContext
-import javax.net.ssl.TrustManager
-import javax.net.ssl.X509TrustManager
-import java.security.cert.X509Certificate
 
 object LoquaceXmppManager {
 
     private const val TAG = "LoquaceXmppManager"
+    private lateinit var appContext: Context
+
+    fun init(context: Context) {
+        appContext = context.applicationContext
+    }
 
     private var isConnecting = false
 
@@ -389,9 +386,27 @@ object LoquaceXmppManager {
     fun getConnection(): XMPPTCPConnection? = connection as? XMPPTCPConnection
 
     private fun loadConversations() {
-        // Initial empty list — conversations are built up as messages arrive
-        // In a future phase we'll load from local DB cache
-        _conversations.value = emptyList()
+        scope.launch {
+            try {
+                val db = LoquaceDatabase.getInstance(appContext)
+                val entities = db.xmppConversationDao().getAll()
+                _conversations.value = entities.map { entity ->
+                    XmppConversation(
+                        peerJid = entity.peerJid,
+                        displayName = entity.displayName,
+                        lastMessage = entity.lastMessage,
+                        lastTimestamp = entity.lastTimestamp,
+                        unreadCount = entity.unreadCount,
+                        isGroup = entity.isGroup,
+                        pictureUrl = entity.pictureUrl
+                    )
+                }
+                Log.d(TAG, "Loaded ${entities.size} conversations from DB")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load conversations from DB: ${e.message}")
+                _conversations.value = emptyList()
+            }
+        }
     }
 
     private suspend fun updateConversationWithMessage(message: XmppMessage) {
@@ -402,28 +417,52 @@ object LoquaceXmppManager {
         val existing = currentList.find { it.peerJid == peerJid }
         Log.d(TAG, "Conversation display name: ${existing?.displayName}")
 
-        if (existing != null) {
-            val updated = existing.copy(
+        val updatedConversation = if (existing != null) {
+            existing.copy(
                 lastMessage   = message.body,
                 lastTimestamp = message.timestamp,
                 unreadCount   = if (message.isOutgoing) existing.unreadCount
                 else existing.unreadCount + 1,
                 displayName   = if (isGroup) groupNames[peerJid] else existing.displayName
             )
-            currentList[currentList.indexOf(existing)] = updated
         } else {
-            currentList.add(0, XmppConversation(
+            XmppConversation(
                 peerJid       = peerJid,
                 lastMessage   = message.body,
                 lastTimestamp = message.timestamp,
                 unreadCount   = if (message.isOutgoing) 0 else 1,
                 displayName   = if (isGroup) groupNames[peerJid] else null,
                 isGroup       = isGroup
-            ))
+            )
+        }
+
+        if (existing != null) {
+            currentList[currentList.indexOf(existing)] = updatedConversation
+        } else {
+            currentList.add(0, updatedConversation)
         }
 
         currentList.sortByDescending { it.lastTimestamp }
         _conversations.value = currentList
+
+        // Persist to DB
+        try {
+            val db = LoquaceDatabase.getInstance(appContext)
+            db.xmppConversationDao().upsert(
+                XmppConversationEntity(
+                    peerJid = updatedConversation.peerJid,
+                    displayName = updatedConversation.displayName,
+                    lastMessage = updatedConversation.lastMessage,
+                    lastTimestamp = updatedConversation.lastTimestamp,
+                    unreadCount = updatedConversation.unreadCount,
+                    isGroup = updatedConversation.isGroup,
+                    pictureUrl = updatedConversation.pictureUrl
+                )
+            )
+            Log.d(TAG, "Conversation persisted to DB: $peerJid")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to persist conversation: ${e.message}")
+        }
     }
 
     fun getMessagesForConversation(peerJid: String): List<XmppMessage> {
@@ -892,6 +931,33 @@ object LoquaceXmppManager {
             conversationMessages[index] = conversationMessages[index].copy(body = newBody)
             current[peerJid] = conversationMessages
             _messages.value = current
+        }
+    }
+
+    suspend fun markConversationAsRead(peerJid: String) {
+        val currentList = _conversations.value.toMutableList()
+        val existing = currentList.find { it.peerJid == peerJid } ?: return
+        val updated = existing.copy(unreadCount = 0)
+        currentList[currentList.indexOf(existing)] = updated
+        _conversations.value = currentList
+
+        // Persist to DB
+        try {
+            val db = LoquaceDatabase.getInstance(appContext)
+            db.xmppConversationDao().upsert(
+                XmppConversationEntity(
+                    peerJid       = updated.peerJid,
+                    displayName   = updated.displayName,
+                    lastMessage   = updated.lastMessage,
+                    lastTimestamp = updated.lastTimestamp,
+                    unreadCount   = 0,
+                    isGroup       = updated.isGroup,
+                    pictureUrl    = updated.pictureUrl
+                )
+            )
+            Log.d(TAG, "Marked conversation $peerJid as read")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to mark conversation as read: ${e.message}")
         }
     }
 }

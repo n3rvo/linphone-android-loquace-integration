@@ -45,6 +45,7 @@ import org.linphone.core.LogLevel
 import org.linphone.core.VFS
 import org.linphone.core.tools.Log
 import org.linphone.loquace_integration.sip.LoquaceCoreProvider
+import org.linphone.loquace_integration.xmpp.LoquaceXmppManager
 
 @MainThread
 class LinphoneApplication : Application(), SingletonImageLoader.Factory {
@@ -99,8 +100,8 @@ class LinphoneApplication : Application(), SingletonImageLoader.Factory {
         coreContext = CoreContext(context)
         coreContext.start()
 
-        // Add this line
         LoquaceCoreProvider.init { coreContext.core }
+        LoquaceXmppManager.init(this)
 
         DynamicColors.applyToActivitiesIfAvailable(this)
         wakeLock.release()
