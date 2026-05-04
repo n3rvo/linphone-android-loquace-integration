@@ -423,7 +423,11 @@ object LoquaceXmppManager {
                 lastTimestamp = message.timestamp,
                 unreadCount   = if (message.isOutgoing) existing.unreadCount
                 else existing.unreadCount + 1,
-                displayName   = if (isGroup) groupNames[peerJid] else existing.displayName
+                displayName   = when {
+                    isGroup -> groupNames[peerJid]
+                    existing.displayName == null -> contactNames[peerJid]
+                    else -> existing.displayName
+                }
             )
         } else {
             XmppConversation(
@@ -431,7 +435,7 @@ object LoquaceXmppManager {
                 lastMessage   = message.body,
                 lastTimestamp = message.timestamp,
                 unreadCount   = if (message.isOutgoing) 0 else 1,
-                displayName   = if (isGroup) groupNames[peerJid] else null,
+                displayName   = if (isGroup) groupNames[peerJid] else contactNames[peerJid],
                 isGroup       = isGroup
             )
         }
