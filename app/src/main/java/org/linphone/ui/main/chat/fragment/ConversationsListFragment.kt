@@ -421,7 +421,7 @@ class ConversationsListFragment : AbstractMainFragment() {
                 try {
                     val bundle = Bundle().apply {
                         putString("peerJid", model.id)
-                        putString("displayName", model.subject)
+                        putString("displayName", model.displayName.value)
                         putBoolean("isGroup", model.isGroup)
                     }
                     binding.chatNavContainer.findNavController().navigate(

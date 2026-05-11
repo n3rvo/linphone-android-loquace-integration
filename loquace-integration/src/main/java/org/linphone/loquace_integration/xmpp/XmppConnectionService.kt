@@ -29,7 +29,15 @@ class XmppConnectionService : Service() {
         val userAgent = intent?.getStringExtra("userAgent")?.ifEmpty { null }
             ?: SessionManager(applicationContext).getUserAgent()
 
-        startForeground(NOTIFICATION_ID, buildNotification())
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            startForeground(
+                NOTIFICATION_ID,
+                buildNotification(),
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, buildNotification())
+        }
         Log.d(TAG, "Service started")
 
         scope.launch {

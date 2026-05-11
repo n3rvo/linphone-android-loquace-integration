@@ -45,6 +45,11 @@ object LoquaceSipConfigurator {
 
         params.isRegisterEnabled = true
 
+        // Enable push notifications
+        params.pushNotificationAllowed = true
+        params.remotePushNotificationAllowed = true
+        Log.d(TAG, "Push notifications enabled for SIP account")
+
         // Create and add account
         val account = core.createAccount(params)
         core.addAccount(account)

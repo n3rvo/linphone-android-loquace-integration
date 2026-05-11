@@ -38,38 +38,22 @@ object LoquaceXmppManager {
     }
 
     private var isConnecting = false
-
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
     private var connection: XMPPTCPConnection? = null
-
     private var chatManager: ChatManager? = null
-
     private val sentMessageIds = mutableSetOf<String>()
 
-    // Connection state
     private val _connectionState = MutableStateFlow<XmppConnectionState>(XmppConnectionState.Disconnected)
     val connectionState: StateFlow<XmppConnectionState> = _connectionState
 
-    // Conversations cache
     private val _conversations = MutableStateFlow<List<XmppConversation>>(emptyList())
     val conversations: StateFlow<List<XmppConversation>> = _conversations
 
-    // Messages cache
     private val _messages = MutableStateFlow<Map<String, List<XmppMessage>>>(emptyMap())
     val messages: StateFlow<Map<String, List<XmppMessage>>> = _messages
 
     private val joinedRooms = mutableMapOf<String, MultiUserChat>()
-
     private val roomsWithListeners = mutableSetOf<String>()
-
-    private val groupNames = mutableMapOf<String, String>()
-
-    private val contactNames = mutableMapOf<String, String>()
-
-    private val contactPictureUrls = mutableMapOf<String, String>()
-
-    private val contactIds = mutableMapOf<String, String>()
 
     fun connect(account: XmppAccountEntity, userAgent: String) {
         if (isConnected() || isConnecting) {
@@ -93,7 +77,7 @@ object LoquaceXmppManager {
                     .build()
 
                 val conn = XMPPTCPConnection(config)
-                Roster.getInstanceFor(conn).isRosterLoadedAtLogin = false  // Add this
+                Roster.getInstanceFor(conn).isRosterLoadedAtLogin = false
                 connection = conn
 
                 Log.d(TAG, "Connecting as ${account.username}@${account.domain} to ${account.serverAddress}:${account.serverPort}")
@@ -109,7 +93,6 @@ object LoquaceXmppManager {
                         Log.d(TAG, "My JID: ${conn.user.asEntityBareJidString()}")
                         Log.d(TAG, "sentMessageIds contains body: ${sentMessageIds.contains(body)}")
 
-                        // Check for message retraction (XEP-0424)
                         val retractExtension = message.extensions.find {
                             it.namespace == "urn:xmpp:message-retract:1" && it.elementName == "retract"
                         }
@@ -124,7 +107,6 @@ object LoquaceXmppManager {
                             return@launch
                         }
 
-                        // Check for message correction (XEP-0308)
                         val correctionExtension = message.extensions.find {
                             it.namespace == "urn:xmpp:message-correct:0" && it.elementName == "replace"
                         }
@@ -139,12 +121,12 @@ object LoquaceXmppManager {
                             return@launch
                         }
 
-                        // Ignore carbon copies of our own sent messages
                         if (sentMessageIds.contains(body)) {
                             Log.d(TAG, "Ignoring carbon copy of our own message")
                             sentMessageIds.remove(body)
                             return@launch
                         }
+
                         val attachmentType = detectAttachmentType(body)
                         Log.d(TAG, "Incoming message id=${message.stanzaId}, attachmentType=$attachmentType, body=$body")
                         val attachmentName = if (attachmentType != AttachmentType.NONE) {
@@ -169,9 +151,7 @@ object LoquaceXmppManager {
 
                 Log.d(TAG, "Connected and logged in as ${conn.user}")
                 _connectionState.value = XmppConnectionState.Connected
-
                 loadConversations()
-
                 isConnecting = false
 
             } catch (e: XMPPException) {
@@ -235,9 +215,7 @@ object LoquaceXmppManager {
                     timestamp  = System.currentTimeMillis(),
                     isOutgoing = true
                 )
-                scope.launch {
-                    updateConversationWithMessage(message)
-                }
+                scope.launch { updateConversationWithMessage(message) }
                 return message
             }
 
@@ -249,9 +227,7 @@ object LoquaceXmppManager {
                 timestamp  = System.currentTimeMillis(),
                 isOutgoing = true
             )
-            scope.launch {
-                updateConversationWithMessage(message)
-            }
+            scope.launch { updateConversationWithMessage(message) }
             message
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send message: ${e.message}")
@@ -268,7 +244,6 @@ object LoquaceXmppManager {
     ): XmppMessage? {
         return try {
             val conn = connection ?: throw Exception("Not connected")
-
             val muc = joinedRooms[toJid]
             if (muc != null) {
                 muc.sendMessage(attachmentUrl)
@@ -310,7 +285,6 @@ object LoquaceXmppManager {
             return null
         }
 
-        // Create pending message immediately
         val messageId = System.currentTimeMillis().toString()
         val pendingMessage = XmppMessage(
             id             = messageId,
@@ -326,57 +300,38 @@ object LoquaceXmppManager {
         )
         addPendingMessage(pendingMessage)
 
-        // Upload in background
         val uploadedUrl = XmppHttpUploadManager.uploadFile(conn, file) ?: run {
             Log.e(TAG, "Failed to upload file ${file.name}")
             return null
         }
 
-        // Send the message and update
         val muc = joinedRooms[toJid]
         if (muc != null) {
-            val mucMessage = muc.createMessage().apply {
-                body = uploadedUrl
-            }
+            val mucMessage = muc.createMessage().apply { body = uploadedUrl }
             muc.sendMessage(mucMessage)
             Log.d(TAG, "Sent MUC attachment stanzaId: ${mucMessage.stanzaId}")
-
             val finalMessage = pendingMessage.copy(
                 id            = mucMessage.stanzaId ?: messageId,
                 attachmentUrl = uploadedUrl,
                 isUploading   = false
             )
             updateMessage(messageId, toJid, finalMessage)
-            Log.d(TAG, "File uploaded and MUC message updated: $uploadedUrl")
             return finalMessage
         } else {
             val sentMessage = org.jivesoftware.smack.packet.Message(
                 JidCreate.entityBareFrom(toJid),
                 org.jivesoftware.smack.packet.Message.Type.chat
-            ).apply {
-                body = uploadedUrl
-            }
+            ).apply { body = uploadedUrl }
             conn.sendStanza(sentMessage)
             Log.d(TAG, "Sent attachment stanzaId: ${sentMessage.stanzaId}")
-
-            // Use stanzaId as the message ID
             val finalMessage = pendingMessage.copy(
                 id            = sentMessage.stanzaId ?: messageId,
                 attachmentUrl = uploadedUrl,
                 isUploading   = false
             )
             updateMessage(messageId, toJid, finalMessage)
-            Log.d(TAG, "File uploaded and message updated: $uploadedUrl")
             return finalMessage
         }
-
-        val finalMessage = pendingMessage.copy(
-            attachmentUrl = uploadedUrl,
-            isUploading   = false
-        )
-        updateMessage(messageId, toJid, finalMessage)
-        Log.d(TAG, "File uploaded and message updated: $uploadedUrl")
-        return finalMessage
     }
 
     fun isConnected(): Boolean = connection?.isConnected == true && connection?.isAuthenticated == true
@@ -392,13 +347,11 @@ object LoquaceXmppManager {
                 val entities = db.xmppConversationDao().getAll()
                 _conversations.value = entities.map { entity ->
                     XmppConversation(
-                        peerJid = entity.peerJid,
-                        displayName = entity.displayName,
-                        lastMessage = entity.lastMessage,
+                        peerJid       = entity.peerJid,
+                        lastMessage   = entity.lastMessage,
                         lastTimestamp = entity.lastTimestamp,
-                        unreadCount = entity.unreadCount,
-                        isGroup = entity.isGroup,
-                        pictureUrl = entity.pictureUrl
+                        unreadCount   = entity.unreadCount,
+                        isGroup       = entity.isGroup
                     )
                 }
                 Log.d(TAG, "Loaded ${entities.size} conversations from DB")
@@ -412,22 +365,15 @@ object LoquaceXmppManager {
     private suspend fun updateConversationWithMessage(message: XmppMessage) {
         storeMessage(message)
         val peerJid = if (message.isOutgoing) message.to else message.from
-        val isGroup = groupNames.containsKey(peerJid)
         val currentList = _conversations.value.toMutableList()
         val existing = currentList.find { it.peerJid == peerJid }
-        Log.d(TAG, "Conversation display name: ${existing?.displayName}")
 
         val updatedConversation = if (existing != null) {
             existing.copy(
                 lastMessage   = message.body,
                 lastTimestamp = message.timestamp,
                 unreadCount   = if (message.isOutgoing) existing.unreadCount
-                else existing.unreadCount + 1,
-                displayName   = when {
-                    isGroup -> groupNames[peerJid]
-                    existing.displayName == null -> contactNames[peerJid]
-                    else -> existing.displayName
-                }
+                else existing.unreadCount + 1
             )
         } else {
             XmppConversation(
@@ -435,8 +381,7 @@ object LoquaceXmppManager {
                 lastMessage   = message.body,
                 lastTimestamp = message.timestamp,
                 unreadCount   = if (message.isOutgoing) 0 else 1,
-                displayName   = if (isGroup) groupNames[peerJid] else contactNames[peerJid],
-                isGroup       = isGroup
+                isGroup       = joinedRooms.containsKey(peerJid)
             )
         }
 
@@ -449,18 +394,15 @@ object LoquaceXmppManager {
         currentList.sortByDescending { it.lastTimestamp }
         _conversations.value = currentList
 
-        // Persist to DB
         try {
             val db = LoquaceDatabase.getInstance(appContext)
             db.xmppConversationDao().upsert(
                 XmppConversationEntity(
-                    peerJid = updatedConversation.peerJid,
-                    displayName = updatedConversation.displayName,
-                    lastMessage = updatedConversation.lastMessage,
+                    peerJid       = updatedConversation.peerJid,
+                    lastMessage   = updatedConversation.lastMessage,
                     lastTimestamp = updatedConversation.lastTimestamp,
-                    unreadCount = updatedConversation.unreadCount,
-                    isGroup = updatedConversation.isGroup,
-                    pictureUrl = updatedConversation.pictureUrl
+                    unreadCount   = updatedConversation.unreadCount,
+                    isGroup       = updatedConversation.isGroup
                 )
             )
             Log.d(TAG, "Conversation persisted to DB: $peerJid")
@@ -513,7 +455,6 @@ object LoquaceXmppManager {
 
     fun updateMessage(messageId: String, peerJid: String, updatedMessage: XmppMessage) {
         scope.launch {
-            // Update message in store
             val current = _messages.value.toMutableMap()
             val conversationMessages = (current[peerJid] ?: emptyList()).toMutableList()
             val index = conversationMessages.indexOfFirst { it.id == messageId }
@@ -523,7 +464,6 @@ object LoquaceXmppManager {
                 _messages.value = current
             }
 
-            // Update conversation last message without adding to store
             val currentConvList = _conversations.value.toMutableList()
             val existingConv = currentConvList.find { it.peerJid == peerJid }
             if (existingConv != null) {
@@ -554,27 +494,12 @@ object LoquaceXmppManager {
                 Log.d(TAG, "Joined MUC room: $roomJid")
             }
 
-            // Store group name and update conversation immediately
-            groupNames[roomJid] = groupName ?: roomJid
-            val currentList = _conversations.value.toMutableList()
-            val existing = currentList.find { it.peerJid == roomJid }
-            if (existing != null && groupName != null) {
-                val updated = existing.copy(
-                    displayName = groupName,
-                    isGroup     = true
-                )
-                currentList[currentList.indexOf(existing)] = updated
-                _conversations.value = currentList
-            }
-
-            // Add message listener for this room
             if (!roomsWithListeners.contains(roomJid)) {
                 muc.addMessageListener { message ->
                     scope.launch {
                         val body = message.body ?: return@launch
                         if (body.isEmpty()) return@launch
 
-                        // Check for retraction
                         val retractExtension = message.extensions.find {
                             it.namespace == "urn:xmpp:message-retract:1" && it.elementName == "retract"
                         }
@@ -588,7 +513,6 @@ object LoquaceXmppManager {
                             return@launch
                         }
 
-                        // Check for correction
                         val correctionExtension = message.extensions.find {
                             it.namespace == "urn:xmpp:message-correct:0" && it.elementName == "replace"
                         }
@@ -605,8 +529,6 @@ object LoquaceXmppManager {
                         val senderNickname = message.from?.resourceOrNull?.toString()
                         val myNickname = connection?.user?.asEntityBareJidIfPossible()
                             ?.localpartOrNull?.toString()
-
-                        Log.d(TAG, "MUC message from nickname: $senderNickname, my nickname: $myNickname")
 
                         if (senderNickname != null && senderNickname == myNickname) {
                             Log.d(TAG, "Ignoring own MUC message")
@@ -664,14 +586,8 @@ object LoquaceXmppManager {
             val queryArgs = MamManager.MamQueryArgs.builder()
                 .setResultPageSizeTo(limit)
                 .apply {
-                    if (before != null) {
-                        beforeUid(before)
-                    } else {
-                        queryLastPage()
-                    }
-                    if (!isGroup) {
-                        limitResultsToJid(JidCreate.entityBareFrom(peerJid))
-                    }
+                    if (before != null) beforeUid(before) else queryLastPage()
+                    if (!isGroup) limitResultsToJid(JidCreate.entityBareFrom(peerJid))
                 }
                 .build()
 
@@ -688,37 +604,20 @@ object LoquaceXmppManager {
             }
 
             Log.d(TAG, "MAM result: ${result.messages.size} messages, ${result.mamResultExtensions.size} extensions")
-            Log.d(TAG, "First UID: ${result.mamResultExtensions.firstOrNull()?.id}")
-            Log.d(TAG, "Last UID: ${result.mamResultExtensions.lastOrNull()?.id}")
 
             val myJid = conn.user.asEntityBareJidIfPossible()?.toString() ?: ""
 
             val rawMessages = result.messages.mapNotNull { message ->
-                val body = message.body ?: run {
-                    Log.d(TAG, "Skipping message: no body")
-                    return@mapNotNull null
-                }
-                if (body.isEmpty()) {
-                    Log.d(TAG, "Skipping message: empty body")
-                    return@mapNotNull null
-                }
-                val fromJid = message.from?.asEntityBareJidIfPossible()?.toString() ?: run {
-                    Log.d(TAG, "Skipping message: no fromJid, from=${message.from}")
-                    return@mapNotNull null
-                }
-                val toJid = if (isGroup) {
-                    peerJid
-                } else {
-                    message.to?.asEntityBareJidIfPossible()?.toString() ?: run {
-                        Log.d(TAG, "Skipping message: no toJid, to=${message.to}")
-                        return@mapNotNull null
-                    }
+                val body = message.body ?: return@mapNotNull null
+                if (body.isEmpty()) return@mapNotNull null
+                val fromJid = message.from?.asEntityBareJidIfPossible()?.toString() ?: return@mapNotNull null
+                val toJid = if (isGroup) peerJid else {
+                    message.to?.asEntityBareJidIfPossible()?.toString() ?: return@mapNotNull null
                 }
 
                 val isOutgoing = if (isGroup) {
                     val senderNickname = message.from?.resourceOrNull?.toString()
-                    val myNickname = connection?.user?.asEntityBareJidIfPossible()
-                        ?.localpartOrNull?.toString()
+                    val myNickname = connection?.user?.asEntityBareJidIfPossible()?.localpartOrNull?.toString()
                     senderNickname == myNickname
                 } else {
                     fromJid.substringBefore("/") == myJid.substringBefore("/")
@@ -729,15 +628,12 @@ object LoquaceXmppManager {
                     org.jivesoftware.smackx.delay.packet.DelayInformation.NAMESPACE
                 )?.stamp?.time ?: System.currentTimeMillis()
 
-                // Check for retraction
                 val retractExtension = message.extensions.find {
                     it.namespace == "urn:xmpp:message-retract:1" && it.elementName == "retract"
                 }
                 if (retractExtension != null) {
-                    val retractedId = retractExtension.toXML()
-                        .toString()
-                        .substringAfter("id='")
-                        .substringBefore("'")
+                    val retractedId = retractExtension.toXML().toString()
+                        .substringAfter("id='").substringBefore("'")
                     return@mapNotNull XmppMessage(
                         id             = retractedId,
                         from           = if (isGroup) peerJid else fromJid,
@@ -771,25 +667,16 @@ object LoquaceXmppManager {
                 )
             }
 
-            // Merge retractions with original messages
             val retracted = rawMessages.filter { it.isRetracted }
             val normal = rawMessages.filter { !it.isRetracted }.toMutableList()
-
             for (retraction in retracted) {
                 val index = normal.indexOfFirst { it.id == retraction.id }
                 if (index != -1) {
-                    normal[index] = normal[index].copy(
-                        body        = "This message was deleted",
-                        isRetracted = true
-                    )
+                    normal[index] = normal[index].copy(body = "This message was deleted", isRetracted = true)
                 }
-                // If original not found in this page, add retraction as-is
-                // so at least the "deleted" placeholder shows
             }
 
-            // Get first message UID for pagination
             val firstUid = result.mamResultExtensions.firstOrNull()?.id
-
             Log.d(TAG, "Fetched ${normal.size} history messages for $peerJid, firstUid=$firstUid")
             Pair(normal, firstUid)
         } catch (e: Exception) {
@@ -810,35 +697,14 @@ object LoquaceXmppManager {
         }
     }
 
-    fun setContactName(jid: String, name: String) {
-        contactNames[jid] = name
-    }
-
-    fun getContactName(jid: String): String? = contactNames[jid]
-
-
-    fun setContactPictureUrl(jid: String, pictureUrl: String) {
-        contactPictureUrls[jid] = pictureUrl
-    }
-
-    fun getContactPictureUrl(jid: String): String? = contactPictureUrls[jid]
-
-    fun setContactId(jid: String, contactId: String) {
-        contactIds[jid] = contactId
-    }
-
-    fun getContactId(jid: String): String? = contactIds[jid]
-
     fun editMessage(toJid: String, message: XmppMessage, newBody: String, isGroup: Boolean) {
         try {
             val conn = connection ?: return
-
             val type = if (isGroup) org.jivesoftware.smack.packet.Message.Type.groupchat
             else org.jivesoftware.smack.packet.Message.Type.chat
 
             val correction = org.jivesoftware.smack.packet.Message(
-                JidCreate.entityBareFrom(toJid),
-                type
+                JidCreate.entityBareFrom(toJid), type
             ).apply {
                 body = newBody
                 addExtension(object : org.jivesoftware.smack.packet.ExtensionElement {
@@ -852,11 +718,9 @@ object LoquaceXmppManager {
                         "<replace id='${message.id}' xmlns='urn:xmpp:message-correct:0'/>"
                 })
             }
-
             conn.sendStanza(correction)
             Log.d(TAG, "Sent correction stanza: ${correction.toXML()}")
 
-            // Update local store
             scope.launch {
                 val current = _messages.value.toMutableMap()
                 val conversationMessages = (current[toJid] ?: emptyList()).toMutableList()
@@ -867,7 +731,6 @@ object LoquaceXmppManager {
                     _messages.value = current
                 }
             }
-            Log.d(TAG, "Message ${message.id} edited")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to edit message: ${e.message}")
         }
@@ -876,13 +739,11 @@ object LoquaceXmppManager {
     fun retractMessage(toJid: String, message: XmppMessage, isGroup: Boolean) {
         try {
             val conn = connection ?: return
-
             val type = if (isGroup) org.jivesoftware.smack.packet.Message.Type.groupchat
             else org.jivesoftware.smack.packet.Message.Type.chat
 
             val retraction = org.jivesoftware.smack.packet.Message(
-                JidCreate.entityBareFrom(toJid),
-                type
+                JidCreate.entityBareFrom(toJid), type
             ).apply {
                 body = "This message was deleted"
                 addExtension(object : org.jivesoftware.smack.packet.ExtensionElement {
@@ -896,14 +757,10 @@ object LoquaceXmppManager {
                         "<retract id='${message.id}' xmlns='urn:xmpp:message-retract:1'/>"
                 })
             }
-
             conn.sendStanza(retraction)
             Log.d(TAG, "Sent retraction stanza: ${retraction.toXML()}")
 
-            // Update local store
-            scope.launch {
-                retractLocalMessage(toJid, message.id)
-            }
+            scope.launch { retractLocalMessage(toJid, message.id) }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to retract message: ${e.message}")
         }
@@ -945,18 +802,15 @@ object LoquaceXmppManager {
         currentList[currentList.indexOf(existing)] = updated
         _conversations.value = currentList
 
-        // Persist to DB
         try {
             val db = LoquaceDatabase.getInstance(appContext)
             db.xmppConversationDao().upsert(
                 XmppConversationEntity(
                     peerJid       = updated.peerJid,
-                    displayName   = updated.displayName,
                     lastMessage   = updated.lastMessage,
                     lastTimestamp = updated.lastTimestamp,
                     unreadCount   = 0,
-                    isGroup       = updated.isGroup,
-                    pictureUrl    = updated.pictureUrl
+                    isGroup       = updated.isGroup
                 )
             )
             Log.d(TAG, "Marked conversation $peerJid as read")

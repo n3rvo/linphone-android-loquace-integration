@@ -426,3 +426,146 @@ applicationId = "it.nems.loquacemobile" // Updated to match Java app
 
 ### Change: Exclude google-services.json from version control
 **Reason:** Contains Firebase project credentials that should not be public.
+
+---
+
+## New files in `app` module
+
+### `app/src/main/res/drawable/drawer_background.xml` *(NEW)*
+### `app/src/main/res/drawable/ic_permission_granted.xml` *(NEW)*
+### `app/src/main/res/drawable/ic_permission_denied.xml` *(NEW)*
+### `app/src/main/res/layout/loquace_permission_item.xml` *(NEW)*
+### `app/src/main/java/org/linphone/ui/main/settings/LoquacePermissionsAdapter.kt` *(NEW)*
+### `app/src/main/res/layout/loquace_dialer_fragment.xml` *(NEW)*
+### `app/src/main/java/org/linphone/ui/main/dialer/viewmodel/LoquaceDialerViewModel.kt` *(NEW)*
+### `app/src/main/java/org/linphone/ui/main/dialer/fragment/LoquaceDialerFragment.kt` *(NEW)*
+### `app/src/main/res/layout/loquace_chat_list_cell.xml` *(NEW)*
+
+**Key binding:** `android:text="@{model.displayName}"` — `displayName` is a
+`MutableLiveData<String>` updated lazily via API.
+
+### `app/src/main/java/org/linphone/ui/main/chat/model/XmppConversationModel.kt` *(NEW)*
+
+**Key implementation:**
+- `displayName` is `MutableLiveData<String>` initialized to JID prefix
+- Non-group: fetches contact via `getContactByJid()` in background, updates
+  `displayName` and downloads avatar to `avatar_$contactId.jpg`
+- Group: fetches group list, matches by JID, updates `displayName`
+- Avatar loaded via `model.picturePath.postValue()` after download
+
+### `app/src/main/java/org/linphone/ui/main/chat/adapter/XmppConversationsAdapter.kt` *(NEW)*
+
+**Key implementation:**
+- Observes `avatarModel.picturePath` in `onBindViewHolder` to trigger rebind
+  when avatar downloads complete, updating the UI without full list refresh
+
+### `app/src/main/java/org/linphone/ui/main/chat/viewmodel/XmppConversationsListViewModel.kt` *(NEW)*
+
+**Key changes from previous version:**
+- Removed all `setContactName()`, `setContactId()`, `setContactPictureUrl()` calls
+- `loadContacts()` passes `displayName` as `MutableLiveData` directly
+- `loadGroups()` passes group name as `MutableLiveData` directly
+- No longer populates `LoquaceXmppManager` maps
+
+### `app/src/main/java/org/linphone/ui/main/chat/viewmodel/XmppConversationViewModel.kt` *(NEW)*
+
+**Key additions:**
+- `loadHistory()`, `loadMoreHistory()`, `isPrependingHistory`
+- `deleteMessage()`, `editMessage()`
+- `markAsRead()` — resets unread count in StateFlow and DB
+
+### `app/src/main/java/org/linphone/ui/main/chat/adapter/XmppMessagesAdapter.kt` *(NEW)*
+### `app/src/main/res/layout/loquace_chat_bubble_incoming.xml` *(NEW)*
+### `app/src/main/res/layout/loquace_chat_bubble_outgoing.xml` *(NEW)*
+### `app/src/main/res/layout/loquace_chat_conversation_fragment.xml` *(NEW)*
+### `app/src/main/java/org/linphone/ui/main/chat/fragment/XmppConversationFragment.kt` *(NEW)*
+### `app/src/main/java/org/linphone/ui/main/chat/LoquaceVoiceRecorder.kt` *(NEW)*
+### `app/src/main/res/layout/loquace_group_details_bottom_sheet.xml` *(NEW)*
+### `app/src/main/res/layout/loquace_group_member_cell.xml` *(NEW)*
+### `app/src/main/java/org/linphone/ui/main/chat/adapter/GroupMembersAdapter.kt` *(NEW)*
+### `app/src/main/java/org/linphone/ui/main/chat/fragment/XmppGroupDetailsBottomSheet.kt` *(NEW)*
+### `app/src/main/java/org/linphone/ui/main/history/model/LoquaceCallLogModel.kt` *(NEW)*
+### `app/src/main/java/org/linphone/ui/main/viewmodel/LoquaceDrawerMenuViewModel.kt` *(NEW)*
+### `app/src/main/java/org/linphone/ui/main/help/fragment/LoquaceAboutFragment.kt` *(NEW)*
+### `app/src/main/res/layout/loquace_about_fragment.xml` *(NEW)*
+
+**About screen:** App logo, name, version, privacy policy, based on Linphone,
+GPLv3 license link.
+
+### `app/src/main/java/org/linphone/core/LoquaceFirebaseMessagingService.kt` *(NEW)*
+
+**Push routing:**
+- `call-id` present → SIP push → `super.onMessageReceived()`
+- `subject=chat` → XMPP chat push → `showChatNotification()`
+- else → SIP without call-id → `super.onMessageReceived()`
+
+**Note:** SIP push requires backend to send `call-id` field. Android 15 `dataSync`
+foreground service quota may cause `CorePushService` to crash during heavy testing —
+expected to be fixed in a future Linphone SDK `5.5.x` patch.
+
+---
+
+## Pending features
+- Conversation long press → delete conversation
+- Push notifications toggle wiring in network settings
+- Language selection implementation
+- Logout implementation
+- Improved contact picker with avatars and search
+- Video upload optimization
+- In-app media viewer
+- SIP push `call-id` now implemented by backend ✅
+
+---
+
+## New Module: `loquace-integration`
+
+Entirely new module — no merge conflicts expected here.
+
+**Key files:**
+- `network/` — Retrofit API clients for auth, settings, presence, contacts,
+  call history, media, chats
+- `network/SettingsApi.kt` — added `updateCallsSettings()` POST
+- `network/PresenceApi.kt` — added `updatePresence()` POST
+- `network/LoquaceGroupsRepository.kt` — `fetchChatEnabledContacts()`,
+  `getContactByJid()`, `getGroups()`
+- `storage/LoquaceDatabase.kt` — version 4, `XmppConversationEntity`,
+  `MIGRATION_2_3`, `MIGRATION_3_4`
+- `storage/entity/XmppConversationEntity.kt` *(NEW)* — minimal fields:
+  `peerJid`, `lastMessage`, `lastTimestamp`, `unreadCount`, `isGroup`
+- `storage/XmppConversationDao.kt` *(NEW)* — `getAll`, `upsert`, `delete`,
+  `deleteAll`
+- `sip/LoquaceSipConfigurator.kt` — added `pushNotificationAllowed = true`,
+  `remotePushNotificationAllowed = true`
+- `viewmodel/LoquaceLoginViewModel.kt` — FCM token failure handled gracefully
+- `xmpp/LoquaceXmppManager.kt` — major refactor:
+    - Removed `groupNames`, `contactNames`, `contactPictureUrls`, `contactIds` maps
+    - Removed `setContactName/Id/PictureUrl`, `getContactName/Id/PictureUrl` methods
+    - `loadConversations()` loads minimal data from DB
+    - `updateConversationWithMessage()` persists minimal data to DB
+    - `markConversationAsRead()` resets unread count in StateFlow and DB
+    - `disconnect()` clears connection, chatManager, isConnecting flag
+    - Removed `ReconnectionManager` — lifecycle managed by `MainActivity`
+    - `init(context)` for DB access
+- `xmpp/XmppConversation.kt` — simplified: removed `displayName`, `pictureUrl`
+- `xmpp/XmppConnectionService.kt` — `specialUse` foreground service type
+- `xmpp/XmppMessage.kt` — `isRetracted`, `senderName`, `isUploading`,
+  `formattedTime`
+- `xmpp/XmppHttpUploadManager.kt` — XEP-0363 HTTP file upload
+- `xmpp/AttachmentType.kt` — NONE, IMAGE, VIDEO, AUDIO, FILE, VOICE_NOTE
+
+**Dependencies added:**
+- `retrofit2:retrofit`
+- `retrofit2:converter-gson`
+- `androidx.security:security-crypto`
+- `net.zetetic:sqlcipher-android`
+- `androidx.sqlite:sqlite`
+- `androidx.room:room-runtime`
+- `androidx.room:room-ktx`
+- `androidx.room:room-compiler`
+- `com.google.firebase:firebase-messaging`
+- `org.linphone:linphone-sdk-android`
+- `org.igniterealtime.smack:smack-android:4.4.8` (xpp3 excluded)
+- `org.igniterealtime.smack:smack-tcp:4.4.8` (xpp3 excluded)
+- `org.igniterealtime.smack:smack-im:4.4.8` (xpp3 excluded)
+- `org.igniterealtime.smack:smack-extensions:4.4.8` (xpp3 excluded)
+- `org.igniterealtime.smack:smack-sasl-provided:4.4.8` (xpp3 excluded)

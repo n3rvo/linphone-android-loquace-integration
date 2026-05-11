@@ -7,10 +7,8 @@ import androidx.room.PrimaryKey
 data class XmppConversationEntity(
     @PrimaryKey
     val peerJid: String,
-    val displayName: String?,
     val lastMessage: String?,
     val lastTimestamp: Long,
     val unreadCount: Int,
-    val isGroup: Boolean,
-    val pictureUrl: String?
+    val isGroup: Boolean
 )

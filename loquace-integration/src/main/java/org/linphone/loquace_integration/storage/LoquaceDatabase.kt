@@ -20,7 +20,7 @@ import org.linphone.loquace_integration.storage.entity.*
         PresenceEntity::class,
         XmppConversationEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class LoquaceDatabase : RoomDatabase() {
@@ -48,6 +48,27 @@ abstract class LoquaceDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("""
+            CREATE TABLE xmpp_conversations_new (
+                peerJid TEXT NOT NULL PRIMARY KEY,
+                lastMessage TEXT,
+                lastTimestamp INTEGER NOT NULL,
+                unreadCount INTEGER NOT NULL,
+                isGroup INTEGER NOT NULL
+            )
+        """)
+                database.execSQL("""
+            INSERT INTO xmpp_conversations_new (peerJid, lastMessage, lastTimestamp, unreadCount, isGroup)
+            SELECT peerJid, lastMessage, lastTimestamp, unreadCount, isGroup
+            FROM xmpp_conversations
+        """)
+                database.execSQL("DROP TABLE xmpp_conversations")
+                database.execSQL("ALTER TABLE xmpp_conversations_new RENAME TO xmpp_conversations")
+            }
+        }
+
         @Volatile private var INSTANCE: LoquaceDatabase? = null
 
         fun getInstance(context: Context): LoquaceDatabase {
@@ -63,7 +84,7 @@ abstract class LoquaceDatabase : RoomDatabase() {
                     "loquace_db"
                 )
                     .openHelperFactory(factory)
-                    .addMigrations(MIGRATION_2_3)
+                    .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
                     .build()
                     .also { INSTANCE = it }
             }

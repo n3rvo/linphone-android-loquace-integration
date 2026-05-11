@@ -49,7 +49,14 @@ class XmppConversationsAdapter :
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.bind(getItem(position))
+        val model = getItem(position)
+        holder.bind(model)
+
+        // Observe avatar changes and rebind when picturePath updates
+        val lifecycleOwner = holder.binding.lifecycleOwner ?: return
+        model.avatarModel.picturePath.observe(lifecycleOwner) {
+            holder.bind(model)
+        }
     }
 
     inner class ViewHolder(val binding: LoquaceChatListCellBinding) :

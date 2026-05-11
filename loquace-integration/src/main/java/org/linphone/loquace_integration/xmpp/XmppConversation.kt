@@ -5,7 +5,5 @@ data class XmppConversation(
     val lastMessage: String?,
     val lastTimestamp: Long,
     val unreadCount: Int = 0,
-    val isGroup: Boolean = false,
-    val displayName: String? = null,
-    val pictureUrl: String? = null  // Add this
+    val isGroup: Boolean = false
 )

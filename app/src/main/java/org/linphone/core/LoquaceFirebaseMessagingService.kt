@@ -24,28 +24,21 @@ class LoquaceFirebaseMessagingService : org.linphone.core.tools.firebase.Firebas
 
     override fun onMessageReceived(message: RemoteMessage) {
         val data = message.data
-        val callId = DeviceUtils.getStringOrDefaultFromMap(data, "call-id", "")
-        val payload = JSONObject(data).toString()
-        Log.i(TAG, "[Push Notification] Notifying Core we have received a push for Call-ID [" + callId + "]")
-        AndroidPlatformHelper.instance().processPushNotification(callId, payload, false)
+        val callId = data["call-id"] ?: ""
         val subject = data["subject"]
-        val title = data["title"]
 
         Log.d(TAG, "Push received! Data: $data")
 
         when {
             !callId.isNullOrEmpty() -> {
-                // SIP push with call-id
                 Log.d(TAG, "SIP push with call-id: $callId")
                 super.onMessageReceived(message)
             }
             subject == "chat" -> {
-                // XMPP chat push
                 Log.d(TAG, "Chat push from ${data["senderJid"]}: ${data["body"]}")
                 showChatNotification(data)
             }
             else -> {
-                // SIP call push - forward to Linphone regardless of call-id
                 Log.d(TAG, "SIP call push detected, forwarding to Linphone")
                 super.onMessageReceived(message)
             }

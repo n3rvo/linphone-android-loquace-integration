@@ -29,11 +29,8 @@ constructor() : AbstractMainViewModel() {
     enum class ChatTab { CHATS, CONTACTS, GROUPS }
 
     val currentTab = MutableLiveData<ChatTab>(ChatTab.CHATS)
-
     val conversations = MutableLiveData<List<XmppConversationModel>>()
-
     val fetchInProgress = MutableLiveData<Boolean>(false)
-
     val isListEmpty = MutableLiveData<Boolean>(true)
 
     val openConversationEvent: MutableLiveData<Event<String>> by lazy {
@@ -70,9 +67,7 @@ constructor() : AbstractMainViewModel() {
     }
 
     @UiThread
-    override fun filter() {
-        // Search filtering will be added in a later phase
-    }
+    override fun filter() {}
 
     fun loadContacts(domain: String, token: String, userAgent: String, filesDir: File) {
         if (isFetchingContacts.value == true) return
@@ -90,10 +85,8 @@ constructor() : AbstractMainViewModel() {
                     userAgent = userAgent,
                     offset    = offset
                 )
-
                 if (page.isEmpty()) break
 
-                // Fetch avatars BEFORE entering postOnCoreThread
                 val avatarPaths = mutableMapOf<String, String>()
                 for (contact in page) {
                     val path = LoquaceAvatarHelper.fetchAndSaveAvatar(
@@ -109,11 +102,8 @@ constructor() : AbstractMainViewModel() {
 
                 coreContext.postOnCoreThread {
                     val newModels = page.map { contact ->
-                        val jid = contact.chats?.firstOrNull { it.type == "xmpp" }?.account ?: return@map null
-                        LoquaceXmppManager.setContactName(jid, contact.fullName ?:
-                            "${contact.firstName} ${contact.lastName}".trim())
-                        contact.pictureUrl?.let { LoquaceXmppManager.setContactPictureUrl(jid, it) }
-                        LoquaceXmppManager.setContactId(jid, contact.id)
+                        val jid = contact.chats?.firstOrNull { it.type == "xmpp" }?.account
+                            ?: return@map null
 
                         val friend = coreContext.core.createFriend()
                         friend.name = contact.fullName
@@ -126,22 +116,20 @@ constructor() : AbstractMainViewModel() {
                             .getContactAvatarModelForFriend(friend)
 
                         XmppConversationModel(
-                            XmppConversation(
-                                peerJid = jid,
-                                lastMessage = "",
+                            conversation = XmppConversation(
+                                peerJid       = jid,
+                                lastMessage   = "",
                                 lastTimestamp = 0L,
-                                displayName = friend.name,
-                                pictureUrl = contact.pictureUrl
+                                isGroup       = false
                             ),
-                            prebuiltAvatarModel = avatarModel
+                            prebuiltAvatarModel = avatarModel,
+                            displayName = MutableLiveData(friend.name)
                         )
                     }.filterNotNull()
 
                     allModels.addAll(newModels)
                     contacts.postValue(ArrayList(allModels))
                 }
-
-                Log.d(TAG, "Fetched page with ${page.size} chat-enabled contacts, offset=$offset")
 
                 if (page.size < LoquaceConfig.CONTACTS_PAGE_SIZE) break
                 offset += page.size
@@ -162,13 +150,13 @@ constructor() : AbstractMainViewModel() {
             coreContext.postOnCoreThread {
                 val models = groupList.map { group ->
                     XmppConversationModel(
-                        XmppConversation(
-                            peerJid = group.jid,
-                            lastMessage = "${group.participants.size} members",
+                        conversation = XmppConversation(
+                            peerJid       = group.jid,
+                            lastMessage   = "${group.participants.size} members",
                             lastTimestamp = group.createdAt,
-                            displayName = group.name,
-                            isGroup = true
-                        )
+                            isGroup       = true
+                        ),
+                        displayName = MutableLiveData(group.name)
                     )
                 }
                 groups.postValue(models)
