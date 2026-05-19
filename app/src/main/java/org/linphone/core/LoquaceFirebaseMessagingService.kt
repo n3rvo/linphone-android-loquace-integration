@@ -62,7 +62,7 @@ class LoquaceFirebaseMessagingService : org.linphone.core.tools.firebase.Firebas
         createNotificationChannel(channelId)
 
         val notification = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(org.linphone.R.drawable.linphone_notification)
+            .setSmallIcon(org.linphone.R.drawable.loquace_logo)
             .setContentTitle(senderName)
             .setContentText(body)
             .setAutoCancel(true)

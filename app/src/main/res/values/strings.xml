@@ -1097,6 +1097,7 @@
     <string name="drawer_about_title">About</string>
     <string name="drawer_language_title">Language</string>
     <string name="drawer_logout">Logout</string>
+    <string name="logout_confirmation_message">Are you sure you want to logout?</string>
     <string name="drawer_submit">Save</string>
     <string name="settings_network_push_notifications">Enable push notifications</string>
     <string name="settings_advanced_permissions_title">Permissions</string>

@@ -206,6 +206,18 @@ class XmppConversationFragment : SlidingPaneChildFragment() {
             goBack()
         }
 
+        viewModel.avatarModel.observe(viewLifecycleOwner) { model ->
+            try {
+                val avatarBinding = org.linphone.databinding.ContactAvatarBinding.bind(
+                    binding.root.findViewById(R.id.avatar)
+                )
+                avatarBinding.model = model
+                avatarBinding.lifecycleOwner = viewLifecycleOwner
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to bind avatar: ${e.message}")
+            }
+        }
+
         binding.sendButton.setOnClickListener {
             val text = binding.messageInput.text?.toString() ?: ""
             if (text.isNotEmpty()) {

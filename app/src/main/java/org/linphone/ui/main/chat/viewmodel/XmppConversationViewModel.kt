@@ -11,6 +11,7 @@ import org.linphone.core.tools.Log
 import org.linphone.loquace_integration.xmpp.LoquaceXmppManager
 import org.linphone.loquace_integration.xmpp.XmppMessage
 import org.linphone.ui.GenericViewModel
+import org.linphone.ui.main.contacts.model.ContactAvatarModel
 import org.linphone.utils.Event
 
 class XmppConversationViewModel
@@ -21,6 +22,7 @@ constructor() : GenericViewModel() {
         private const val TAG = "[Xmpp Conversation ViewModel]"
     }
 
+    val avatarModel = MutableLiveData<ContactAvatarModel>()
     val peerJid = MutableLiveData<String>()
     val displayName = MutableLiveData<String>()
     val messages = MutableLiveData<List<XmppMessage>>()
@@ -41,6 +43,50 @@ constructor() : GenericViewModel() {
         peerJid.value = jid
         displayName.value = name
         isGroup.value = group
+
+        // Load avatar
+        viewModelScope.launch(Dispatchers.IO) {
+            val friend = org.linphone.LinphoneApplication.coreContext.core.createFriend()
+            friend.name = name
+            friend.refKey = jid
+
+            if (!group) {
+                val sessionManager = org.linphone.loquace_integration.storage.SessionManager(
+                    org.linphone.LinphoneApplication.coreContext.context
+                )
+                val token = sessionManager.getToken() ?: return@launch
+                val domain = sessionManager.getDomain() ?: return@launch
+                val userAgent = sessionManager.getUserAgent()
+
+                val contact = org.linphone.loquace_integration.network.LoquaceGroupsRepository()
+                    .getContactByJid(domain, token, userAgent, jid)
+
+                if (contact != null) {
+                    friend.name = contact.fullName
+                        ?: "${contact.firstName} ${contact.lastName}".trim()
+                    val avatarFile = java.io.File(
+                        org.linphone.LinphoneApplication.coreContext.context.filesDir,
+                        "avatar_${contact.id}.jpg"
+                    )
+                    if (!avatarFile.exists()) {
+                        val pictureUrl = contact.pictureUrl ?: return@launch
+                        val bytes = org.linphone.loquace_integration.network.LoquaceMediaDownloader
+                            .downloadBytes(url = pictureUrl, token = token, domain = domain)
+                        if (bytes != null) avatarFile.writeBytes(bytes)
+                    }
+                    if (avatarFile.exists()) {
+                        friend.photo = org.linphone.utils.FileUtils
+                            .getProperFilePath(avatarFile.absolutePath)
+                    }
+                }
+            }
+
+            org.linphone.LinphoneApplication.coreContext.postOnCoreThread {
+                val model = org.linphone.LinphoneApplication.coreContext.contactsManager
+                    .getContactAvatarModelForFriend(friend)
+                avatarModel.postValue(model)
+            }
+        }
 
         // Load existing in-memory messages
         messages.value = LoquaceXmppManager.getMessagesForConversation(jid)

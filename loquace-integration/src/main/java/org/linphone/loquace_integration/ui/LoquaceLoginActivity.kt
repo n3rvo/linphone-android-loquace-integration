@@ -6,12 +6,12 @@ import android.view.View
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import org.linphone.loquace_integration.databinding.ActivityLoginBinding
 import org.linphone.loquace_integration.storage.SessionManager
 import org.linphone.loquace_integration.viewmodel.LoginState
 import org.linphone.loquace_integration.viewmodel.LoquaceLoginViewModel
 import org.linphone.loquace_integration.viewmodel.LoquaceLoginViewModelFactory
-import kotlinx.coroutines.launch
-import org.linphone.loquace_integration.databinding.ActivityLoginBinding
 
 class LoquaceLoginActivity : AppCompatActivity() {
 
@@ -30,11 +30,17 @@ class LoquaceLoginActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         binding.btnLogin.setOnClickListener {
-            viewModel.login(
-                domain   = binding.inputDomain.text.toString().trim(),
-                username = binding.inputUsername.text.toString().trim(),
-                password = binding.inputPassword.text.toString().trim()
-            )
+            val domain   = binding.inputDomain.text.toString().trim()
+            val username = binding.inputUsername.text.toString().trim()
+            val password = binding.inputPassword.text.toString().trim()
+
+            if (domain.isEmpty() || username.isEmpty() || password.isEmpty()) {
+                binding.txtError.visibility = View.VISIBLE
+                binding.txtError.text = getString(org.linphone.loquace_integration.R.string.login_error_empty_fields)
+                return@setOnClickListener
+            }
+
+            viewModel.login(domain, username, password)
         }
 
         lifecycleScope.launch {
@@ -42,9 +48,11 @@ class LoquaceLoginActivity : AppCompatActivity() {
                 when (state) {
                     is LoginState.Loading -> {
                         binding.btnLogin.isEnabled = false
+                        binding.loading.visibility = View.VISIBLE
                         binding.txtError.visibility = View.GONE
                     }
                     is LoginState.Success -> {
+                        binding.loading.visibility = View.GONE
                         val intent = Intent().apply {
                             putExtra(SHOW_PERMISSIONS, true)
                         }
@@ -53,11 +61,13 @@ class LoquaceLoginActivity : AppCompatActivity() {
                     }
                     is LoginState.Error -> {
                         binding.btnLogin.isEnabled = true
+                        binding.loading.visibility = View.GONE
                         binding.txtError.visibility = View.VISIBLE
                         binding.txtError.text = state.message
                     }
                     is LoginState.Idle -> {
                         binding.btnLogin.isEnabled = true
+                        binding.loading.visibility = View.GONE
                     }
                 }
             }

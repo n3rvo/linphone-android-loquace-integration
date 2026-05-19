@@ -185,6 +185,25 @@ object LoquaceXmppManager {
         }
     }
 
+    fun logout() {
+        scope.launch {
+            try {
+                connection?.disconnect()
+                connection = null
+                chatManager = null
+                isConnecting = false
+                joinedRooms.clear()
+                roomsWithListeners.clear()
+                _conversations.value = emptyList()
+                _messages.value = emptyMap()
+                _connectionState.value = XmppConnectionState.Disconnected
+                Log.d(TAG, "XMPP logged out and state cleared")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during logout: ${e.message}")
+            }
+        }
+    }
+
     fun sendMessage(toJid: String, messageBody: String): XmppMessage? {
         return try {
             val conn = connection ?: throw Exception("Not connected")

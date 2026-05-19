@@ -65,4 +65,6 @@ dependencies {
     implementation(libs.smack.im) { exclude(group = "xpp3", module = "xpp3") }
     implementation(libs.smack.extensions) { exclude(group = "xpp3", module = "xpp3") }
     implementation(libs.smack.sasl) { exclude(group = "xpp3", module = "xpp3") }
+    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+    implementation("com.google.android.material:material:1.11.0")
 }

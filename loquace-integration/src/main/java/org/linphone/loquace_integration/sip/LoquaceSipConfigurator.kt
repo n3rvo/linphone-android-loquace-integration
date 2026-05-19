@@ -68,7 +68,14 @@ object LoquaceSipConfigurator {
 
     fun logout(core: Core) {
         Log.d(TAG, "Removing SIP account")
-        core.defaultAccount?.let { core.removeAccount(it) }
+        core.defaultAccount?.let {
+            it.params.clone().also { params ->
+                params.pushNotificationAllowed = false
+                params.remotePushNotificationAllowed = false
+                it.params = params
+            }
+            core.removeAccount(it)
+        }
         core.clearAccounts()
         core.clearAllAuthInfo()
         Log.d(TAG, "SIP account removed")

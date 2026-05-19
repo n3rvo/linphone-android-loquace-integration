@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="login_primary">#183a42</color>
+    <color name="login_primary_dark">#0F262C</color>
+    <color name="login_label">#FFFFFF</color>
+    <color name="login_box_bg">#DFECF2</color>
+    <color name="login_hint">#9AABB5</color>
+    <color name="login_error">#D32F2F</color>
+</resources>

@@ -228,7 +228,36 @@ class DrawerMenuFragment : GenericMainFragment() {
 
         // Logout
         binding.logoutButton.setOnClickListener {
-            // TODO: implement logout properly later
+            androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setTitle(R.string.drawer_logout)
+                .setMessage(R.string.logout_confirmation_message)
+                .setPositiveButton(R.string.drawer_logout) { _, _ ->
+                    viewLifecycleOwner.lifecycleScope.launch {
+                        // Stop XMPP service
+                        requireActivity().stopService(
+                            Intent(requireContext(),
+                                org.linphone.loquace_integration.xmpp.XmppConnectionService::class.java)
+                        )
+
+                        // Run logout
+                        withContext(Dispatchers.IO) {
+                            org.linphone.loquace_integration.network.LoquaceLogoutManager.logout(
+                                requireContext()
+                            )
+                        }
+
+                        // Navigate to login with clean stack
+                        val intent = Intent(
+                            requireContext(),
+                            org.linphone.loquace_integration.ui.LoquaceLoginActivity::class.java
+                        ).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                        }
+                        startActivity(intent)
+                    }
+                }
+                .setNegativeButton(getString(R.string.cancel), null)
+                .show()
             (requireActivity() as MainActivity).closeDrawerMenu()
         }
     }

@@ -76,7 +76,7 @@
                         android:id="@+id/app_logo"
                         android:layout_width="72dp"
                         android:layout_height="72dp"
-                        android:src="@drawable/linphone_notification"
+                        android:src="@drawable/loquace_logo"
                         android:contentDescription="@null"
                         app:tint="?attr/color_main1_500"
                         app:layout_constraintTop_toTopOf="parent"
@@ -201,7 +201,7 @@
                         android:layout_marginStart="16dp"
                         android:src="@drawable/linphone_notification"
                         android:contentDescription="@null"
-                        app:tint="?attr/color_main1_500"
+                        app:tint="@color/linphone_orange_main_500"
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintTop_toTopOf="@id/linphone_title"/>
 
