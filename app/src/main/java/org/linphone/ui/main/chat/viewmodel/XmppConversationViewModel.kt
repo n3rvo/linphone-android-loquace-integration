@@ -23,6 +23,7 @@ constructor() : GenericViewModel() {
     }
 
     val avatarModel = MutableLiveData<ContactAvatarModel>()
+    val loquacePresence = MutableLiveData<String?>(null)
     val peerJid = MutableLiveData<String>()
     val displayName = MutableLiveData<String>()
     val messages = MutableLiveData<List<XmppMessage>>()
@@ -64,6 +65,9 @@ constructor() : GenericViewModel() {
                 if (contact != null) {
                     friend.name = contact.fullName
                         ?: "${contact.firstName} ${contact.lastName}".trim()
+
+                    loquacePresence.postValue(contact?.presence?.status)
+
                     val avatarFile = java.io.File(
                         org.linphone.LinphoneApplication.coreContext.context.filesDir,
                         "avatar_${contact.id}.jpg"

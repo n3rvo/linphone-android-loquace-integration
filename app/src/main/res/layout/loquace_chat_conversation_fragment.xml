@@ -36,7 +36,8 @@
             app:hidePresence="@{true}"
             app:layout_constraintStart_toEndOf="@id/back"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toTopOf="@id/messages_list"/>
+            app:layout_constraintBottom_toTopOf="@id/messages_list"
+            app:loquacePresence="@{viewModel.loquacePresence}"/>
 
         <androidx.appcompat.widget.AppCompatTextView
             style="@style/default_text_style"

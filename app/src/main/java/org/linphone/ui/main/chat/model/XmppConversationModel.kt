@@ -24,7 +24,8 @@ constructor(
     prebuiltAvatarModel: ContactAvatarModel? = null,
     val displayName: MutableLiveData<String> = MutableLiveData(
         conversation.peerJid.substringBefore("@")
-    )
+    ),
+    val loquacePresence: MutableLiveData<String?> = MutableLiveData(null)
 ) {
     val id = conversation.peerJid
     val isGroup = conversation.isGroup
@@ -65,6 +66,8 @@ constructor(
                     ) ?: return@launch
 
                     Log.d("XmppConversationModel", "contact.id=${contact.id}, avatarFile=avatar_${contact.id}.jpg")
+
+                    loquacePresence.postValue(contact.presence?.status)
 
                     // Update display name
                     val name = contact.fullName

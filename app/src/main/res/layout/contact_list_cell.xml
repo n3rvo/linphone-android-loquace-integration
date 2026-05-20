@@ -17,6 +17,9 @@
         <variable
             name="firstContactStartingByThatLetter"
             type="Boolean" />
+        <variable
+            name="loquacePresence"
+            type="String" />
     </data>
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -57,7 +60,8 @@
             bind:model="@{model}"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toEndOf="@id/header"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent"
+            app:loquacePresence="@{loquacePresence}" />
 
         <androidx.appcompat.widget.AppCompatTextView
             style="@style/default_text_style"

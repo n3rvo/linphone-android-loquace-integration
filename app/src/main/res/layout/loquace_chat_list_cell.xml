@@ -39,7 +39,8 @@
             bind:model="@{model.avatarModel}"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent"
+            app:loquacePresence="@{model.loquacePresence}"/>
 
         <androidx.appcompat.widget.AppCompatTextView
             style="@style/default_text_style_500"

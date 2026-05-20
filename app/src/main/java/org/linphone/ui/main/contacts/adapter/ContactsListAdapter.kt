@@ -48,6 +48,9 @@ class ContactsListAdapter(
         MutableLiveData()
     }
 
+    // Add presence map
+    val presenceMap = mutableMapOf<String, String?>()
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         if (favourites) {
             val binding: ContactFavouriteListCellBinding = DataBindingUtil.inflate(
@@ -120,6 +123,7 @@ class ContactsListAdapter(
         fun bind(contactModel: ContactAvatarModel) {
             with(binding) {
                 model = contactModel
+                loquacePresence = presenceMap[contactModel.id]
 
                 binding.root.isSelected = bindingAdapterPosition == selectedAdapterPosition
 

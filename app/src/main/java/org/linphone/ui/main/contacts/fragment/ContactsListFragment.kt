@@ -91,6 +91,7 @@ class ContactsListFragment : AbstractMainFragment() {
     private lateinit var domain: String
     private lateinit var token: String
     private lateinit var userAgent: String
+    private val contactPresenceMap = mutableMapOf<String, String?>()
 
     private lateinit var binding: ContactsListFragmentBinding
 
@@ -634,6 +635,9 @@ class ContactsListFragment : AbstractMainFragment() {
 
                     val model = coreContext.contactsManager.getContactAvatarModelForFriend(friend)
                     friends.add(model)
+
+                    // Store presence keyed by contact id
+                    adapter.presenceMap[contact.id] = contact.presence?.status
                 }
 
                 coreContext.postOnMainThread {

@@ -165,6 +165,22 @@ fun <T> setEntries(
     }
 }
 
+@BindingAdapter("loquacePresence")
+fun ImageView.setLoquacePresenceRing(status: String?) {
+    if (status.isNullOrEmpty()) {
+        visibility = View.GONE
+        return
+    }
+    val drawable = when (status.uppercase()) {
+        "ONLINE" -> R.drawable.presence_ring_online
+        "AWAY"   -> R.drawable.presence_ring_away
+        "BUSY"   -> R.drawable.presence_ring_busy
+        else     -> R.drawable.presence_ring_offline
+    }
+    setImageResource(drawable)
+    visibility = View.VISIBLE
+}
+
 @UiThread
 fun AppCompatEditText.removeCharacterAtPosition() {
     val start = selectionStart

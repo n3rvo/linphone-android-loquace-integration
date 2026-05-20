@@ -109,6 +109,11 @@ override fun onStop() {
 
 ### Change: Add dialer navigation, initViews overload, tab selection state
 
+### Change: Add presence ring update for top bar avatar
+Stores `MainActivityTopBarBinding` reference in `initViews()`, observes
+`LoquaceDrawerMenuViewModel.presenceStatus` and updates the presence ring
+on the top bar avatar via `ring.setLoquacePresenceRing(status)`.
+
 ---
 
 ## `app/src/main/res/layout/history_list_fragment.xml`
@@ -182,6 +187,8 @@ override fun onStop() {
 - Submit buttons for calls and presence
 - Logout button wired to `LoquaceLogoutManager.logout()` with confirmation dialog
 - Navigates to login with `FLAG_ACTIVITY_NEW_TASK or FLAG_ACTIVITY_CLEAR_TASK`
+- Observes `presenceStatus` to update presence ring on drawer account avatar
+  via `ring.setLoquacePresenceRing(status)`
 
 ---
 
@@ -242,6 +249,71 @@ about, notification, and logout confirmation strings.
 
 ---
 
+## `app/src/main/res/layout/contact_avatar.xml`
+
+### Change: Add Loquace presence ring
+- Added `loquacePresence` variable of type `String`
+- Added `presence_ring` ImageView overlaying the avatar using `loquacePresence`
+  binding adapter
+
+---
+
+## `app/src/main/res/layout/contact_list_cell.xml`
+
+### Change: Add loquacePresence variable and pass to avatar include
+- Added `loquacePresence` variable of type `String`
+- Passes `app:loquacePresence="@{loquacePresence}"` to `contact_avatar` include
+
+---
+
+## `app/src/main/java/org/linphone/ui/main/contacts/adapter/ContactsListAdapter.kt`
+
+### Change: Add presence map and pass to cell binding
+- Added `presenceMap: MutableMap<String, String?>` keyed by contact id
+- In `ViewHolder.bind()` sets `binding.loquacePresence = presenceMap[contactModel.id]`
+
+---
+
+## `app/src/main/java/org/linphone/ui/main/contacts/fragment/ContactsListFragment.kt`
+
+### Change: Populate presence map when loading contacts
+- After creating `ContactAvatarModel` for each contact, stores
+  `adapter.presenceMap[contact.id] = contact.presence?.status`
+
+---
+
+## `app/src/main/java/org/linphone/utils/DataBindingUtils.kt`
+
+### Change: Add loquacePresence binding adapter
+```kotlin
+@BindingAdapter("loquacePresence")
+fun ImageView.setLoquacePresenceRing(status: String?) {
+    if (status.isNullOrEmpty()) {
+        visibility = View.GONE
+        return
+    }
+    val drawable = when (status.uppercase()) {
+        "ONLINE" -> R.drawable.presence_ring_online
+        "AWAY"   -> R.drawable.presence_ring_away
+        "BUSY"   -> R.drawable.presence_ring_busy
+        else     -> R.drawable.presence_ring_offline
+    }
+    setImageResource(drawable)
+    visibility = View.VISIBLE
+}
+```
+
+---
+
+## `app/src/main/res/drawable/presence_ring_online.xml` *(NEW)*
+## `app/src/main/res/drawable/presence_ring_away.xml` *(NEW)*
+## `app/src/main/res/drawable/presence_ring_busy.xml` *(NEW)*
+## `app/src/main/res/drawable/presence_ring_offline.xml` *(NEW)*
+Oval stroke drawables for presence ring around avatars.
+Colors: green (online), orange (away), red (busy), gray (offline).
+
+---
+
 ## `app/build.gradle.kts`
 
 ### Change: Add Gson dependency and update applicationId
@@ -298,14 +370,18 @@ with `scaleX/scaleY=0.5`, filled with `@color/orange_main_500`.
 ### `app/src/main/res/layout/loquace_chat_list_cell.xml` *(NEW)*
 
 **Key binding:** `android:text="@{model.displayName}"` — `MutableLiveData<String>`
-updated lazily via API.
+updated lazily via API. `app:loquacePresence="@{model.loquacePresence}"` passed
+to avatar include.
 
 ### `app/src/main/java/org/linphone/ui/main/chat/model/XmppConversationModel.kt` *(NEW)*
 
 **Key implementation:**
-- `displayName` is `MutableLiveData<String>` initialized to JID prefix
-- Non-group: fetches contact via `getContactByJid()`, updates `displayName`
-  and downloads avatar to `avatar_$contactId.jpg`
+- `displayName` is `MutableLiveData<String>` initialized to JID prefix,
+  constructor parameter for pre-built models
+- `loquacePresence` is `MutableLiveData<String?>` initialized to null,
+  constructor parameter for pre-built models
+- Non-group: fetches contact via `getContactByJid()`, updates `displayName`,
+  `loquacePresence` and downloads avatar to `avatar_$contactId.jpg`
 - Group: fetches group list, matches by JID, updates `displayName`
 - Avatar loaded via `model.picturePath.postValue()` after download
 - `onBindViewHolder` observes `avatarModel.picturePath` to trigger rebind
@@ -320,7 +396,8 @@ updated lazily via API.
 
 **Key implementation:**
 - No longer populates `LoquaceXmppManager` maps
-- `loadContacts()` passes `displayName` as `MutableLiveData` directly
+- `loadContacts()` passes `displayName` and `loquacePresence` as
+  `MutableLiveData` directly
 - `loadGroups()` passes group name as `MutableLiveData` directly
 
 ### `app/src/main/java/org/linphone/ui/main/chat/viewmodel/XmppConversationViewModel.kt` *(NEW)*
@@ -330,13 +407,16 @@ updated lazily via API.
 - `deleteMessage()`, `editMessage()`
 - `markAsRead()` — resets unread count in StateFlow and DB
 - `avatarModel: MutableLiveData<ContactAvatarModel>` — populated lazily
-  in `initialize()` via `getContactByJid()` for contacts, group name for groups
+  in `initialize()` via `getContactByJid()`
+- `loquacePresence: MutableLiveData<String?>` — populated from
+  `contact.presence?.status` inside `initialize()`
 
 ### `app/src/main/res/layout/loquace_chat_conversation_fragment.xml` *(MODIFIED)*
 
-### Change: Add avatar to conversation header
+### Change: Add avatar and presence ring to conversation header
 - Added `<include layout="@layout/contact_avatar">` between back button and title
-- Passes `app:model="@{viewModel.avatarModel}"` and `app:hidePresence="@{true}"`
+- Passes `app:model="@{viewModel.avatarModel}"`, `app:hidePresence="@{true}"`
+  and `app:loquacePresence="@{viewModel.loquacePresence}"`
 - Updated `title` constraints to start from avatar end
 
 ### `app/src/main/java/org/linphone/ui/main/chat/adapter/XmppMessagesAdapter.kt` *(NEW)*
@@ -368,7 +448,6 @@ in a future Linphone SDK `5.5.x` patch.
 - Conversation long press → delete conversation *(flagged)*
 - Push notifications toggle wiring in network settings
 - Language selection implementation
-- Improved contact picker with avatars and search
 - Video upload optimization
 - In-app media viewer
 

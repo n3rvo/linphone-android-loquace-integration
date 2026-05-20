@@ -12,6 +12,9 @@
         <variable
             name="hidePresence"
             type="Boolean" />
+        <variable
+            name="loquacePresence"
+            type="String" />
     </data>
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -28,6 +31,18 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
+
+        <ImageView
+            android:id="@+id/presence_ring"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:contentDescription="@null"
+            android:visibility="gone"
+            loquacePresence="@{loquacePresence}"
+            app:layout_constraintEnd_toEndOf="@id/avatar"
+            app:layout_constraintStart_toStartOf="@id/avatar"
+            app:layout_constraintTop_toTopOf="@id/avatar"
+            app:layout_constraintBottom_toBottomOf="@id/avatar"/>
 
         <ImageView
             android:id="@+id/trust_overlay"

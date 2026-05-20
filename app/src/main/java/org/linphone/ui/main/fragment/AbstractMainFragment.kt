@@ -30,6 +30,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.annotation.IdRes
 import androidx.annotation.UiThread
 import androidx.core.view.doOnPreDraw
+import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.NavDirections
 import androidx.navigation.fragment.findNavController
 import androidx.slidingpanelayout.widget.SlidingPaneLayout
@@ -48,11 +49,13 @@ import org.linphone.ui.main.dialer.fragment.LoquaceDialerFragmentDirections
 import org.linphone.ui.main.history.fragment.HistoryListFragmentDirections
 import org.linphone.ui.main.meetings.fragment.MeetingsListFragmentDirections
 import org.linphone.ui.main.viewmodel.AbstractMainViewModel
+import org.linphone.ui.main.viewmodel.LoquaceDrawerMenuViewModel
 import org.linphone.utils.Event
 import org.linphone.utils.SlidingPaneBackPressedCallback
 import org.linphone.utils.hideKeyboard
 import org.linphone.utils.setKeyboardInsetListener
 import org.linphone.utils.showKeyboard
+import org.linphone.utils.setLoquacePresenceRing
 
 @UiThread
 abstract class AbstractMainFragment : GenericMainFragment() {
@@ -210,6 +213,8 @@ abstract class AbstractMainFragment : GenericMainFragment() {
         }
     }
 
+    private lateinit var topBarBinding: MainActivityTopBarBinding
+
     fun initViews(
         slidingPane: SlidingPaneLayout,
         topBar: MainActivityTopBarBinding,
@@ -217,10 +222,12 @@ abstract class AbstractMainFragment : GenericMainFragment() {
         @IdRes fragmentId: Int
     ) {
         navigationBar = navBar.root
+        topBarBinding = topBar
 
         initSlidingPane(slidingPane)
         initSearchBar(topBar.search)
         initNavigation(fragmentId)
+        observePresenceForTopBar()
     }
 
     fun initViews(
@@ -229,8 +236,20 @@ abstract class AbstractMainFragment : GenericMainFragment() {
         @IdRes fragmentId: Int
     ) {
         navigationBar = navBar.root
+        topBarBinding = topBar
+
         initSearchBar(topBar.search)
         initNavigation(fragmentId)
+        observePresenceForTopBar()
+    }
+
+    private fun observePresenceForTopBar() {
+        val loquaceViewModel = ViewModelProvider(requireActivity())[LoquaceDrawerMenuViewModel::class.java]
+        loquaceViewModel.presenceStatus.observe(viewLifecycleOwner) { status ->
+            topBarBinding.avatar?.root
+                        ?.findViewById<android.widget.ImageView>(R.id.presence_ring)
+                ?.setLoquacePresenceRing(status)
+        }
     }
 
     private fun initSlidingPane(slidingPane: SlidingPaneLayout) {

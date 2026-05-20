@@ -43,6 +43,7 @@ import org.linphone.ui.main.settings.fragment.AccountProfileFragmentDirections
 import org.linphone.ui.main.viewmodel.DrawerMenuViewModel
 import androidx.core.net.toUri
 import org.linphone.ui.main.viewmodel.LoquaceDrawerMenuViewModel
+import org.linphone.utils.setLoquacePresenceRing
 
 @UiThread
 class DrawerMenuFragment : GenericMainFragment() {
@@ -208,6 +209,18 @@ class DrawerMenuFragment : GenericMainFragment() {
             loquaceViewModel.presenceStatus.value = selectedStatus
             loquaceViewModel.presenceMessage.value = message
             loquaceViewModel.submitPresence(requireContext())
+        }
+
+        loquaceViewModel.presenceStatus.observe(viewLifecycleOwner) { status ->
+            val index = statusOptions.indexOf(status)
+            if (index >= 0) binding.presenceStatusSpinner.setSelection(index)
+
+            // Update drawer account avatar ring
+            val accountsLinearLayout = binding.accountsScroll
+                .getChildAt(0) as? android.widget.LinearLayout ?: return@observe
+            val firstAccount = accountsLinearLayout.getChildAt(0) ?: return@observe
+            firstAccount.findViewById<android.widget.ImageView>(R.id.presence_ring)
+                ?.setLoquacePresenceRing(status)
         }
 
         // Calls switches - just update ViewModel, don't submit yet

@@ -123,7 +123,8 @@ constructor() : AbstractMainViewModel() {
                                 isGroup       = false
                             ),
                             prebuiltAvatarModel = avatarModel,
-                            displayName = MutableLiveData(friend.name)
+                            displayName = MutableLiveData(friend.name),
+                            loquacePresence = MutableLiveData(contact.presence?.status)
                         )
                     }.filterNotNull()
 
