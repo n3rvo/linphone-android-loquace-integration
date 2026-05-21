@@ -464,6 +464,11 @@ class HistoryListFragment : AbstractMainFragment() {
     }
 
     private fun resetAndLoadCalls(missedOnly: Boolean) {
+        if (domain.isEmpty() || token.isEmpty()) {
+            Log.w(TAG, "Domain or token not ready, skipping call history load")
+            listViewModel.fetchInProgress.value = false
+            return
+        }
         currentOffset = 0
         hasMoreCalls = true
         listViewModel.loquaceCallLogs.value = arrayListOf()
@@ -476,62 +481,68 @@ class HistoryListFragment : AbstractMainFragment() {
         listViewModel.fetchInProgress.value = true
 
         viewLifecycleOwner.lifecycleScope.launch {
-            val calls = callHistoryRepository.fetchCalls(
-                domain     = domain,
-                token      = token,
-                userAgent  = userAgent,
-                offset     = currentOffset,
-                missedOnly = missedOnly
-            )
-
-            if (calls.isEmpty() || calls.size < LoquaceConfig.CONTACTS_PAGE_SIZE) {
-                hasMoreCalls = false
-            }
-
-            // Fetch avatars first
-            val avatarPaths = mutableMapOf<String, String>()
-            for (call in calls) {
-                val contactId = call.contact?.id ?: call.id
-                val path = LoquaceAvatarHelper.fetchAndSaveAvatar(
-                    contactId  = contactId,
-                    pictureUrl = call.contact?.pictureUrl,
+            try {
+                val calls = callHistoryRepository.fetchCalls(
                     domain     = domain,
                     token      = token,
                     userAgent  = userAgent,
-                    filesDir   = requireContext().filesDir
+                    offset     = currentOffset,
+                    missedOnly = missedOnly
                 )
-                if (path != null) avatarPaths[contactId] = path
-            }
 
-            val wrappers = arrayListOf<CallLogModelWrapper>()
-            coreContext.postOnCoreThread {
+                if (calls.isEmpty() || calls.size < LoquaceConfig.CONTACTS_PAGE_SIZE) {
+                    hasMoreCalls = false
+                }
+
+                // Fetch avatars first
+                val avatarPaths = mutableMapOf<String, String>()
                 for (call in calls) {
                     val contactId = call.contact?.id ?: call.id
-                    wrappers.add(
-                        CallLogModelWrapper(
-                            loquaceCallLogModel = LoquaceCallLogModel(
-                                call       = call,
-                                avatarPath = avatarPaths[contactId]
+                    val path = LoquaceAvatarHelper.fetchAndSaveAvatar(
+                        contactId  = contactId,
+                        pictureUrl = call.contact?.pictureUrl,
+                        domain     = domain,
+                        token      = token,
+                        userAgent  = userAgent,
+                        filesDir   = requireContext().filesDir
+                    )
+                    if (path != null) avatarPaths[contactId] = path
+                }
+
+                val wrappers = arrayListOf<CallLogModelWrapper>()
+                coreContext.postOnCoreThread {
+                    for (call in calls) {
+                        val contactId = call.contact?.id ?: call.id
+                        wrappers.add(
+                            CallLogModelWrapper(
+                                loquaceCallLogModel = LoquaceCallLogModel(
+                                    call       = call,
+                                    avatarPath = avatarPaths[contactId]
+                                )
                             )
                         )
-                    )
-                }
+                    }
 
-                coreContext.postOnMainThread {
-                    val existing = listViewModel.loquaceCallLogs.value ?: arrayListOf()
-                    val newList = arrayListOf<CallLogModelWrapper>()
-                    newList.addAll(existing)
-                    newList.addAll(wrappers)
-                    listViewModel.loquaceCallLogs.value = newList
-                    currentOffset += calls.size
-                    isLoadingMore = false
-                    listViewModel.fetchInProgress.value = false
+                    coreContext.postOnMainThread {
+                        val existing = listViewModel.loquaceCallLogs.value ?: arrayListOf()
+                        val newList = arrayListOf<CallLogModelWrapper>()
+                        newList.addAll(existing)
+                        newList.addAll(wrappers)
+                        listViewModel.loquaceCallLogs.value = newList
+                        currentOffset += calls.size
+                        isLoadingMore = false
+                        listViewModel.fetchInProgress.value = false
 
-                    adapter.submitList(newList)
-                    if (binding.historyList.adapter != adapter) {
-                        binding.historyList.adapter = adapter
+                        adapter.submitList(newList)
+                        if (binding.historyList.adapter != adapter) {
+                            binding.historyList.adapter = adapter
+                        }
                     }
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load call history: ${e.message}")
+                isLoadingMore = false
+                listViewModel.fetchInProgress.value = false
             }
         }
     }

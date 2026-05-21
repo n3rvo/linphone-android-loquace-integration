@@ -32,7 +32,7 @@ class XmppGroupDetailsBottomSheet(
 ) : BottomSheetDialogFragment() {
 
     companion object {
-        private const val TAG = "[Group Details Bottom Sheet]"
+        private const val TAG = "GroupDetailsBottomSheet"
     }
 
     private lateinit var binding: LoquaceGroupDetailsBottomSheetBinding
@@ -97,22 +97,31 @@ class XmppGroupDetailsBottomSheet(
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             val repository = LoquaceGroupsRepository()
             for (participant in group.participants) {
-                val contact = repository.getContactByJid(domain, token, userAgent, participant.account)
-                val pictureUrl = contact?.pictureUrl
-                if (pictureUrl != null) {
-                    val bytes = LoquaceMediaDownloader.downloadBytes(
-                        url    = pictureUrl,
-                        token  = token,
-                        domain = domain
-                    )
-                    if (bytes != null) {
-                        val bitmap = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                        if (bitmap != null) {
-                            withContext(Dispatchers.Main) {
-                                adapter.updateAvatar(participant.account, bitmap)
+                try {
+                    val contact = repository.getContactByJid(domain, token, userAgent, participant.account)
+
+                    withContext(Dispatchers.Main) {
+                        adapter.updatePresence(participant.account, contact?.presence?.status)
+                    }
+
+                    val pictureUrl = contact?.pictureUrl
+                    if (pictureUrl != null) {
+                        val bytes = LoquaceMediaDownloader.downloadBytes(
+                            url    = pictureUrl,
+                            token  = token,
+                            domain = domain
+                        )
+                        if (bytes != null) {
+                            val bitmap = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                            if (bitmap != null) {
+                                withContext(Dispatchers.Main) {
+                                    adapter.updateAvatar(participant.account, bitmap)
+                                }
                             }
                         }
                     }
+                } catch (e: Exception) {
+                   println("Failed to process participant ${participant.account}: ${e.message}")
                 }
             }
         }
@@ -120,18 +129,22 @@ class XmppGroupDetailsBottomSheet(
 
     override fun onStart() {
         super.onStart()
-        val bottomSheet = dialog?.findViewById<View>(
-            com.google.android.material.R.id.design_bottom_sheet
-        )
-        bottomSheet?.let {
-            val behavior = BottomSheetBehavior.from(it)
-            val screenHeight = resources.displayMetrics.heightPixels
-            val sheetHeight = (screenHeight * 0.67).toInt() // 2/3 of screen
-            it.layoutParams.height = sheetHeight
-            it.requestLayout()
-            behavior.peekHeight = sheetHeight
-            behavior.isFitToContents = true
-            behavior.state = BottomSheetBehavior.STATE_EXPANDED
+        try {
+            val bottomSheet = dialog?.findViewById<View>(
+                com.google.android.material.R.id.design_bottom_sheet
+            )
+            bottomSheet?.let {
+                val behavior = BottomSheetBehavior.from(it)
+                val screenHeight = resources.displayMetrics.heightPixels
+                val sheetHeight = (screenHeight * 0.67).toInt()
+                it.layoutParams.height = sheetHeight
+                it.requestLayout()
+                behavior.peekHeight = sheetHeight
+                behavior.isFitToContents = true
+                behavior.state = BottomSheetBehavior.STATE_EXPANDED
+            }
+        } catch (e: Exception) {
+            println(">>> onStart error: ${e.message}")
         }
     }
 

@@ -13,12 +13,14 @@ import org.linphone.R
 import org.linphone.databinding.LoquaceGroupMemberCellBinding
 import org.linphone.loquace_integration.network.GroupParticipant
 import org.linphone.utils.Event
+import org.linphone.utils.setLoquacePresenceRing
 
 class GroupMembersAdapter(
     private val isOwner: Boolean,
 ) : ListAdapter<GroupParticipant, GroupMembersAdapter.ViewHolder>(DiffCallback()) {
 
     private val avatarBitmaps = mutableMapOf<String, android.graphics.Bitmap>()
+    private val presenceStatuses = mutableMapOf<String, String?>()
 
     val removeClickedEvent: MutableLiveData<Event<GroupParticipant>> by lazy {
         MutableLiveData()
@@ -51,6 +53,14 @@ class GroupMembersAdapter(
         fun bind(participant: GroupParticipant) {
             binding.participant = participant
 
+            // Clip avatar container to circle
+            binding.avatarContainer.outlineProvider = object : android.view.ViewOutlineProvider() {
+                override fun getOutline(view: android.view.View, outline: android.graphics.Outline) {
+                    outline.setOval(0, 0, view.width, view.height)
+                }
+            }
+            binding.avatarContainer.clipToOutline = true
+
             val name = participant.fullName ?: participant.account
             val initials = name.split(" ")
                 .take(2)
@@ -69,6 +79,9 @@ class GroupMembersAdapter(
                 binding.avatar.visibility = View.GONE
             }
 
+            // Apply presence ring
+            binding.presenceRing.setLoquacePresenceRing(presenceStatuses[participant.account])
+
             binding.executePendingBindings()
         }
     }
@@ -76,6 +89,12 @@ class GroupMembersAdapter(
     fun updateAvatar(account: String, bitmap: android.graphics.Bitmap) {
         avatarBitmaps[account] = bitmap
         // Find the position of this participant and rebind
+        val position = currentList.indexOfFirst { it.account == account }
+        if (position != -1) notifyItemChanged(position)
+    }
+
+    fun updatePresence(account: String, status: String?) {
+        presenceStatuses[account] = status
         val position = currentList.indexOfFirst { it.account == account }
         if (position != -1) notifyItemChanged(position)
     }

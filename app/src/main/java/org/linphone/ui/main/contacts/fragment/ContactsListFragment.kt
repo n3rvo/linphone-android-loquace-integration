@@ -179,18 +179,16 @@ class ContactsListFragment : AbstractMainFragment() {
             binding.contactsList.clipToOutline = filtered
         }
 
-        listViewModel.contactsList.observe(
-            viewLifecycleOwner
-        ) {
+        listViewModel.contactsList.observe(viewLifecycleOwner) {
+            if (listViewModel.currentTab.value != ContactTab.PHONE) {
+                Log.d(TAG, "Phone contacts update ignored, current tab is not PHONE")
+                return@observe
+            }
             listViewModel.isContactsEmpty.value = it.isEmpty()
             adapter.submitList(it)
-
-            // Wait for adapter to have items before setting it in the RecyclerView,
-            // otherwise scroll position isn't retained
             if (binding.contactsList.adapter != adapter) {
                 binding.contactsList.adapter = adapter
             }
-
             Log.i("$TAG Contacts list updated with [${it.size}] items")
             listViewModel.fetchInProgress.value = false
         }
@@ -366,14 +364,17 @@ class ContactsListFragment : AbstractMainFragment() {
 
         // Observe Loquace contacts
         listViewModel.loquaceContactsList.observe(viewLifecycleOwner) {
-            listViewModel.isContactsEmpty.value = it.isEmpty()
-            if (listViewModel.currentTab.value != ContactTab.PHONE) {
-                adapter.submitList(it)
-                if (binding.contactsList.adapter != adapter) {
-                    binding.contactsList.adapter = adapter
-                }
-                Log.i("$TAG Loquace contacts list updated with [${it.size}] items")
+            val tab = listViewModel.currentTab.value
+            if (tab != ContactTab.PBX && tab != ContactTab.USER) {
+                Log.d(TAG, "Loquace contacts update ignored, current tab is PHONE")
+                return@observe
             }
+            listViewModel.isContactsEmpty.value = it.isEmpty()
+            adapter.submitList(it)
+            if (binding.contactsList.adapter != adapter) {
+                binding.contactsList.adapter = adapter
+            }
+            Log.i("$TAG Loquace contacts list updated with [${it.size}] items")
         }
 
     }
@@ -581,6 +582,9 @@ class ContactsListFragment : AbstractMainFragment() {
         isLoadingMore = true
         listViewModel.fetchInProgress.value = true
 
+        // Capture the tab at call time
+        val calledForTab = listViewModel.currentTab.value
+
         viewLifecycleOwner.lifecycleScope.launch {
             val contacts = contactsRepository.fetchContacts(
                 domain    = domain,
@@ -588,20 +592,11 @@ class ContactsListFragment : AbstractMainFragment() {
                 userAgent = userAgent,
                 type      = type,
                 offset    = currentOffset,
-                query     = query        // pass query to repository
+                query     = query
             )
 
             if (contacts.isEmpty() || contacts.size < LoquaceConfig.CONTACTS_PAGE_SIZE) {
                 hasMoreContacts = false
-        /*        when (type) {
-                    LoquaceContactsRepository.TYPE_PBX -> listViewModel.pbxHasMore = false
-                    LoquaceContactsRepository.TYPE_USER -> listViewModel.userHasMore = false
-                }
-            }
-            // After updating list:
-            when (type) {
-                LoquaceContactsRepository.TYPE_PBX -> listViewModel.pbxOffset = currentOffset
-                LoquaceContactsRepository.TYPE_USER -> listViewModel.userOffset = currentOffset*/
             }
 
             val avatarPaths = mutableMapOf<String, String>()
@@ -628,31 +623,30 @@ class ContactsListFragment : AbstractMainFragment() {
                         friend.addPhoneNumber(phone.number)
                     }
 
-                    // Use pre-fetched avatar path
                     avatarPaths[contact.id]?.let {
                         friend.photo = FileUtils.getProperFilePath(it)
                     }
 
                     val model = coreContext.contactsManager.getContactAvatarModelForFriend(friend)
                     friends.add(model)
-
-                    // Store presence keyed by contact id
                     adapter.presenceMap[contact.id] = contact.presence?.status
                 }
 
                 coreContext.postOnMainThread {
+                    // Only post results if we're still on the same tab
+                    if (listViewModel.currentTab.value != calledForTab) {
+                        Log.d(TAG, "Tab changed during fetch, discarding results for $type")
+                        isLoadingMore = false
+                        listViewModel.fetchInProgress.value = false
+                        return@postOnMainThread
+                    }
+
                     val existing = listViewModel.loquaceContactsList.value ?: arrayListOf()
                     val newList = arrayListOf<ContactAvatarModel>()
                     newList.addAll(existing)
                     newList.addAll(friends)
                     listViewModel.loquaceContactsList.value = newList
-/*
-                    // Save to cache after every page
-                    when (type) {
-                        LoquaceContactsRepository.TYPE_PBX -> listViewModel.pbxContactsCache.value = newList
-                        LoquaceContactsRepository.TYPE_USER -> listViewModel.userContactsCache.value = newList
-                    }
-*/
+
                     currentOffset += contacts.size
                     isLoadingMore = false
                     listViewModel.fetchInProgress.value = false
