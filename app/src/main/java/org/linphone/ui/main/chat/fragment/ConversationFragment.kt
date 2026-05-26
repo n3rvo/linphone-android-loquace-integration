@@ -705,7 +705,7 @@ open class ConversationFragment : SlidingPaneChildFragment() {
                 try {
                     val publicUri = FileProvider.getUriForFile(
                         requireContext(),
-                        requireContext().getString(R.string.file_provider),
+                        requireContext().getString(R.string.file_provider_loquace),
                         file
                     )
                     pendingImageCaptureFile = file

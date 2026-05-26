@@ -223,7 +223,7 @@ class RecordingsListFragment : GenericMainFragment() {
         lifecycleScope.launch {
             val publicUri = FileProvider.getUriForFile(
                 requireContext(),
-                getString(R.string.file_provider),
+                getString(R.string.file_provider_loquace),
                 File(filePath)
             )
             Log.i(

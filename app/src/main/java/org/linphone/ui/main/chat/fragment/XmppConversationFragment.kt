@@ -314,7 +314,7 @@ class XmppConversationFragment : SlidingPaneChildFragment() {
         )
         cameraImageUri = FileProvider.getUriForFile(
             requireContext(),
-            requireContext().getString(R.string.file_provider),
+            requireContext().getString(R.string.file_provider_loquace),
             photoFile
         )
         cameraLauncher.launch(cameraImageUri!!)
@@ -327,7 +327,7 @@ class XmppConversationFragment : SlidingPaneChildFragment() {
         )
         cameraVideoUri = FileProvider.getUriForFile(
             requireContext(),
-            requireContext().getString(R.string.file_provider),
+            requireContext().getString(R.string.file_provider_loquace),
             videoFile
         )
         cameraVideoLauncher.launch(cameraVideoUri!!)
@@ -462,7 +462,7 @@ class XmppConversationFragment : SlidingPaneChildFragment() {
     private fun openFileDirectly(file: File, message: XmppMessage) {
         val uri = FileProvider.getUriForFile(
             requireContext(),
-            requireContext().getString(R.string.file_provider),
+            requireContext().getString(R.string.file_provider_loquace),
             file
         )
         val intent = Intent(Intent.ACTION_VIEW).apply {
@@ -494,7 +494,7 @@ class XmppConversationFragment : SlidingPaneChildFragment() {
 
                 val uri = FileProvider.getUriForFile(
                     requireContext(),
-                    requireContext().getString(R.string.file_provider),
+                    requireContext().getString(R.string.file_provider_loquace),
                     file
                 )
                 val mimeType = requireContext().contentResolver.getType(uri) ?: "*/*"

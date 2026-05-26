@@ -184,7 +184,7 @@ class FileViewerActivity : GenericActivity() {
             if (!copy.isNullOrEmpty()) {
                 val publicUri = FileProvider.getUriForFile(
                     baseContext,
-                    getString(R.string.file_provider),
+                    getString(R.string.file_provider_loquace),
                     File(copy)
                 )
                 Log.i("$TAG Public URI for file is [$publicUri], starting intent chooser")

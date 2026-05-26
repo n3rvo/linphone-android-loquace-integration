@@ -454,7 +454,7 @@ class ContactsListFragment : AbstractMainFragment() {
     private fun shareContact(name: String, file: File) {
         val publicUri = FileProvider.getUriForFile(
             requireContext(),
-            requireContext().getString(R.string.file_provider),
+            requireContext().getString(R.string.file_provider_loquace),
             file
         )
         Log.i("$TAG Public URI for vCard file is [$publicUri], starting intent chooser")

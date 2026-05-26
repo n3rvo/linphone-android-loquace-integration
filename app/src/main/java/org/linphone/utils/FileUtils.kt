@@ -200,7 +200,7 @@ class FileUtils {
                     val file = File(path.substring("file://".length))
                     contentUri = FileProvider.getUriForFile(
                         context,
-                        context.getString(R.string.file_provider),
+                        context.getString(R.string.file_provider_loquace),
                         file
                     )
                 }
@@ -212,13 +212,13 @@ class FileUtils {
                     contentUri = try {
                         FileProvider.getUriForFile(
                             context,
-                            context.getString(R.string.file_provider),
+                            context.getString(R.string.file_provider_loquace),
                             file
                         )
                     } catch (e: Exception) {
                         Log.e(
                             "$TAG Couldn't get URI for file [$file] using file provider ${context.getString(
-                                R.string.file_provider
+                                R.string.file_provider_loquace
                             )}: $e"
                         )
                         path.toUri()

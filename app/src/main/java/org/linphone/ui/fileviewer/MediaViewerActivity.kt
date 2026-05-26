@@ -255,7 +255,7 @@ class MediaViewerActivity : GenericActivity() {
                 if (!copy.isNullOrEmpty()) {
                     val publicUri = FileProvider.getUriForFile(
                         baseContext,
-                        getString(R.string.file_provider),
+                        getString(R.string.file_provider_loquace),
                         File(copy)
                     )
                     Log.i(
