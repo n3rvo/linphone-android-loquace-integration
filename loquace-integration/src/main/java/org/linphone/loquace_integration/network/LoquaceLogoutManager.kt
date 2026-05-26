@@ -29,30 +29,16 @@ object LoquaceLogoutManager {
 
         // 3. Clear Linphone config files
         try {
-            val linphoneRc = java.io.File(context.filesDir, ".linphonerc")
-            if (linphoneRc.exists()) {
-                linphoneRc.delete()
-                Log.d(TAG, "Linphone config deleted")
+            listOf(".linphonerc", "linphonerc").forEach { name ->
+                val file = java.io.File(context.filesDir, name)
+                if (file.exists()) file.delete()
             }
-            val linphoneRcFactory = java.io.File(context.filesDir, "linphonerc")
-            if (linphoneRcFactory.exists()) {
-                linphoneRcFactory.delete()
-                Log.d(TAG, "Linphone factory config deleted")
-            }
+            Log.d(TAG, "Linphone config deleted")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to delete Linphone config: ${e.message}")
         }
 
-        // 4. Clear DB conversations
-        try {
-            val db = LoquaceDatabase.getInstance(context)
-            db.xmppConversationDao().deleteAll()
-            Log.d(TAG, "Conversations cleared from DB")
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to clear DB: ${e.message}")
-        }
-
-        // 5. Clear avatar files
+        // 4. Clear avatar files
         try {
             context.filesDir.listFiles()?.forEach { file ->
                 if (file.name.startsWith("avatar_") || file.name == "my_avatar.jpg") {
@@ -64,10 +50,20 @@ object LoquaceLogoutManager {
             Log.e(TAG, "Failed to clear avatars: ${e.message}")
         }
 
-        // 6. Clear session last (token, domain, etc.)
+        // 5. Delete the whole DB
+        try {
+            LoquaceDatabase.INSTANCE?.close()
+            LoquaceDatabase.INSTANCE = null
+            context.deleteDatabase("loquace_db")
+            Log.d(TAG, "Database deleted")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to delete database: ${e.message}")
+        }
+
+        // 6. Clear session last
         val sessionManager = SessionManager(context)
         sessionManager.clearSession()
-        Log.d(TAG, "Session cleared")
+        Log.d(TAG, "Session cleared, token after clear: ${sessionManager.getToken()}")
 
         Log.d(TAG, "Logout complete")
     }

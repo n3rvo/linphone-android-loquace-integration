@@ -10,6 +10,7 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 import net.zetetic.database.sqlcipher.SQLiteDatabase
 import org.linphone.loquace_integration.storage.dao.*
 import org.linphone.loquace_integration.storage.entity.*
+import androidx.core.content.edit
 
 @Database(
     entities = [
@@ -69,24 +70,52 @@ abstract class LoquaceDatabase : RoomDatabase() {
             }
         }
 
-        @Volatile private var INSTANCE: LoquaceDatabase? = null
+        @Volatile var INSTANCE: LoquaceDatabase? = null
 
         fun getInstance(context: Context): LoquaceDatabase {
             return INSTANCE ?: synchronized(this) {
-                System.loadLibrary("sqlcipher")
+                INSTANCE ?: run {
+                    System.loadLibrary("sqlcipher")
 
-                val passphrase = getDatabaseKey(context).toByteArray(Charsets.UTF_8)
-                val factory = SupportOpenHelperFactory(passphrase)
+                    // Check if existing DB is valid before trying to open it
+                    val dbFile = context.getDatabasePath("loquace_db")
+                    if (dbFile.exists()) {
+                        val isValid = try {
+                            val key = getDatabaseKey(context)
+                            SQLiteDatabase.openDatabase(
+                                dbFile.absolutePath,
+                                key.toByteArray(Charsets.UTF_8),
+                                null,
+                                SQLiteDatabase.OPEN_READONLY,
+                                null,
+                                null
+                            ).also { it.close() }
+                            true
+                        } catch (e: Exception) {
+                            android.util.Log.e("LoquaceDatabase", "DB invalid, wiping: ${e.message}")
+                            false
+                        }
 
-                Room.databaseBuilder(
-                    context.applicationContext,
-                    LoquaceDatabase::class.java,
-                    "loquace_db"
-                )
-                    .openHelperFactory(factory)
-                    .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
-                    .build()
-                    .also { INSTANCE = it }
+                        if (!isValid) {
+                            android.util.Log.e("LoquaceDatabase", "Corrupted DB detected, scheduling full logout")
+                            context.getSharedPreferences("loquace_flags", Context.MODE_PRIVATE)
+                                .edit { putBoolean("needs_relogin", true) }
+                        }
+                    }
+
+                    val passphrase = getDatabaseKey(context).toByteArray(Charsets.UTF_8)
+                    val factory = SupportOpenHelperFactory(passphrase)
+
+                    Room.databaseBuilder(
+                        context.applicationContext,
+                        LoquaceDatabase::class.java,
+                        "loquace_db"
+                    )
+                        .openHelperFactory(factory)
+                        .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
+                        .build()
+                        .also { INSTANCE = it }
+                }
             }
         }
 

@@ -45,7 +45,7 @@
 
     <application
         android:name=".LinphoneApplication"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
@@ -140,7 +140,8 @@
 
         <activity
             android:name="org.linphone.loquace_integration.ui.LoquaceLoginActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:noHistory="true"/>
 
         <activity
             android:name=".ui.fileviewer.MediaViewerActivity"

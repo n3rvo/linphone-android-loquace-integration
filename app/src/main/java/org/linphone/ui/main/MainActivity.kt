@@ -22,6 +22,7 @@ package org.linphone.ui.main
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Dialog
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -77,6 +78,7 @@ import org.linphone.utils.Event
 import org.linphone.utils.FileUtils
 import org.linphone.utils.LinphoneUtils
 import androidx.core.content.edit
+import org.linphone.loquace_integration.network.LoquaceLogoutManager
 import org.linphone.loquace_integration.ui.LoquaceLoginActivity
 import org.linphone.loquace_integration.xmpp.LoquaceXmppManager
 import org.linphone.ui.assistant.AssistantActivity
@@ -155,6 +157,24 @@ class MainActivity : GenericActivity() {
         )
 
         super.onCreate(savedInstanceState)
+
+        // Check for DB corruption flag
+        val flags = getSharedPreferences("loquace_flags", Context.MODE_PRIVATE)
+        if (flags.getBoolean("needs_relogin", false)) {
+            flags.edit { putBoolean("needs_relogin", false) }
+            lifecycleScope.launch {
+                withContext(Dispatchers.IO) {
+                    LoquaceLogoutManager.logout(applicationContext)
+                }
+                val intent = Intent(
+                    this@MainActivity,
+                    org.linphone.loquace_integration.ui.LoquaceLoginActivity::class.java
+                ).apply {
+                    this.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                }
+                startActivity(intent)
+            }
+        }
 
         binding = DataBindingUtil.setContentView(this, R.layout.main_activity)
         binding.lifecycleOwner = this
@@ -433,6 +453,16 @@ class MainActivity : GenericActivity() {
     override fun onResume() {
         super.onResume()
 
+        // Check if user is still logged in
+        val sessionManager = org.linphone.loquace_integration.storage.SessionManager(this)
+        if (!sessionManager.isLoggedIn()) {
+            startActivityForResult(
+                Intent(this, org.linphone.loquace_integration.ui.LoquaceLoginActivity::class.java),
+                REQUEST_LOGIN
+            )
+            return
+        }
+
         viewModel.enableAccountMonitoring(true)
         viewModel.updateMissingPermissionAlert()
         viewModel.updateAccountsAndNetworkReachability()
@@ -602,6 +632,19 @@ class MainActivity : GenericActivity() {
     }
 
     private fun handleMainIntent(intent: Intent) {
+        val sessionManager = org.linphone.loquace_integration.storage.SessionManager(this)
+        if (!sessionManager.isLoggedIn()) {
+            try {
+                startActivityForResult(
+                    Intent(this, LoquaceLoginActivity::class.java),
+                    REQUEST_LOGIN
+                )
+            } catch (ise: IllegalStateException) {
+                Log.e("$TAG Can't start activity: $ise")
+            }
+            return
+        }
+
         coreContext.postOnCoreThread { core ->
             if (core.accountList.isEmpty()) {
                 coreContext.postOnMainThread {
