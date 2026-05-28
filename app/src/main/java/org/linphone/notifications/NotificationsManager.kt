@@ -1441,7 +1441,13 @@ class NotificationsManager
             getPerson(contact, LinphoneUtils.getDisplayName(remoteAddress))
         }
 
-        val isVideo = LinphoneUtils.isVideoEnabled(call)
+        val isVideo = if (isIncoming) {
+            false // FreeSWITCH always includes video in SDP, ignore it
+        } else {
+            LinphoneUtils.isVideoEnabled(call)
+        }
+
+        println("isIncoming=$isIncoming, isVideo=$isVideo, remoteParams.isVideoEnabled=${call.remoteParams?.isVideoEnabled}, videoDirection=${call.remoteParams?.videoDirection}")
 
         val smallIcon = if (isConference) {
             R.drawable.video_conference_notification

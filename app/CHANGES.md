@@ -85,23 +85,26 @@ override fun onStop() {
 
 ### Change: Check for DB corruption flag on startup
 Added after `super.onCreate()` — if `needs_relogin` flag is set,
-stops XMPP service, runs full logout and redirects to login:
+stops XMPP service, runs full logout and redirects to login.
+
+---
+
+## `app/src/main/java/org/linphone/notifications/NotificationsManager.kt`
+
+### Change: Hide video answer button for incoming audio calls
+FreeSWITCH always includes a video stream in SDP offers even for
+audio-only calls. Fixed by hardcoding `isVideo = false` for incoming
+calls so the video answer button never appears on incoming call
+notifications. Active calls still correctly reflect video state:
 ```kotlin
-val flags = getSharedPreferences("loquace_flags", Context.MODE_PRIVATE)
-if (flags.getBoolean("needs_relogin", false)) {
-    flags.edit { putBoolean("needs_relogin", false) }
-    isPerformingLogout = true
-    lifecycleScope.launch {
-        withContext(Dispatchers.IO) {
-            LoquaceLogoutManager.logout(applicationContext)
-        }
-        val intent = Intent(this@MainActivity, LoquaceLoginActivity::class.java).apply {
-            this.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        }
-        startActivity(intent)
-    }
+val isVideo = if (isIncoming) {
+    false // FreeSWITCH always includes video in SDP, ignore it for incoming
+} else {
+    LinphoneUtils.isVideoEnabled(call)
 }
 ```
+**Note:** Backend team confirmed video should only be available as an
+upgrade from an active audio call, not on the initial incoming notification.
 
 ---
 
@@ -124,7 +127,6 @@ Reverted to Linphone's original value.
 ```xml
 android:screenOrientation="portrait"
 ```
-Added to `<application>` tag to apply to all activities.
 
 ### Change: Register XMPP foreground service as specialUse
 ```xml
@@ -171,12 +173,23 @@ to avoid conflicts with installed Linphone app.
 ```xml
 <string name="file_provider_loquace">it.nems.loquacemobile.provider</string>
 ```
-Replaces the SDK-generated `file_provider` string to avoid FileProvider
-authority conflicts with Linphone when both apps are installed.
 
 ### Change: Add all other new string resources
-All Loquace-specific strings including drawer, settings, chat, permissions,
-about, notification, and logout confirmation strings.
+
+---
+
+## `app/src/main/java/org/linphone/utils/FileUtils.kt`
+## `app/src/main/java/org/linphone/ui/fileviewer/MediaViewerActivity.kt`
+## `app/src/main/java/org/linphone/ui/fileviewer/FileViewerActivity.kt`
+## `app/src/main/java/org/linphone/ui/main/recordings/fragment/RecordingsListFragment.kt`
+## `app/src/main/java/org/linphone/ui/main/recordings/fragment/RecordingMediaPlayerFragment.kt`
+## `app/src/main/java/org/linphone/ui/main/contacts/fragment/ContactFragment.kt`
+## `app/src/main/java/org/linphone/ui/main/contacts/fragment/ContactsListFragment.kt`
+## `app/src/main/java/org/linphone/ui/main/chat/fragment/ConversationFragment.kt`
+## `app/src/main/java/org/linphone/ui/main/chat/fragment/XmppConversationFragment.kt`
+
+### Change: Update FileProvider authority reference
+Changed all `R.string.file_provider` to `R.string.file_provider_loquace`.
 
 ---
 
@@ -185,8 +198,6 @@ about, notification, and logout confirmation strings.
 ### Change: Add LoquaceDialerFragment and navigation actions
 
 ### Change: Set startDestination to loquaceDialerFragment
-Avoids race conditions on first install by landing on a tab that
-requires no API calls to render.
 
 ---
 
@@ -213,9 +224,6 @@ requires no API calls to render.
 ### Change: Add dialer navigation, initViews overload, tab selection state
 
 ### Change: Add presence ring update for top bar avatar
-Stores `MainActivityTopBarBinding` reference in `initViews()`, observes
-`LoquaceDrawerMenuViewModel.presenceStatus` and updates the presence ring
-on the top bar avatar via `ring.setLoquacePresenceRing(status)`.
 
 ---
 
@@ -236,10 +244,8 @@ on the top bar avatar via `ring.setLoquacePresenceRing(status)`.
 ### Change: Replace Linphone call history with Loquace API call history
 
 ### Change: Guard against empty token on first install
-`resetAndLoadCalls()` exits early if `domain` or `token` are empty.
 
 ### Change: Add try-catch to loadMoreCalls
-Ensures `fetchInProgress` always resets to false even on API failure.
 
 ---
 
@@ -276,27 +282,12 @@ Ensures `fetchInProgress` always resets to false even on API failure.
 ## `app/src/main/res/layout/main_drawer_menu.xml`
 
 ### Change: Replace Linphone drawer with Loquace custom drawer
-- Original Linphone header and account list preserved
-- Incoming Calls accordion (Mobile/Browser/Phone switches with icons)
-- Presence accordion (status spinner with colors + message input)
-- Settings, About, Language rows
-- Logout button wired to `LoquaceLogoutManager` with confirmation dialog
-- Rounded right corners via `drawer_background.xml`
-- Accordion panels toggle with caret animation
 
 ---
 
 ## `app/src/main/java/org/linphone/ui/main/fragment/DrawerMenuFragment.kt`
 
 ### Change: Wire up Loquace drawer sections
-- Added `LoquaceDrawerMenuViewModel`
-- Fetch data on drawer open
-- Accordion toggles with caret animation
-- Presence spinner with colored text per status
-- Submit buttons for calls and presence
-- Logout button wired to `LoquaceLogoutManager.logout()` with confirmation dialog
-- Navigates to login with `FLAG_ACTIVITY_NEW_TASK or FLAG_ACTIVITY_CLEAR_TASK`
-- Observes `presenceStatus` to update presence ring on drawer account avatar
 
 ---
 
@@ -339,8 +330,6 @@ Ensures `fetchInProgress` always resets to false even on API failure.
 ## `app/src/main/res/layout/contact_avatar.xml`
 
 ### Change: Add Loquace presence ring
-- Added `loquacePresence` variable of type `String`
-- Added `presence_ring` ImageView overlaying the avatar
 
 ---
 
@@ -361,49 +350,12 @@ Ensures `fetchInProgress` always resets to false even on API failure.
 ### Change: Populate presence map when loading contacts
 
 ### Change: Fix race condition between contact tabs
-- `listViewModel.contactsList` observer strictly checks for `ContactTab.PHONE`
-- `listViewModel.loquaceContactsList` observer checks for `ContactTab.PBX`
-  or `ContactTab.USER` only
-- `loadMoreContacts()` captures `calledForTab` at call time and discards
-  results if tab has changed
 
 ---
 
 ## `app/src/main/java/org/linphone/utils/DataBindingUtils.kt`
 
 ### Change: Add loquacePresence binding adapter
-```kotlin
-@BindingAdapter("loquacePresence")
-fun ImageView.setLoquacePresenceRing(status: String?) {
-    if (status.isNullOrEmpty()) {
-        visibility = View.GONE
-        return
-    }
-    val drawable = when (status.uppercase()) {
-        "ONLINE" -> R.drawable.presence_ring_online
-        "AWAY"   -> R.drawable.presence_ring_away
-        "BUSY"   -> R.drawable.presence_ring_busy
-        else     -> R.drawable.presence_ring_offline
-    }
-    setImageResource(drawable)
-    visibility = View.VISIBLE
-}
-```
-
----
-
-## `app/src/main/java/org/linphone/utils/FileUtils.kt`
-## `app/src/main/java/org/linphone/ui/fileviewer/MediaViewerActivity.kt`
-## `app/src/main/java/org/linphone/ui/fileviewer/FileViewerActivity.kt`
-## `app/src/main/java/org/linphone/ui/main/recordings/fragment/RecordingsListFragment.kt`
-## `app/src/main/java/org/linphone/ui/main/recordings/fragment/RecordingMediaPlayerFragment.kt`
-## `app/src/main/java/org/linphone/ui/main/contacts/fragment/ContactFragment.kt`
-## `app/src/main/java/org/linphone/ui/main/contacts/fragment/ContactsListFragment.kt`
-## `app/src/main/java/org/linphone/ui/main/chat/fragment/ConversationFragment.kt`
-
-### Change: Update FileProvider authority reference
-Changed all `R.string.file_provider` references to
-`R.string.file_provider_loquace` to match the new authority string.
 
 ---
 
@@ -467,26 +419,14 @@ Also untracked via: `git rm --cached app/google-services.json`
 ### `app/src/main/java/org/linphone/ui/main/chat/viewmodel/XmppConversationsListViewModel.kt` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/chat/viewmodel/XmppConversationViewModel.kt` *(NEW)*
 ### `app/src/main/res/layout/loquace_chat_conversation_fragment.xml` *(MODIFIED)*
-
-### Change: Add avatar and presence ring to conversation header
-
 ### `app/src/main/java/org/linphone/ui/main/chat/adapter/XmppMessagesAdapter.kt` *(NEW)*
 ### `app/src/main/res/layout/loquace_chat_bubble_incoming.xml` *(NEW)*
 ### `app/src/main/res/layout/loquace_chat_bubble_outgoing.xml` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/chat/LoquaceVoiceRecorder.kt` *(NEW)*
 ### `app/src/main/res/layout/loquace_group_details_bottom_sheet.xml` *(NEW)*
 ### `app/src/main/res/layout/loquace_group_member_cell.xml` *(MODIFIED)*
-
-### Change: Add presence ring to group member cell
-
 ### `app/src/main/java/org/linphone/ui/main/chat/adapter/GroupMembersAdapter.kt` *(MODIFIED)*
-
-### Change: Add presence support and circular avatar clipping
-
 ### `app/src/main/java/org/linphone/ui/main/chat/fragment/XmppGroupDetailsBottomSheet.kt` *(MODIFIED)*
-
-### Change: Fetch and display presence for group members
-
 ### `app/src/main/java/org/linphone/ui/main/history/model/LoquaceCallLogModel.kt` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/viewmodel/LoquaceDrawerMenuViewModel.kt` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/help/fragment/LoquaceAboutFragment.kt` *(NEW)*
@@ -510,7 +450,6 @@ in a future Linphone SDK `5.5.x` patch.
 - Language selection implementation
 - Video upload optimization
 - In-app media viewer
-- Remove video answer button from incoming call notification
 
 ---
 
@@ -524,25 +463,34 @@ Entirely new module — no merge conflicts expected here.
     - Removes SIP account from Linphone Core
     - Deletes Linphone config files
     - Clears avatar files
-    - Closes and deletes entire DB via `LoquaceDatabase.INSTANCE?.close()`
-      and `context.deleteDatabase("loquace_db")`
+    - Closes and deletes entire DB
     - Clears session last
 - `storage/LoquaceDatabase.kt` *(MODIFIED)*:
     - `INSTANCE` changed to `@Volatile var` for external access
     - Added DB validity check in `getInstance()` before building Room instance
     - If DB is invalid, sets `needs_relogin` flag in plain `SharedPreferences`
-      and proceeds with fresh DB creation
 - `storage/SessionManager.kt` — `clearSession()` clears all stored data
 - `sip/LoquaceSipConfigurator.kt` — `pushNotificationAllowed = true`,
   `remotePushNotificationAllowed = true`
 - `ui/LoquaceLoginActivity.kt` *(MODIFIED)*:
-    - Added `OnBackPressedCallback` to call `moveTaskToBack(true)` instead
-      of navigating back to app skeleton
+    - Added `OnBackPressedCallback` calling `moveTaskToBack(true)` to
+      prevent navigating back to app skeleton when launched on startup
 - `ui/activity_login.xml` — redesigned login screen
 - `xmpp/LoquaceXmppManager.kt` — `logout()` clears all XMPP state
 - `xmpp/XmppConnectionService.kt` — `specialUse` foreground service type
 - `xmpp/XmppMessage.kt`, `xmpp/XmppHttpUploadManager.kt`,
   `xmpp/AttachmentType.kt`
+
+**New drawables in `loquace-integration`:**
+- `loquace_logo.xml` — brand logo vector
+- `login_circle_bg.xml` — decorative circle for login background
+- `login_card_background.xml` — white card with rounded top corners
+
+**New colors in `loquace-integration`:**
+- `login_primary` — `#183a42`
+- `login_primary_dark` — `#0F262C`
+- `login_label` — `#666666`
+- `login_error` — `#D32F2F`
 
 **Dependencies added to `loquace-integration`:**
 - `retrofit2:retrofit`, `retrofit2:converter-gson`
