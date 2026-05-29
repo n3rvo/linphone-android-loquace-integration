@@ -67,6 +67,7 @@ class ContactViewModel
 
     val sipAddressesAndPhoneNumbers = MutableLiveData<ArrayList<ContactNumberOrAddressModel>>()
     val atLeastOneSipAddressOrPhoneNumber = MediatorLiveData<Boolean>()
+    val loquacePresence = MutableLiveData<String?>(null)
 
     val devices = MutableLiveData<ArrayList<ContactDeviceModel>>()
 

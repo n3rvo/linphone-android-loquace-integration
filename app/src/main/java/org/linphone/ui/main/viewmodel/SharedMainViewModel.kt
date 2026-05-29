@@ -197,4 +197,6 @@ class SharedMainViewModel
     val listOfSelectedSipUrisEvent: MutableLiveData<Event<ArrayList<String>>> by lazy {
         MutableLiveData()
     }
+
+    var displayedContactPresence: String? = null
 }

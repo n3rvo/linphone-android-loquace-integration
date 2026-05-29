@@ -446,6 +446,7 @@ class ContactsListFragment : AbstractMainFragment() {
         adapter.contactClickedEvent.observe(viewLifecycleOwner) {
             it.consume { model ->
                 sharedViewModel.displayedFriend = model.friend
+                sharedViewModel.displayedContactPresence = adapter.presenceMap[model.id]
                 sharedViewModel.showContactEvent.value = Event(model.id)
             }
         }

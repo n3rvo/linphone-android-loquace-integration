@@ -102,6 +102,8 @@ class ContactFragment : SlidingPaneChildFragment() {
         Log.i("$TAG Looking up for contact with ref key [$refKey]")
         viewModel.findContact(sharedViewModel.displayedFriend, refKey)
 
+        viewModel.loquacePresence.value = sharedViewModel.displayedContactPresence
+
         binding.setBackClickListener {
             goBack()
         }

@@ -42,6 +42,7 @@ import androidx.appcompat.widget.AppCompatEditText
 import androidx.appcompat.widget.AppCompatTextView
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintSet
+import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -179,6 +180,17 @@ fun ImageView.setLoquacePresenceRing(status: String?) {
     }
     setImageResource(drawable)
     visibility = View.VISIBLE
+}
+
+@BindingAdapter("loquacePresenceTextColor")
+fun AppCompatTextView.setLoquacePresenceTextColor(status: String?) {
+    val color = when (status?.uppercase()) {
+        "ONLINE" -> ContextCompat.getColor(context, R.color.green_success_500)
+        "BUSY"   -> ContextCompat.getColor(context, R.color.red_danger_500)
+        "AWAY"   -> ContextCompat.getColor(context, R.color.orange_warning_600)
+        else     -> ContextCompat.getColor(context, R.color.gray_main2_400)
+    }
+    setTextColor(color)
 }
 
 @UiThread
