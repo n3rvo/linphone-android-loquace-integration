@@ -16,6 +16,7 @@ import org.linphone.R
 import org.linphone.loquace_integration.network.LoquaceGroupsRepository
 import org.linphone.loquace_integration.network.LoquaceMediaDownloader
 import org.linphone.loquace_integration.storage.SessionManager
+import org.linphone.loquace_integration.xmpp.LoquaceXmppManager
 
 class XmppConversationModel
 @WorkerThread
@@ -73,6 +74,7 @@ constructor(
                     val name = contact.fullName
                         ?: "${contact.firstName} ${contact.lastName}".trim()
                     displayName.postValue(name)
+                    LoquaceXmppManager.updateConversationDisplayName(conversation.peerJid, name)
                     friend.name = name
 
                     // Download avatar
@@ -108,9 +110,9 @@ constructor(
                     val groups = LoquaceGroupsRepository().getGroups(domain, token, userAgent)
                     val group = groups.firstOrNull { it.jid == conversation.peerJid } ?: return@launch
                     displayName.postValue(group.name)
+                    LoquaceXmppManager.updateConversationDisplayName(conversation.peerJid, group.name)
+                }
             }
-        }
-
             model
         }
     }

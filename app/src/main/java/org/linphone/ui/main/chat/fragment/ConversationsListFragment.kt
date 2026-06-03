@@ -84,6 +84,8 @@ class ConversationsListFragment : AbstractMainFragment() {
 
     private var bottomSheetDialog: BottomSheetDialogFragment? = null
 
+    private var contactsSearchJob: kotlinx.coroutines.Job? = null
+
     private var pendingGroupName: String = ""
 
     private var selectedParticipants = mutableListOf<ContactResponse>()
@@ -249,6 +251,45 @@ class ConversationsListFragment : AbstractMainFragment() {
             }
         }
 
+        // Wire up search
+        binding.chatSearchInput?.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val query = s?.toString().orEmpty()
+                xmppViewModel.searchQuery.value = query
+
+                when (xmppViewModel.currentTab.value) {
+                    XmppConversationsListViewModel.ChatTab.CHATS -> {
+                        xmppViewModel.applyConversationFilter(query)
+                    }
+
+                    XmppConversationsListViewModel.ChatTab.CONTACTS -> {
+                        // Debounce API call
+                        contactsSearchJob?.cancel()
+                        contactsSearchJob = viewLifecycleOwner.lifecycleScope.launch {
+                            kotlinx.coroutines.delay(300)
+                            val sessionManager = SessionManager(requireContext())
+                            val domain = sessionManager.getDomain() ?: ""
+                            val token = sessionManager.getToken() ?: ""
+                            val userAgent = buildUserAgent(requireContext())
+                            xmppViewModel.loadContacts(
+                                domain, token, userAgent,
+                                requireContext().filesDir,
+                                query
+                            )
+                        }
+                    }
+
+                    XmppConversationsListViewModel.ChatTab.GROUPS -> {
+                        xmppViewModel.applyGroupFilter(query)
+                    }
+
+                    else -> {}
+                }
+            }
+        })
+
         binding.newGroup?.setOnClickListener {
             showCreateGroupDialog()
         }
@@ -383,21 +424,25 @@ class ConversationsListFragment : AbstractMainFragment() {
 
         tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
+                binding.chatSearchInput?.setText("")
+                val query = binding.chatSearchInput?.text?.toString().orEmpty()
                 when (tab?.position) {
                     0 -> {
                         xmppViewModel.switchTab(XmppConversationsListViewModel.ChatTab.CHATS)
                         binding.newGroup?.visibility = View.GONE
+                        xmppViewModel.applyConversationFilter(query)
                         showChatsTab()
                     }
                     1 -> {
                         xmppViewModel.switchTab(XmppConversationsListViewModel.ChatTab.CONTACTS)
                         binding.newGroup?.visibility = View.GONE
-                        showContactsTab()
+                        showContactsTab(query)
                     }
                     2 -> {
                         xmppViewModel.switchTab(XmppConversationsListViewModel.ChatTab.GROUPS)
                         binding.newGroup?.visibility = View.VISIBLE
                         showGroupsTab()
+                        xmppViewModel.applyGroupFilter(query)
                     }
                 }
             }
@@ -417,6 +462,7 @@ class ConversationsListFragment : AbstractMainFragment() {
 
         xmppAdapter.conversationClickedEvent.observe(viewLifecycleOwner) {
             it.consume { model ->
+                binding.chatSearchInput?.setText("")
                 Log.i("$TAG Opening XMPP conversation with ${model.id}")
                 try {
                     val bundle = Bundle().apply {
@@ -495,6 +541,8 @@ class ConversationsListFragment : AbstractMainFragment() {
     override fun onPause() {
         super.onPause()
 
+        binding.chatSearchInput?.setText("")
+
         bottomSheetDialog?.dismiss()
         bottomSheetDialog = null
 
@@ -527,22 +575,16 @@ class ConversationsListFragment : AbstractMainFragment() {
         xmppAdapter.submitList(xmppViewModel.conversations.value ?: emptyList())
     }
 
-    private fun showContactsTab() {
+    private fun showContactsTab(query: String = "") {
         binding.conversationsList.adapter = xmppAdapter
         Log.d("XmppContacts", "showContactsTab called")
-
-        /*if (!xmppViewModel.contacts.value.isNullOrEmpty()) {
-            xmppAdapter.submitList(xmppViewModel.contacts.value)
-            return
-        }*/
 
         val sessionManager = SessionManager(requireContext())
         val domain = sessionManager.getDomain() ?: ""
         val token = sessionManager.getToken() ?: ""
         val userAgent = buildUserAgent(requireContext())
 
-        Log.d("XmppContacts", "About to call loadContacts, domain=$domain")
-        xmppViewModel.loadContacts(domain, token, userAgent, requireContext().filesDir)
+        xmppViewModel.loadContacts(domain, token, userAgent, requireContext().filesDir, query)
 
         xmppViewModel.contacts.observe(viewLifecycleOwner) { models ->
             if (xmppViewModel.currentTab.value == XmppConversationsListViewModel.ChatTab.CONTACTS) {

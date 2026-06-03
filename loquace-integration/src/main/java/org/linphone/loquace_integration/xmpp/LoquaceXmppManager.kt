@@ -370,7 +370,8 @@ object LoquaceXmppManager {
                         lastMessage   = entity.lastMessage,
                         lastTimestamp = entity.lastTimestamp,
                         unreadCount   = entity.unreadCount,
-                        isGroup       = entity.isGroup
+                        isGroup       = entity.isGroup,
+                        displayName   = entity.displayName
                     )
                 }
                 Log.d(TAG, "Loaded ${entities.size} conversations from DB")
@@ -835,6 +836,32 @@ object LoquaceXmppManager {
             Log.d(TAG, "Marked conversation $peerJid as read")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to mark conversation as read: ${e.message}")
+        }
+    }
+
+    fun updateConversationDisplayName(peerJid: String, displayName: String) {
+        scope.launch {
+            val currentList = _conversations.value.toMutableList()
+            val existing = currentList.find { it.peerJid == peerJid } ?: return@launch
+            val updated = existing.copy(displayName = displayName)
+            currentList[currentList.indexOf(existing)] = updated
+            _conversations.value = currentList
+
+            try {
+                val db = LoquaceDatabase.getInstance(appContext)
+                db.xmppConversationDao().upsert(
+                    XmppConversationEntity(
+                        peerJid       = updated.peerJid,
+                        lastMessage   = updated.lastMessage,
+                        lastTimestamp = updated.lastTimestamp,
+                        unreadCount   = updated.unreadCount,
+                        isGroup       = updated.isGroup,
+                        displayName   = updated.displayName
+                    )
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to update display name: ${e.message}")
+            }
         }
     }
 }

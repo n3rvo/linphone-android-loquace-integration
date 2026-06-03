@@ -21,7 +21,7 @@ import androidx.core.content.edit
         PresenceEntity::class,
         XmppConversationEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class LoquaceDatabase : RoomDatabase() {
@@ -70,6 +70,14 @@ abstract class LoquaceDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "ALTER TABLE xmpp_conversations ADD COLUMN displayName TEXT"
+                )
+            }
+        }
+
         @Volatile var INSTANCE: LoquaceDatabase? = null
 
         fun getInstance(context: Context): LoquaceDatabase {
@@ -112,7 +120,7 @@ abstract class LoquaceDatabase : RoomDatabase() {
                         "loquace_db"
                     )
                         .openHelperFactory(factory)
-                        .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
+                        .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                         .build()
                         .also { INSTANCE = it }
                 }

@@ -43,14 +43,24 @@ constructor() : AbstractMainViewModel() {
     val groups = MutableLiveData<List<XmppConversationModel>>()
     val isFetchingGroups = MutableLiveData<Boolean>(false)
 
+    val searchQuery = MutableLiveData<String>("")
+
+    // Store full unfiltered lists
+    private var fullGroupList = listOf<XmppConversationModel>()
+
     init {
         viewModelScope.launch {
             LoquaceXmppManager.conversations.collectLatest { xmppConversations ->
                 Log.d(TAG, "Conversations updated: ${xmppConversations.size} items")
                 coreContext.postOnCoreThread {
                     val models = xmppConversations.map { XmppConversationModel(it) }
-                    conversations.postValue(models)
-                    isListEmpty.postValue(models.isEmpty())
+                    val query = searchQuery.value.orEmpty()
+                    val filtered = if (query.isEmpty()) models
+                    else models.filter {
+                        it.displayName.value?.contains(query, ignoreCase = true) == true
+                    }
+                    conversations.postValue(filtered)
+                    isListEmpty.postValue(filtered.isEmpty())
                 }
             }
         }
@@ -69,11 +79,12 @@ constructor() : AbstractMainViewModel() {
     @UiThread
     override fun filter() {}
 
-    fun loadContacts(domain: String, token: String, userAgent: String, filesDir: File) {
+    fun loadContacts(domain: String, token: String, userAgent: String, filesDir: File, query: String = "") {
         if (isFetchingContacts.value == true) return
 
         viewModelScope.launch {
             isFetchingContacts.value = true
+            contacts.postValue(emptyList()) // Clear existing results before new search
             val repository = LoquaceGroupsRepository()
             var offset = 0
             val allModels = arrayListOf<XmppConversationModel>()
@@ -83,7 +94,8 @@ constructor() : AbstractMainViewModel() {
                     domain    = domain,
                     token     = token,
                     userAgent = userAgent,
-                    offset    = offset
+                    offset    = offset,
+                    query     = query
                 )
                 if (page.isEmpty()) break
 
@@ -160,9 +172,37 @@ constructor() : AbstractMainViewModel() {
                         displayName = MutableLiveData(group.name)
                     )
                 }
-                groups.postValue(models)
+
+                fullGroupList = models
+                applyGroupFilter(searchQuery.value.orEmpty())
                 isFetchingGroups.postValue(false)
             }
         }
+    }
+
+    fun applyConversationFilter(query: String) {
+        viewModelScope.launch {
+            val all = LoquaceXmppManager.conversations.value
+            coreContext.postOnCoreThread {
+                val models = all.map { XmppConversationModel(it) }
+                val filtered = if (query.isEmpty()) models
+                else models.filter { model ->
+                    val name = model.conversation.displayName
+                        ?: model.displayName.value
+                        ?: model.conversation.peerJid
+                    name.contains(query, ignoreCase = true)
+                }
+                conversations.postValue(filtered)
+                isListEmpty.postValue(filtered.isEmpty())
+            }
+        }
+    }
+
+    fun applyGroupFilter(query: String) {
+        val filtered = if (query.isEmpty()) fullGroupList
+        else fullGroupList.filter {
+            it.displayName.value?.contains(query, ignoreCase = true) == true
+        }
+        groups.postValue(filtered)
     }
 }

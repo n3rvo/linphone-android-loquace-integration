@@ -8,29 +8,15 @@ When merging from upstream `release/6.2`, recheck and reapply these changes.
 ## `app/src/main/java/org/linphone/LinphoneApplication.kt`
 
 ### Change: Initialize LoquaceCoreProvider after Core starts
-```kotlin
-coreContext = CoreContext(context)
-coreContext.start()
-LoquaceCoreProvider.init { coreContext.core }
-LoquaceXmppManager.init(this)
-```
-
 ### Change: App-wide block on Night Mode
-```kotlin
-AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
-```
 
 ---
 
 ## `app/src/main/java/org/linphone/ui/main/MainActivity.kt`
 
 ### Change: Replace first launch welcome screen with Loquace login
-**Location:** `handleMainIntent()`
-
 ### Change: Add session check in onResume
-
 ### Change: Add XMPP reconnection on app foreground/background
-
 ### Change: Check for DB corruption flag on startup
 
 ---
@@ -51,9 +37,7 @@ val isVideo = if (isIncoming) {
 ## `app/src/main/java/org/linphone/ui/main/contacts/viewmodel/ContactViewModel.kt`
 
 ### Change: Add loquacePresence LiveData
-```kotlin
-val loquacePresence = MutableLiveData<String?>(null)
-```
+### Change: Set loquacePresence from SharedMainViewModel in ContactFragment
 
 ---
 
@@ -69,18 +53,7 @@ var displayedContactPresence: String? = null
 ## `app/src/main/java/org/linphone/ui/main/contacts/fragment/ContactsListFragment.kt`
 
 ### Change: Pass presence to SharedMainViewModel on contact click
-```kotlin
-adapter.contactClickedEvent.observe(viewLifecycleOwner) {
-    it.consume { model ->
-        sharedViewModel.displayedFriend = model.friend
-        sharedViewModel.displayedContactPresence = adapter.presenceMap[model.id]
-        sharedViewModel.showContactEvent.value = Event(model.id)
-    }
-}
-```
-
 ### Change: Populate presence map when loading contacts
-
 ### Change: Fix race condition between contact tabs
 
 ---
@@ -88,99 +61,65 @@ adapter.contactClickedEvent.observe(viewLifecycleOwner) {
 ## `app/src/main/java/org/linphone/ui/main/contacts/fragment/ContactFragment.kt`
 
 ### Change: Set loquacePresence from SharedMainViewModel
-```kotlin
-viewModel.findContact(sharedViewModel.displayedFriend, refKey)
-viewModel.loquacePresence.value = sharedViewModel.displayedContactPresence
-```
 
 ---
 
 ## `app/src/main/res/layout/contact_fragment.xml`
 
-### Change: Hide video call and chat buttons
-Set `android:visibility="gone"` permanently on `video_call`,
-`video_call_label`, `chat` and `chat_label`.
+### Change: Hide video call and chat buttons permanently
+### Change: Update status text to use Loquace presence with color binding adapter
 
-### Change: Update status text to use Loquace presence
-- Visibility bound to `viewModel.loquacePresence != null`
-- Text bound to `viewModel.loquacePresence`
-- Color set via `app:loquacePresenceTextColor` binding adapter
-- Style changed to `default_text_style_700` for bold text
+---
+
+## `app/src/main/res/layout/chat_list_fragment.xml`
+
+### Change: Add search bar above tab layout
+Added `TextInputLayout` with search icon above `chat_tab_layout` inside
+`content_panel`, matching the style of the contacts search bar.
+
+---
+
+## `app/src/main/java/org/linphone/ui/main/chat/fragment/ConversationsListFragment.kt`
+
+### Change: Wire up chat search bar
+- `TextWatcher` on search input triggers per-tab search logic
+- Chats tab: client-side filter via `applyConversationFilter()`
+- Contacts tab: debounced API call (300ms) via `loadContacts()` with query
+- Groups tab: client-side filter via `applyGroupFilter()`
+- Search cleared on tab change, conversation open and `onPause()`
+- Tab switch reapplies current query to new tab
+
+---
+
+## `app/src/main/java/org/linphone/ui/main/chat/viewmodel/XmppConversationsListViewModel.kt`
+
+### Change: Add search support
+- Added `searchQuery: MutableLiveData<String>`
+- Added `fullGroupList` private backing field for unfiltered groups
+- Added `applyConversationFilter(query)` — filters from
+  `LoquaceXmppManager.conversations` StateFlow using
+  `conversation.displayName` with fallback to `peerJid`
+- Added `applyGroupFilter(query)` — filters from `fullGroupList`
+- `init` block applies current query when conversations update
+- `loadGroups()` stores full list in `fullGroupList` before filtering
+- `loadContacts()` accepts `query` parameter, clears list before
+  new search results arrive
+
+---
+
+## `app/src/main/java/org/linphone/ui/main/chat/model/XmppConversationModel.kt`
+
+### Change: Call updateConversationDisplayName after resolving display name
+After lazy-fetching contact or group name, calls
+`LoquaceXmppManager.updateConversationDisplayName()` to persist the
+resolved name so it's available for filtering immediately on next launch.
 
 ---
 
 ## `app/src/main/java/org/linphone/utils/DataBindingUtils.kt`
 
 ### Change: Add loquacePresence binding adapter
-```kotlin
-@BindingAdapter("loquacePresence")
-fun ImageView.setLoquacePresenceRing(status: String?) { ... }
-```
-
 ### Change: Add loquacePresenceTextColor binding adapter
-```kotlin
-@BindingAdapter("loquacePresenceTextColor")
-fun AppCompatTextView.setLoquacePresenceTextColor(status: String?) {
-    val color = when (status?.uppercase()) {
-        "ONLINE" -> ContextCompat.getColor(context, R.color.green_success_500)
-        "BUSY"   -> ContextCompat.getColor(context, R.color.red_danger_500)
-        "AWAY"   -> ContextCompat.getColor(context, R.color.orange_warning_600)
-        else     -> ContextCompat.getColor(context, R.color.gray_main2_400)
-    }
-    setTextColor(color)
-}
-```
-
----
-
-## `app/src/main/AndroidManifest.xml`
-
-### Change: Disable Auto Backup
-```xml
-android:allowBackup="false"
-```
-
-### Change: Re-enable predictive back gesture
-```xml
-android:enableOnBackInvokedCallback="true"
-```
-
-### Change: Lock app to portrait orientation
-```xml
-android:screenOrientation="portrait"
-```
-
-### Change: Register XMPP foreground service as specialUse
-### Change: Replace Linphone's Firebase service with Loquace's
-### Change: Update LoquaceLoginActivity declaration
-### Change: Update FileProvider authority
-### Change: Remove duplicate FileProvider
-
----
-
-## `app/src/main/res/values/strings.xml`
-
-### Change: Add file_provider_loquace string
-```xml
-<string name="file_provider_loquace">it.nems.loquacemobile.provider</string>
-```
-
-### Change: Add all other new string resources
-
----
-
-## `app/src/main/java/org/linphone/utils/FileUtils.kt`
-## `app/src/main/java/org/linphone/ui/fileviewer/MediaViewerActivity.kt`
-## `app/src/main/java/org/linphone/ui/fileviewer/FileViewerActivity.kt`
-## `app/src/main/java/org/linphone/ui/main/recordings/fragment/RecordingsListFragment.kt`
-## `app/src/main/java/org/linphone/ui/main/recordings/fragment/RecordingMediaPlayerFragment.kt`
-## `app/src/main/java/org/linphone/ui/main/contacts/fragment/ContactFragment.kt`
-## `app/src/main/java/org/linphone/ui/main/contacts/fragment/ContactsListFragment.kt`
-## `app/src/main/java/org/linphone/ui/main/chat/fragment/ConversationFragment.kt`
-## `app/src/main/java/org/linphone/ui/main/chat/fragment/XmppConversationFragment.kt`
-
-### Change: Update FileProvider authority reference
-Changed all `R.string.file_provider` to `R.string.file_provider_loquace`.
 
 ---
 
@@ -211,7 +150,7 @@ Changed all `R.string.file_provider` to `R.string.file_provider_loquace`.
 
 ## `app/src/main/res/navigation/main_nav_graph.xml`
 
-### Change: Add LoquaceDialerFragment and set startDestination
+### Change: Add LoquaceDialerFragment, set startDestination to dialer
 
 ---
 
@@ -338,6 +277,39 @@ Changed all `R.string.file_provider` to `R.string.file_provider_loquace`.
 
 ---
 
+## `app/src/main/AndroidManifest.xml`
+
+### Change: Disable Auto Backup
+### Change: Re-enable predictive back gesture
+### Change: Lock app to portrait orientation
+### Change: Register XMPP foreground service as specialUse
+### Change: Replace Linphone's Firebase service with Loquace's
+### Change: Update LoquaceLoginActivity declaration
+### Change: Update FileProvider authority
+### Change: Remove duplicate FileProvider
+
+---
+
+## `app/src/main/res/values/strings.xml`
+
+### Change: Add file_provider_loquace string and all other new strings
+
+---
+
+## `app/src/main/java/org/linphone/utils/FileUtils.kt`
+## `app/src/main/java/org/linphone/ui/fileviewer/MediaViewerActivity.kt`
+## `app/src/main/java/org/linphone/ui/fileviewer/FileViewerActivity.kt`
+## `app/src/main/java/org/linphone/ui/main/recordings/fragment/RecordingsListFragment.kt`
+## `app/src/main/java/org/linphone/ui/main/recordings/fragment/RecordingMediaPlayerFragment.kt`
+## `app/src/main/java/org/linphone/ui/main/contacts/fragment/ContactFragment.kt`
+## `app/src/main/java/org/linphone/ui/main/contacts/fragment/ContactsListFragment.kt`
+## `app/src/main/java/org/linphone/ui/main/chat/fragment/ConversationFragment.kt`
+## `app/src/main/java/org/linphone/ui/main/chat/fragment/XmppConversationFragment.kt`
+
+### Change: Update FileProvider authority reference
+
+---
+
 ## `app/build.gradle.kts`
 
 ### Change: Add Gson dependency and update applicationId
@@ -347,8 +319,6 @@ Changed all `R.string.file_provider` to `R.string.file_provider_loquace`.
 ## `.gitignore`
 
 ### Change: Exclude google-services.json from version control
-File added to .gitignore: `google-services.json`
-Also untracked via: `git rm --cached app/google-services.json`
 
 ---
 
@@ -391,45 +361,28 @@ Also untracked via: `git rm --cached app/google-services.json`
 ### `app/src/main/java/org/linphone/ui/main/chat/LoquaceVoiceRecorder.kt` *(NEW)*
 ### `app/src/main/res/layout/loquace_group_details_bottom_sheet.xml` *(NEW)*
 ### `app/src/main/res/layout/loquace_group_member_cell.xml` *(MODIFIED)*
-
-### Change: Add presence ring to group member cell
-
 ### `app/src/main/java/org/linphone/ui/main/chat/adapter/GroupMembersAdapter.kt` *(MODIFIED)*
-
-### Change: Add presence support and circular avatar clipping
-
 ### `app/src/main/java/org/linphone/ui/main/chat/fragment/XmppGroupDetailsBottomSheet.kt` *(MODIFIED)*
-
-### Change: Fetch and display presence for group members
-
 ### `app/src/main/java/org/linphone/ui/main/history/model/LoquaceCallLogModel.kt` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/viewmodel/LoquaceDrawerMenuViewModel.kt` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/help/fragment/LoquaceAboutFragment.kt` *(NEW)*
 ### `app/src/main/res/layout/loquace_about_fragment.xml` *(NEW)*
 ### `app/src/main/java/org/linphone/core/LoquaceFirebaseMessagingService.kt` *(NEW)*
 
-**Push routing:**
-- `call-id` present → SIP push → `super.onMessageReceived()`
-- `subject=chat` → XMPP chat push → `showChatNotification()`
-- else → SIP without call-id → `super.onMessageReceived()`
-
-**Note:** Android 15 `dataSync` foreground service quota may cause
-`CorePushService` to crash during heavy testing — expected to be fixed
-in a future Linphone SDK `5.5.x` patch.
-
 ---
 
 ## Pending features (publication checklist)
 1. ~~Remove video call and chat button from SIP contact card + add status~~ ✅
-2. Search implementation for chat contacts and open conversations
+2. ~~Search implementation for chat contacts and open conversations~~ ✅
 3. Improve group chat participant picker (searchable + avatars + status borders)
 4. Restyle of in-call screen
 5. Conversation long press → delete conversation *(flagged)*
 6. Push notifications toggle wiring in network settings
 7. Video upload optimization
 8. In-app media viewer
-9. Fix horizontal layout / remove landscape mode
-10. Implement translation / language selection
+9. Adding special rules for phone contacts calls and emergency calls
+10. Fix horizontal layout / remove landscape mode
+11. Implement translation / language selection
 
 ---
 
@@ -439,26 +392,27 @@ Entirely new module — no merge conflicts expected here.
 
 **Key files:**
 - `network/LoquaceLogoutManager.kt` *(MODIFIED)* — full logout flow
-- `storage/LoquaceDatabase.kt` *(MODIFIED)* — DB validity check,
-  `needs_relogin` flag on corruption
+- `storage/LoquaceDatabase.kt` *(MODIFIED)*:
+    - Version bumped to 5
+    - `MIGRATION_4_5` adds `displayName` column to `xmpp_conversations`
+    - DB validity check, `needs_relogin` flag on corruption
+- `storage/entity/XmppConversationEntity.kt` *(MODIFIED)*:
+    - Added `displayName: String?` field
 - `storage/SessionManager.kt` — `clearSession()` clears all stored data
 - `sip/LoquaceSipConfigurator.kt` — push notifications enabled
 - `ui/LoquaceLoginActivity.kt` *(MODIFIED)* — `OnBackPressedCallback`
   calls `moveTaskToBack(true)`
 - `ui/activity_login.xml` — redesigned login screen
-- `xmpp/LoquaceXmppManager.kt` — `logout()` clears all XMPP state
+- `xmpp/LoquaceXmppManager.kt` *(MODIFIED)*:
+    - Added `updateConversationDisplayName()` — persists resolved display
+      name to StateFlow and DB
+    - `loadConversations()` loads `displayName` from DB entity
+    - `logout()` clears all XMPP state
+- `xmpp/XmppConversation.kt` *(MODIFIED)*:
+    - Added `displayName: String? = null` field
 - `xmpp/XmppConnectionService.kt` — `specialUse` foreground service type
 - `xmpp/XmppMessage.kt`, `xmpp/XmppHttpUploadManager.kt`,
   `xmpp/AttachmentType.kt`
-
-**New drawables in `loquace-integration`:**
-- `loquace_logo.xml`, `login_circle_bg.xml`, `login_card_background.xml`
-
-**New colors in `loquace-integration`:**
-- `login_primary` — `#183a42`
-- `login_primary_dark` — `#0F262C`
-- `login_label` — `#666666`
-- `login_error` — `#D32F2F`
 
 **Dependencies added to `loquace-integration`:**
 - `retrofit2:retrofit`, `retrofit2:converter-gson`
