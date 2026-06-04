@@ -1065,6 +1065,7 @@
     <string name="group_name_hint">Group name</string>
     <string name="create_group_title">Create Group</string>
     <string name="add_participants_title">Add Participants</string>
+    <string name="add">Add</string>
     <string name="cancel">Cancel</string>
     <string name="create">Create</string>
     <string name="content_description_group_create">Create new group</string>

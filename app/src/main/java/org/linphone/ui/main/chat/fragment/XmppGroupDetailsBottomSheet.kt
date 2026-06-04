@@ -200,81 +200,39 @@ class XmppGroupDetailsBottomSheet(
     }
 
     private fun showAddMemberDialog(domain: String, token: String, userAgent: String) {
-        lifecycleScope.launch {
-            val repository = LoquaceGroupsRepository()
-            val contacts = mutableListOf<org.linphone.loquace_integration.network.ContactResponse>()
-            var offset = 0
+        val existingJids = group.participants.map { it.account }.toSet()
 
-            val progress = androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                .setMessage(getString(R.string.loading))
-                .create()
-            progress.show()
-
-            withContext(Dispatchers.IO) {
-                while (true) {
-                    val page = repository.fetchChatEnabledContacts(
-                        domain    = domain,
-                        token     = token,
-                        userAgent = userAgent,
-                        offset    = offset
-                    )
-                    if (page.isEmpty()) break
-                    contacts.addAll(page)
-                    if (page.size < LoquaceConfig.CONTACTS_PAGE_SIZE) break
-                    offset += page.size
-                }
-            }
-
-            progress.dismiss()
-
-            // Filter out existing members
-            val existingJids = group.participants.map { it.account }.toSet()
-            val available = contacts.filter { contact ->
-                val jid = contact.chats?.firstOrNull { it.type == "xmpp" }?.account
-                jid != null && !existingJids.contains(jid)
-            }
-
-            val names = available.map {
-                it.fullName ?: "${it.firstName} ${it.lastName}".trim()
-            }.toTypedArray()
-            val checked = BooleanArray(available.size) { false }
-            val selected = mutableListOf<org.linphone.loquace_integration.network.ContactResponse>()
-
-            androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                .setTitle(getString(R.string.add_participants_title))
-                .setMultiChoiceItems(names, checked) { _, which, isChecked ->
-                    if (isChecked) selected.add(available[which])
-                    else selected.remove(available[which])
-                }
-                .setPositiveButton(getString(R.string.create)) { _, _ ->
-                    lifecycleScope.launch {
-                        withContext(Dispatchers.IO) {
-                            for (contact in selected) {
-                                val jid = contact.chats?.firstOrNull {
-                                    it.type == "xmpp"
-                                }?.account ?: continue
-                                repository.inviteParticipant(
-                                    domain    = domain,
-                                    token     = token,
-                                    userAgent = userAgent,
-                                    groupJid  = group.jid,
-                                    userJid   = jid
-                                )
-                            }
-                        }
-                        // Refresh members list
-                        val details = withContext(Dispatchers.IO) {
-                            repository.getGroupDetails(domain, token, userAgent, group.jid)
-                        }
-                        if (details != null) {
-                            Log.d("GroupDetails", "Participants2: ${group.participants.size}")
-                            adapter.submitList(details.participants)
-                            binding.memberCount.text = "${details.participants.size} ${getString(R.string.group_members)}"
+        val picker = ParticipantPickerBottomSheet(
+            title        = getString(R.string.add_participants_title),
+            confirmLabel = getString(R.string.add),
+            excludedJids = existingJids,
+            onConfirm    = { selected ->
+                lifecycleScope.launch {
+                    withContext(Dispatchers.IO) {
+                        for (contact in selected) {
+                            val jid = contact.chats?.firstOrNull {
+                                it.type == "xmpp"
+                            }?.account ?: continue
+                            LoquaceGroupsRepository().inviteParticipant(
+                                domain    = domain,
+                                token     = token,
+                                userAgent = userAgent,
+                                groupJid  = group.jid,
+                                userJid   = jid
+                            )
                         }
                     }
+                    // Refresh members list
+                    val details = withContext(Dispatchers.IO) {
+                        LoquaceGroupsRepository().getGroupDetails(domain, token, userAgent, group.jid)
+                    }
+                    if (details != null) {
+                        adapter.submitList(details.participants)
+                        binding.memberCount.text = "${details.participants.size} ${getString(R.string.group_members)}"
+                    }
                 }
-                .setNegativeButton(getString(R.string.cancel), null)
-                .show()
-        }
+            }
+        )
+        picker.show(parentFragmentManager, "ParticipantPicker")
     }
 }

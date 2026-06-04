@@ -37,16 +37,12 @@ val isVideo = if (isIncoming) {
 ## `app/src/main/java/org/linphone/ui/main/contacts/viewmodel/ContactViewModel.kt`
 
 ### Change: Add loquacePresence LiveData
-### Change: Set loquacePresence from SharedMainViewModel in ContactFragment
 
 ---
 
 ## `app/src/main/java/org/linphone/ui/main/viewmodel/SharedMainViewModel.kt`
 
 ### Change: Add displayedContactPresence field
-```kotlin
-var displayedContactPresence: String? = null
-```
 
 ---
 
@@ -74,45 +70,43 @@ var displayedContactPresence: String? = null
 ## `app/src/main/res/layout/chat_list_fragment.xml`
 
 ### Change: Add search bar above tab layout
-Added `TextInputLayout` with search icon above `chat_tab_layout` inside
-`content_panel`, matching the style of the contacts search bar.
+### Change: Add TabLayout, wrap content in panel, add Create Group FAB
 
 ---
 
 ## `app/src/main/java/org/linphone/ui/main/chat/fragment/ConversationsListFragment.kt`
 
+### Change: Add XMPP chat tabs, adapter, conversation navigation and group creation
 ### Change: Wire up chat search bar
-- `TextWatcher` on search input triggers per-tab search logic
-- Chats tab: client-side filter via `applyConversationFilter()`
-- Contacts tab: debounced API call (300ms) via `loadContacts()` with query
-- Groups tab: client-side filter via `applyGroupFilter()`
+- `TextWatcher` debounces 300ms for contacts API calls
+- Chats/Groups tabs filter client-side
 - Search cleared on tab change, conversation open and `onPause()`
-- Tab switch reapplies current query to new tab
+### Change: Replace `showContactPickerForGroup()` with `ParticipantPickerBottomSheet`
 
 ---
 
 ## `app/src/main/java/org/linphone/ui/main/chat/viewmodel/XmppConversationsListViewModel.kt`
 
 ### Change: Add search support
-- Added `searchQuery: MutableLiveData<String>`
-- Added `fullGroupList` private backing field for unfiltered groups
-- Added `applyConversationFilter(query)` — filters from
-  `LoquaceXmppManager.conversations` StateFlow using
-  `conversation.displayName` with fallback to `peerJid`
-- Added `applyGroupFilter(query)` — filters from `fullGroupList`
-- `init` block applies current query when conversations update
-- `loadGroups()` stores full list in `fullGroupList` before filtering
-- `loadContacts()` accepts `query` parameter, clears list before
-  new search results arrive
+- `searchQuery` LiveData
+- `fullGroupList` backing field for unfiltered groups
+- `applyConversationFilter()` filters from `LoquaceXmppManager.conversations`
+  using `conversation.displayName` with fallback to `peerJid`
+- `applyGroupFilter()` filters from `fullGroupList`
+- `loadContacts()` accepts `query` parameter, clears list before new results
+- `init` block respects current query when conversations update
 
 ---
 
 ## `app/src/main/java/org/linphone/ui/main/chat/model/XmppConversationModel.kt`
 
 ### Change: Call updateConversationDisplayName after resolving display name
-After lazy-fetching contact or group name, calls
-`LoquaceXmppManager.updateConversationDisplayName()` to persist the
-resolved name so it's available for filtering immediately on next launch.
+
+---
+
+## `app/src/main/java/org/linphone/ui/main/chat/fragment/XmppGroupDetailsBottomSheet.kt`
+
+### Change: Replace `showAddMemberDialog()` with `ParticipantPickerBottomSheet`
 
 ---
 
@@ -217,18 +211,6 @@ resolved name so it's available for filtering immediately on next launch.
 
 ---
 
-## `app/src/main/res/layout/chat_list_fragment.xml`
-
-### Change: Add TabLayout, wrap content in panel, add Create Group FAB
-
----
-
-## `app/src/main/java/org/linphone/ui/main/chat/fragment/ConversationsListFragment.kt`
-
-### Change: Add XMPP chat tabs, adapter, conversation navigation and group creation
-
----
-
 ## `app/src/main/res/layout/main_drawer_menu.xml`
 
 ### Change: Replace Linphone drawer with Loquace custom drawer
@@ -293,6 +275,7 @@ resolved name so it's available for filtering immediately on next launch.
 ## `app/src/main/res/values/strings.xml`
 
 ### Change: Add file_provider_loquace string and all other new strings
+### Change: Add `add` string resource for participant picker confirm button
 
 ---
 
@@ -352,9 +335,6 @@ resolved name so it's available for filtering immediately on next launch.
 ### `app/src/main/java/org/linphone/ui/main/chat/viewmodel/XmppConversationsListViewModel.kt` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/chat/viewmodel/XmppConversationViewModel.kt` *(NEW)*
 ### `app/src/main/res/layout/loquace_chat_conversation_fragment.xml` *(MODIFIED)*
-
-### Change: Add avatar and presence ring to conversation header
-
 ### `app/src/main/java/org/linphone/ui/main/chat/adapter/XmppMessagesAdapter.kt` *(NEW)*
 ### `app/src/main/res/layout/loquace_chat_bubble_incoming.xml` *(NEW)*
 ### `app/src/main/res/layout/loquace_chat_bubble_outgoing.xml` *(NEW)*
@@ -363,18 +343,40 @@ resolved name so it's available for filtering immediately on next launch.
 ### `app/src/main/res/layout/loquace_group_member_cell.xml` *(MODIFIED)*
 ### `app/src/main/java/org/linphone/ui/main/chat/adapter/GroupMembersAdapter.kt` *(MODIFIED)*
 ### `app/src/main/java/org/linphone/ui/main/chat/fragment/XmppGroupDetailsBottomSheet.kt` *(MODIFIED)*
+### `app/src/main/res/layout/loquace_participant_picker_bottom_sheet.xml` *(NEW)*
+### `app/src/main/res/layout/loquace_participant_picker_cell.xml` *(NEW)*
+### `app/src/main/java/org/linphone/ui/main/chat/fragment/ParticipantPickerBottomSheet.kt` *(NEW)*
+
+**ParticipantPickerBottomSheet features:**
+- Reusable for both group creation and add member flows
+- Search bar with 300ms debounce calling `fetchChatEnabledContacts()`
+- Paginated contact loading with infinite scroll
+- Avatars and presence rings loaded per contact in background
+- Cell highlight for selected state
+- `selectedContacts` map persists selections across search and pagination
+- `excludedJids` parameter filters out existing group members
+- `confirmLabel` parameter allows "Create" vs "Add" button label
+
 ### `app/src/main/java/org/linphone/ui/main/history/model/LoquaceCallLogModel.kt` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/viewmodel/LoquaceDrawerMenuViewModel.kt` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/help/fragment/LoquaceAboutFragment.kt` *(NEW)*
 ### `app/src/main/res/layout/loquace_about_fragment.xml` *(NEW)*
 ### `app/src/main/java/org/linphone/core/LoquaceFirebaseMessagingService.kt` *(NEW)*
 
+**Push routing:**
+- `call-id` present → SIP push
+- `subject=chat` → XMPP chat push
+- else → SIP without call-id
+
+**Note:** Android 15 `dataSync` foreground service quota may cause
+`CorePushService` to crash during heavy testing — expected fix in SDK `5.5.x`.
+
 ---
 
 ## Pending features (publication checklist)
 1. ~~Remove video call and chat button from SIP contact card + add status~~ ✅
 2. ~~Search implementation for chat contacts and open conversations~~ ✅
-3. Improve group chat participant picker (searchable + avatars + status borders)
+3. ~~Improve group chat participant picker (searchable + avatars + status borders)~~ ✅
 4. Restyle of in-call screen
 5. Conversation long press → delete conversation *(flagged)*
 6. Push notifications toggle wiring in network settings
@@ -404,8 +406,7 @@ Entirely new module — no merge conflicts expected here.
   calls `moveTaskToBack(true)`
 - `ui/activity_login.xml` — redesigned login screen
 - `xmpp/LoquaceXmppManager.kt` *(MODIFIED)*:
-    - Added `updateConversationDisplayName()` — persists resolved display
-      name to StateFlow and DB
+    - `updateConversationDisplayName()` persists resolved name to StateFlow and DB
     - `loadConversations()` loads `displayName` from DB entity
     - `logout()` clears all XMPP state
 - `xmpp/XmppConversation.kt` *(MODIFIED)*:

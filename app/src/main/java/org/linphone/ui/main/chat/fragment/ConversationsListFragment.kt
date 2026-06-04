@@ -640,43 +640,20 @@ class ConversationsListFragment : AbstractMainFragment() {
         pendingGroupName = groupName
         selectedParticipants.clear()
 
-        val sessionManager = SessionManager(requireContext())
-        val domain = sessionManager.getDomain() ?: ""
-        val token = sessionManager.getToken() ?: ""
-        val userAgent = buildUserAgent(requireContext())
-
-        viewLifecycleOwner.lifecycleScope.launch {
-            listViewModel.fetchInProgress.value = true
-            val repository = LoquaceGroupsRepository()
-            val contacts = mutableListOf<ContactResponse>()
-            var offset = 0
-
-            while (true) {
-                val page = repository.fetchChatEnabledContacts(domain, token, userAgent, offset)
-                if (page.isEmpty()) break
-                contacts.addAll(page)
-                if (page.size < LoquaceConfig.CONTACTS_PAGE_SIZE) break
-                offset += page.size
+        val picker = ParticipantPickerBottomSheet(
+            title        = getString(R.string.add_participants_title),
+            confirmLabel = getString(R.string.create),
+            onConfirm    = { selected ->
+                selectedParticipants.addAll(selected)
+                val sessionManager = SessionManager(requireContext())
+                createGroup(
+                    sessionManager.getDomain() ?: "",
+                    sessionManager.getToken() ?: "",
+                    sessionManager.getUserAgent()
+                )
             }
-            listViewModel.fetchInProgress.value = false
-
-            val names = contacts.map {
-                it.fullName ?: "${it.firstName} ${it.lastName}".trim()
-            }.toTypedArray()
-            val checked = BooleanArray(contacts.size) { false }
-
-            androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                .setTitle(getString(R.string.add_participants_title))
-                .setMultiChoiceItems(names, checked) { _, which, isChecked ->
-                    if (isChecked) selectedParticipants.add(contacts[which])
-                    else selectedParticipants.remove(contacts[which])
-                }
-                .setPositiveButton(getString(R.string.create)) { _, _ ->
-                    createGroup(domain, token, userAgent)
-                }
-                .setNegativeButton(getString(R.string.cancel), null)
-                .show()
-        }
+        )
+        picker.show(parentFragmentManager, "ParticipantPicker")
     }
 
     private fun createGroup(domain: String, token: String, userAgent: String) {
