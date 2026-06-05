@@ -26,12 +26,14 @@ import androidx.annotation.WorkerThread
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.linphone.LinphoneApplication.Companion.coreContext
 import org.linphone.LinphoneApplication.Companion.corePreferences
 import org.linphone.R
 import org.linphone.compatibility.Compatibility
 import org.linphone.core.Account
+import org.linphone.core.Address
 import org.linphone.core.Call
 import org.linphone.core.ChatMessage
 import org.linphone.core.ChatRoom
@@ -578,15 +580,19 @@ class MainViewModel
             if (currentCall != null) {
                 val address = currentCall.callLog.remoteAddress
                 val conferenceInfo = LinphoneUtils.getConferenceInfoIfAny(currentCall)
-                val label = if (conferenceInfo != null) {
+
+                // Set fallback label immediately
+                val fallbackLabel = if (conferenceInfo != null) {
                     conferenceInfo.subject ?: LinphoneUtils.getDisplayName(address)
                 } else {
                     val contact = coreContext.contactsManager.findContactByAddress(address)
                     contact?.name ?: LinphoneUtils.getDisplayName(address)
                 }
-                Log.i("$TAG Showing single call alert with label [$label]")
-                callLabel.postValue(label)
+                callLabel.postValue(fallbackLabel)
                 callsStatus.postValue(LinphoneUtils.callStateToString(currentCall.state))
+
+                // Override with Loquace name asynchronously
+                fetchLoquaceNameForCall(address)
             }
         } else if (callsNb > 1) {
             callLabel.postValue(AppUtils.getFormattedString(R.string.calls_count_label, callsNb))
@@ -761,6 +767,39 @@ class MainViewModel
             }
         } else {
             Log.e("$TAG [MWI] Can't call voicemail, no default account found!")
+        }
+    }
+
+    @WorkerThread
+    private fun fetchLoquaceNameForCall(address: Address) {
+        val sipNumber = address.username ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val sessionManager = org.linphone.loquace_integration.storage.SessionManager(coreContext.context)
+                val domain = sessionManager.getDomain() ?: return@launch
+                val token = sessionManager.getToken() ?: return@launch
+                val userAgent = sessionManager.getUserAgent()
+
+                val api = org.linphone.loquace_integration.network.RetrofitClient.createContactsApi(domain)
+                val contacts = api.getContacts(
+                    token     = token,
+                    userAgent = userAgent,
+                    tenant    = domain,
+                    type      = null,
+                    offset    = 0,
+                    limit     = 1,
+                    timestamp = System.currentTimeMillis(),
+                    query     = sipNumber
+                )
+                val loquaceContact = contacts.firstOrNull() ?: return@launch
+                val fullName = loquaceContact.fullName
+                    ?: "${loquaceContact.firstName} ${loquaceContact.lastName}".trim()
+                if (fullName.isNotEmpty()) {
+                    callLabel.postValue(fullName)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "Failed to fetch Loquace name for call alert: ${e.message}")
+            }
         }
     }
 }

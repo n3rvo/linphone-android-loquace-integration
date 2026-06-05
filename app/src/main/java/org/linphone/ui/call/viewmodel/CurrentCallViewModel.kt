@@ -86,6 +86,8 @@ class CurrentCallViewModel
 
     val isVideoEnabled = MutableLiveData<Boolean>()
 
+    private var videoExplicitlyEnabled = false
+
     val isSendingVideo = MutableLiveData<Boolean>()
 
     val isReceivingVideo = MutableLiveData<Boolean>()
@@ -327,7 +329,6 @@ class CurrentCallViewModel
                 isVideoEnabled.postValue(call.params.isVideoEnabled)
                 updateVideoDirection(call.params.videoDirection)
             } else if (LinphoneUtils.isCallEnding(call.state)) {
-                // If current call is being terminated but there is at least one other call, switch
                 val core = call.core
                 val callsCount = core.callsNb
                 Log.i(
@@ -348,12 +349,18 @@ class CurrentCallViewModel
                     endCall(call)
                 }
             } else {
-                val videoEnabled = LinphoneUtils.isVideoEnabled(call)
+                val videoEnabled = if (
+                    call.state == Call.State.Connected &&
+                    call.dir == Call.Dir.Incoming
+                ) {
+                    false
+                } else {
+                    LinphoneUtils.isVideoEnabled(call)
+                }
+
                 if (videoEnabled && isVideoEnabled.value == false) {
                     if (isBluetoothEnabled.value == true || isHeadsetEnabled.value == true) {
-                        Log.i(
-                            "$TAG Audio is routed to bluetooth or headset, do not change it to speaker because video was enabled"
-                        )
+                        Log.i("$TAG Audio is routed to bluetooth or headset, do not change it to speaker because video was enabled")
                     } else if (corePreferences.routeAudioToSpeakerWhenVideoIsEnabled) {
                         Log.i("$TAG Video is now enabled, routing audio to speaker")
                         AudioUtils.routeAudioToSpeaker(call)
@@ -384,8 +391,6 @@ class CurrentCallViewModel
                         }
                     }
 
-                    // MediaEncryption None & SRTP won't be notified through onEncryptionChanged callback,
-                    // we have to do it manually to leave the "wait for encryption" state
                     when (call.currentParams.mediaEncryption) {
                         MediaEncryption.SRTP, MediaEncryption.None -> {
                             updateEncryption()
@@ -803,6 +808,7 @@ class CurrentCallViewModel
                         Log.i("$TAG Conference found and video disabled in params, enabling it")
                         params.isVideoEnabled = true
                         params.videoDirection = MediaDirection.SendRecv
+                        videoExplicitlyEnabled = true
                         conferenceModel.setNewLayout(ConferenceViewModel.ACTIVE_SPEAKER_LAYOUT)
                     } else {
                         if (params?.videoDirection == MediaDirection.SendRecv || params?.videoDirection == MediaDirection.SendOnly) {
@@ -810,11 +816,13 @@ class CurrentCallViewModel
                                 "$TAG Conference found with video already enabled, changing video media direction to receive only"
                             )
                             params.videoDirection = MediaDirection.RecvOnly
+                            videoExplicitlyEnabled = false
                         } else {
                             Log.i(
                                 "$TAG Conference found with video already enabled, changing video media direction to send & receive"
                             )
                             params?.videoDirection = MediaDirection.SendRecv
+                            videoExplicitlyEnabled = true
                         }
                     }
 
@@ -823,8 +831,16 @@ class CurrentCallViewModel
                 } else if (params != null) {
                     params.isVideoEnabled = true
                     params.videoDirection = when (currentCall.currentParams.videoDirection) {
-                        MediaDirection.SendRecv, MediaDirection.SendOnly -> MediaDirection.RecvOnly
-                        else -> MediaDirection.SendRecv
+                        MediaDirection.SendRecv, MediaDirection.SendOnly -> {
+                            Log.i("$TAG Turning video OFF")
+                            videoExplicitlyEnabled = false
+                            MediaDirection.RecvOnly
+                        }
+                        else -> {
+                            Log.i("$TAG Turning video ON")
+                            videoExplicitlyEnabled = true
+                            MediaDirection.SendRecv
+                        }
                     }
                     Log.i(
                         "$TAG Updating call with video enabled and media direction set to ${params.videoDirection}"
@@ -1063,6 +1079,7 @@ class CurrentCallViewModel
         Log.i(
             "$TAG Configuring call with remote address [${call.remoteAddress.asStringUriOnly()}] as current"
         )
+        Log.d("videoBug", "Configuring call with state [${call.state}] and dir [${call.dir}]")
         contact.value?.destroy()
 
         terminatedByUser = false
@@ -1096,7 +1113,8 @@ class CurrentCallViewModel
         }
 
         if (call.dir == Call.Dir.Incoming) {
-            val isVideo = call.remoteParams?.isVideoEnabled == true && call.remoteParams?.videoDirection != MediaDirection.Inactive
+            // For incoming calls, always treat as audio since FreeSWITCH always includes video in SDP
+            val isVideo = false
             if (call.core.accountList.size > 1) {
                 val localAddress = call.callLog.toAddress
                 Log.i("$TAG Local address for incoming call is [${localAddress.asStringUriOnly()}]")
@@ -1139,9 +1157,10 @@ class CurrentCallViewModel
             isVideoEnabled.postValue(call.params.isVideoEnabled)
             updateVideoDirection(call.params.videoDirection)
         } else if (LinphoneUtils.isCallIncoming(call.state)) {
-            isVideoEnabled.postValue(
-                call.remoteParams?.isVideoEnabled == true && call.remoteParams?.videoDirection != MediaDirection.Inactive
-            )
+            videoExplicitlyEnabled = false
+            isVideoEnabled.postValue(false)
+            isReceivingVideo.postValue(false)
+            isSendingVideo.postValue(false)
         } else {
             isVideoEnabled.postValue(call.currentParams.isVideoEnabled)
             updateVideoDirection(call.currentParams.videoDirection, skipIfNotStreamsRunning = true)
@@ -1208,6 +1227,60 @@ class CurrentCallViewModel
 
         contact.postValue(model)
         displayedName.postValue(model.friend.name)
+
+        // Fetch Loquace contact info
+        val sipNumber = address.username ?: ""
+        if (sipNumber.isNotEmpty()) {
+            viewModelScope.launch(Dispatchers.IO) {
+                try {
+                    val sessionManager = org.linphone.loquace_integration.storage.SessionManager(coreContext.context)
+                    val domain = sessionManager.getDomain() ?: return@launch
+                    val token = sessionManager.getToken() ?: return@launch
+                    val userAgent = sessionManager.getUserAgent()
+
+                    val api = org.linphone.loquace_integration.network.RetrofitClient.createContactsApi(domain)
+                    val contacts = api.getContacts(
+                        token     = token,
+                        userAgent = userAgent,
+                        tenant    = domain,
+                        type      = null,
+                        offset    = 0,
+                        limit     = 1,
+                        timestamp = System.currentTimeMillis(),
+                        query     = sipNumber
+                    )
+                    val loquaceContact = contacts.firstOrNull() ?: return@launch
+
+                    val fullName = loquaceContact.fullName
+                        ?: "${loquaceContact.firstName} ${loquaceContact.lastName}".trim()
+                    if (fullName.isNotEmpty()) {
+                        displayedName.postValue(fullName)
+                    }
+
+                    val pictureUrl = loquaceContact.pictureUrl ?: return@launch
+                    val bytes = org.linphone.loquace_integration.network.LoquaceMediaDownloader.downloadBytes(
+                        url    = pictureUrl,
+                        token  = token,
+                        domain = domain
+                    ) ?: return@launch
+
+                    val avatarFile = java.io.File(
+                        coreContext.context.filesDir,
+                        "avatar_${loquaceContact.id}.jpg"
+                    )
+                    if (!avatarFile.exists()) avatarFile.writeBytes(bytes)
+                    Log.d(TAG, "Loquace avatar saved: ${avatarFile.exists()}, path: ${avatarFile.absolutePath}")
+
+                    model.picturePath.postValue(
+                        org.linphone.utils.FileUtils.getProperFilePath(avatarFile.absolutePath)
+                    )
+                    contact.postValue(model)
+
+                } catch (e: Exception) {
+                    android.util.Log.e(TAG, "Failed to fetch Loquace contact: ${e.message}")
+                }
+            }
+        }
 
         val recording = call.params.isRecording
         isRecording.postValue(recording)
@@ -1315,27 +1388,32 @@ class CurrentCallViewModel
             return
         }
 
+        if (!videoExplicitlyEnabled) {
+            isReceivingVideo.postValue(false)
+            isSendingVideo.postValue(false)
+            return
+        }
+
         val isConnected = state == Call.State.Connected || state == Call.State.StreamsRunning
         val isSending = (state == Call.State.OutgoingEarlyMedia || isConnected) && (direction == MediaDirection.SendRecv || direction == MediaDirection.SendOnly)
-        val isReceiving = (state == Call.State.IncomingEarlyMedia || isConnected) && (direction == MediaDirection.SendRecv || direction == MediaDirection.RecvOnly)
+        val isReceiving = (state == Call.State.IncomingEarlyMedia || isConnected) &&
+                (direction == MediaDirection.SendRecv || direction == MediaDirection.RecvOnly)
 
         val wasSending = isSendingVideo.value == true
         val wasReceiving = isReceivingVideo.value == true
 
         if (isReceiving != wasReceiving || isSending != wasSending) {
             Log.i(
-                "$TAG Video is enabled in ${if (isSending && isReceiving) "both ways" else if (isSending) "upload" else "download"}"
+                "$TAG Video is enabled in ${if (isSending) "upload only" else "neither direction"}"
             )
             isSendingVideo.postValue(isSending)
             isReceivingVideo.postValue(isReceiving)
         }
 
-        if (currentCall.conference == null) { // Let conference view model handle full screen while in conference
-            if (isReceiving && !wasReceiving) { // Do not change full screen mode base on our video being sent when it wasn't
+        if (currentCall.conference == null) {
+            if (isSending && !wasSending) {
                 if (fullScreenMode.value != true) {
-                    Log.i(
-                        "$TAG Video is being received or sent (and it wasn't before), switching to full-screen mode"
-                    )
+                    Log.i("$TAG Video is being sent (and it wasn't before), switching to full-screen mode")
                     fullScreenMode.postValue(true)
                 }
             } else if (!isSending && !isReceiving && fullScreenMode.value == true) {

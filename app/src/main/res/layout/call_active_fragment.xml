@@ -42,7 +42,7 @@
             android:id="@+id/constraint_layout"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="@color/gray_900">
+            android:background="@color/bc_white">
 
             <androidx.constraintlayout.widget.Guideline
                 android:id="@+id/hinge_top"
@@ -82,7 +82,7 @@
                 android:layout_marginTop="15dp"
                 android:text="@{viewModel.displayedName, default=`John Doe`}"
                 android:textSize="22sp"
-                android:textColor="@color/bc_white"
+                android:textColor="@color/bc_black"
                 android:visibility="@{viewModel.pipMode || viewModel.halfOpenedFolded ? View.GONE : View.VISIBLE}"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -96,7 +96,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="5dp"
                 android:text="@{viewModel.displayedAddress, default=`sip:johndoe@sip.linphone.org`}"
-                android:textColor="@color/bc_white"
+                android:textColor="@color/bc_black"
                 android:textSize="14sp"
                 android:visibility="@{viewModel.hideSipAddresses || viewModel.pipMode || viewModel.halfOpenedFolded ? View.GONE : View.VISIBLE}"
                 app:layout_constraintTop_toBottomOf="@id/display_name"
@@ -136,7 +136,7 @@
                 android:contentDescription="@string/content_description_go_back_icon"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/hinge_top"
-                app:tint="@color/bc_white" />
+                app:tint="@color/orange_main_500" />
 
             <androidx.appcompat.widget.AppCompatTextView
                 style="@style/call_header_style"
@@ -145,6 +145,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="10dp"
                 android:text="@{viewModel.displayedName, default=`John Doe`}"
+                android:textColor="@color/bc_black"
                 android:maxLines="1"
                 android:ellipsize="end"
                 app:layout_constrainedWidth="true"
@@ -162,6 +163,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="5dp"
                 android:text="@string/vertical_separator"
+                android:textColor="@color/bc_black"
                 android:importantForAccessibility="no"
                 app:layout_constraintTop_toTopOf="@id/name"
                 app:layout_constraintStart_toEndOf="@id/name"
@@ -173,6 +175,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="5dp"
+                android:textColor="@color/bc_black"
                 android:visibility="@{viewModel.fullScreenMode || viewModel.pipMode || viewModel.isPaused || viewModel.isPausedByRemote ? View.GONE : View.VISIBLE}"
                 app:layout_constraintStart_toEndOf="@id/separator"
                 app:layout_constraintEnd_toStartOf="@id/paused_call_header"
@@ -207,7 +210,7 @@
                 android:contentDescription="@string/content_description_change_camera"
                 android:visibility="@{!viewModel.fullScreenMode &amp;&amp; !viewModel.pipMode &amp;&amp; viewModel.isSendingVideo &amp;&amp; viewModel.showSwitchCamera ? View.VISIBLE : View.GONE}"
                 app:layout_constraintDimensionRatio="1:1"
-                app:tint="@color/bc_white"
+                app:tint="@color/orange_main_500"
                 app:layout_constraintTop_toTopOf="@id/back"
                 app:layout_constraintBottom_toBottomOf="@id/back"
                 app:layout_constraintEnd_toStartOf="@+id/paused" />
@@ -223,7 +226,7 @@
                 android:adjustViewBounds="true"
                 android:contentDescription="@string/content_description_paused_call"
                 android:visibility="@{!viewModel.fullScreenMode &amp;&amp; !viewModel.pipMode &amp;&amp; (viewModel.isPaused || viewModel.isPausedByRemote) ? View.VISIBLE : View.GONE, default=gone}"
-                app:tint="?attr/color_main1_500"
+                app:tint="@color/orange_main_500"
                 app:layout_constraintDimensionRatio="1:1"
                 app:layout_constraintTop_toTopOf="@id/back"
                 app:layout_constraintBottom_toBottomOf="@id/back"
@@ -240,7 +243,7 @@
                 android:contentDescription="@string/content_description_show_call_statistics"
                 android:background="@drawable/circle_transparent_dark_button_background"
                 android:visibility="@{!viewModel.fullScreenMode &amp;&amp; !viewModel.pipMode &amp;&amp; !(viewModel.isPaused || viewModel.isPausedByRemote) ? View.VISIBLE : View.GONE}"
-                android:tint="@{viewModel.qualityValue >= 2 ? @color/bc_white : viewModel.qualityValue >= 1 ? @color/orange_warning_600 : @color/red_danger_500, default=@color/bc_white}"
+                android:tint="@{viewModel.qualityValue >= 2 ? @color/orange_main_500 : viewModel.qualityValue >= 1 ? @color/orange_warning_600 : @color/red_danger_500, default=@color/bc_white}"
                 app:layout_constraintDimensionRatio="1:1"
                 app:layout_constraintTop_toTopOf="@id/back"
                 app:layout_constraintBottom_toBottomOf="@id/back"

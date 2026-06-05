@@ -20,7 +20,7 @@
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="@color/gray_900">
+            android:background="@color/bc_white">
 
             <ImageView
                 android:id="@+id/call_direction_icon"
@@ -41,6 +41,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="10dp"
                 android:text="@string/call_outgoing"
+                android:textColor="@color/bc_black"
                 app:layout_constraintStart_toEndOf="@id/call_direction_icon"
                 app:layout_constraintTop_toTopOf="parent"/>
 
@@ -55,7 +56,7 @@
                 android:src="@drawable/camera_rotate"
                 android:contentDescription="@string/content_description_change_camera"
                 android:visibility="gone"
-                app:tint="@color/bc_white"
+                app:tint="@color/orange_main_500"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintEnd_toEndOf="parent" />
 
@@ -65,7 +66,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="5dp"
                 android:indeterminate="true"
-                app:indicatorColor="@color/bc_white"
+                app:indicatorColor="@color/orange_main_500"
                 app:indicatorSize="28dp"
                 app:layout_constraintStart_toStartOf="@id/avatar"
                 app:layout_constraintEnd_toEndOf="@id/avatar"
@@ -91,7 +92,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="15dp"
                 android:text="@{viewModel.displayedName, default=`John Doe`}"
-                android:textColor="@color/bc_white"
+                android:textColor="@color/bc_black"
                 android:textSize="22sp"
                 app:layout_constraintTop_toBottomOf="@id/avatar"
                 app:layout_constraintBottom_toTopOf="@id/address"
@@ -104,7 +105,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@{viewModel.displayedAddress, default=`sip:johndoe@sip.linphone.org`}"
-                android:textColor="@color/bc_white"
+                android:textColor="@color/bc_black"
                 android:textSize="14sp"
                 android:visibility="@{viewModel.hideSipAddresses ? View.GONE : View.VISIBLE}"
                 app:layout_constraintTop_toBottomOf="@id/name"
