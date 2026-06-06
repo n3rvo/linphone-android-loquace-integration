@@ -34,6 +34,83 @@ val isVideo = if (isIncoming) {
 
 ---
 
+## `app/src/main/java/org/linphone/ui/call/viewmodel/CurrentCallViewModel.kt`
+
+### Change: Fetch Loquace contact info in configureCall()
+Fetches contact by SIP number using `/api/v2/contacts?phones=sipNumber`:
+- Updates `displayedName` with full name
+- Downloads and saves avatar to `filesDir/avatar_{id}.jpg`
+- Updates `model.picturePath` and reposts `contact` to trigger UI refresh
+
+### Change: Force audio-only for incoming calls
+Added `videoExplicitlyEnabled` flag:
+- `false` at incoming call start
+- Set in `toggleVideo()` based on new direction
+- `updateVideoDirection()` returns early if `!videoExplicitlyEnabled`
+- `isReceivingVideo` and `isSendingVideo` forced to `false` at start
+- `onStateChanged()` forces `videoEnabled = false` for `Connected` + incoming
+
+### Change: Fix default speaker on incoming calls
+Added `speakerExplicitlyEnabled` flag:
+- `false` at incoming call start in `configureCall()`
+- Set to `true`/`false` in `changeAudioOutputDevice()` when user toggles
+- `updateOutputAudioDevice()` only sets `isSpeakerEnabled = true` when flag is set
+
+---
+
+## `app/src/main/java/org/linphone/ui/main/viewmodel/MainViewModel.kt`
+
+### Change: Fetch Loquace name for call alert topbar
+Added `fetchLoquaceNameForCall(address)` called from `updateCallAlert()`.
+
+---
+
+## `app/src/main/res/layout/call_active_fragment.xml`
+
+### Change: White background
+### Change: Update text and icon colors for white background
+
+---
+
+## `app/src/main/res/layout/call_incoming_fragment.xml`
+
+### Change: White background
+### Change: Update text and icon colors for white background
+
+---
+
+## `app/src/main/res/layout/call_outgoing_fragment.xml`
+
+### Change: White background
+### Change: Update text and icon colors for white background
+
+---
+
+## `app/src/main/res/xml/network_security_config.xml` *(NEW)*
+
+### Change: Add Mozilla CA bundle for TLS certificate validation
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <base-config>
+        <trust-anchors>
+            <certificates src="system"/>
+            <certificates src="@raw/mozilla_ca_bundle"/>
+        </trust-anchors>
+    </base-config>
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="user"/>
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>
+```
+
+## `app/src/main/res/raw/mozilla_ca_bundle.pem` *(NEW)*
+Mozilla CA bundle from https://curl.se/ca/cacert.pem for TLS validation.
+
+---
+
 ## `app/src/main/java/org/linphone/ui/main/contacts/viewmodel/ContactViewModel.kt`
 
 ### Change: Add loquacePresence LiveData
@@ -78,9 +155,6 @@ val isVideo = if (isIncoming) {
 
 ### Change: Add XMPP chat tabs, adapter, conversation navigation and group creation
 ### Change: Wire up chat search bar
-- `TextWatcher` debounces 300ms for contacts API calls
-- Chats/Groups tabs filter client-side
-- Search cleared on tab change, conversation open and `onPause()`
 ### Change: Replace `showContactPickerForGroup()` with `ParticipantPickerBottomSheet`
 
 ---
@@ -88,13 +162,7 @@ val isVideo = if (isIncoming) {
 ## `app/src/main/java/org/linphone/ui/main/chat/viewmodel/XmppConversationsListViewModel.kt`
 
 ### Change: Add search support
-- `searchQuery` LiveData
-- `fullGroupList` backing field for unfiltered groups
-- `applyConversationFilter()` filters from `LoquaceXmppManager.conversations`
-  using `conversation.displayName` with fallback to `peerJid`
-- `applyGroupFilter()` filters from `fullGroupList`
-- `loadContacts()` accepts `query` parameter, clears list before new results
-- `init` block respects current query when conversations update
+### Change: Add fullGroupList backing field for unfiltered groups
 
 ---
 
@@ -237,7 +305,8 @@ val isVideo = if (isIncoming) {
 
 ## `app/src/main/res/layout/settings_network.xml`
 
-### Change: Hide IPv6, add push notifications placeholder
+### Change: Hide IPv6, hide push notifications toggle
+Push notifications always enabled — toggle hidden from UI.
 
 ---
 
@@ -269,6 +338,10 @@ val isVideo = if (isIncoming) {
 ### Change: Update LoquaceLoginActivity declaration
 ### Change: Update FileProvider authority
 ### Change: Remove duplicate FileProvider
+### Change: Add network security config
+```xml
+android:networkSecurityConfig="@xml/network_security_config"
+```
 
 ---
 
@@ -346,30 +419,11 @@ val isVideo = if (isIncoming) {
 ### `app/src/main/res/layout/loquace_participant_picker_bottom_sheet.xml` *(NEW)*
 ### `app/src/main/res/layout/loquace_participant_picker_cell.xml` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/chat/fragment/ParticipantPickerBottomSheet.kt` *(NEW)*
-
-**ParticipantPickerBottomSheet features:**
-- Reusable for both group creation and add member flows
-- Search bar with 300ms debounce calling `fetchChatEnabledContacts()`
-- Paginated contact loading with infinite scroll
-- Avatars and presence rings loaded per contact in background
-- Cell highlight for selected state
-- `selectedContacts` map persists selections across search and pagination
-- `excludedJids` parameter filters out existing group members
-- `confirmLabel` parameter allows "Create" vs "Add" button label
-
 ### `app/src/main/java/org/linphone/ui/main/history/model/LoquaceCallLogModel.kt` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/viewmodel/LoquaceDrawerMenuViewModel.kt` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/help/fragment/LoquaceAboutFragment.kt` *(NEW)*
 ### `app/src/main/res/layout/loquace_about_fragment.xml` *(NEW)*
 ### `app/src/main/java/org/linphone/core/LoquaceFirebaseMessagingService.kt` *(NEW)*
-
-**Push routing:**
-- `call-id` present → SIP push
-- `subject=chat` → XMPP chat push
-- else → SIP without call-id
-
-**Note:** Android 15 `dataSync` foreground service quota may cause
-`CorePushService` to crash during heavy testing — expected fix in SDK `5.5.x`.
 
 ---
 
@@ -377,14 +431,16 @@ val isVideo = if (isIncoming) {
 1. ~~Remove video call and chat button from SIP contact card + add status~~ ✅
 2. ~~Search implementation for chat contacts and open conversations~~ ✅
 3. ~~Improve group chat participant picker (searchable + avatars + status borders)~~ ✅
-4. Restyle of in-call screen
+4. ~~Restyle of in-call screen~~ ✅
 5. Conversation long press → delete conversation *(flagged)*
-6. Push notifications toggle wiring in network settings
-7. Video upload optimization
-8. In-app media viewer
-9. Adding special rules for phone contacts calls and emergency calls
-10. Fix horizontal layout / remove landscape mode
-11. Implement translation / language selection
+6. Video upload optimization
+7. In-app media viewer
+8. Adding special rules for phone contacts calls and emergency calls
+9. Fix horizontal layout / remove landscape mode
+10. Implement translation / language selection
+11. Handle call conference UI/logic
+12. Add avatar to incoming call notification
+13. ~~Fix default speaker on incoming calls~~ ✅
 
 ---
 
@@ -401,7 +457,7 @@ Entirely new module — no merge conflicts expected here.
 - `storage/entity/XmppConversationEntity.kt` *(MODIFIED)*:
     - Added `displayName: String?` field
 - `storage/SessionManager.kt` — `clearSession()` clears all stored data
-- `sip/LoquaceSipConfigurator.kt` — push notifications enabled
+- `sip/LoquaceSipConfigurator.kt` — push notifications always enabled
 - `ui/LoquaceLoginActivity.kt` *(MODIFIED)* — `OnBackPressedCallback`
   calls `moveTaskToBack(true)`
 - `ui/activity_login.xml` — redesigned login screen

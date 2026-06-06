@@ -57,7 +57,8 @@
         android:appCategory="social"
         android:largeHeap="true"
         tools:targetApi="35"
-        android:screenOrientation="portrait">
+        android:screenOrientation="portrait"
+        android:networkSecurityConfig="@xml/network_security_config">
 
         <!-- Required for chat message & call notifications to be displayed in Android auto -->
         <meta-data

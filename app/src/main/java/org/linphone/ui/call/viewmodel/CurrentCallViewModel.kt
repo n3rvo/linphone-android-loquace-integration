@@ -122,6 +122,8 @@ class CurrentCallViewModel
 
     val isSpeakerEnabled = MutableLiveData<Boolean>()
 
+    private var speakerExplicitlyEnabled = false
+
     val isHeadsetEnabled = MutableLiveData<Boolean>()
 
     val isHearingAidEnabled = MutableLiveData<Boolean>()
@@ -780,8 +782,10 @@ class CurrentCallViewModel
                     "$TAG Found less than two devices, simply switching between earpiece & speaker"
                 )
                 if (routeAudioToSpeaker) {
+                    speakerExplicitlyEnabled = true
                     AudioUtils.routeAudioToSpeaker(currentCall)
                 } else {
+                    speakerExplicitlyEnabled = false
                     AudioUtils.routeAudioToEarpiece(currentCall)
                 }
             }
@@ -1157,6 +1161,7 @@ class CurrentCallViewModel
             isVideoEnabled.postValue(call.params.isVideoEnabled)
             updateVideoDirection(call.params.videoDirection)
         } else if (LinphoneUtils.isCallIncoming(call.state)) {
+            speakerExplicitlyEnabled = false
             videoExplicitlyEnabled = false
             isVideoEnabled.postValue(false)
             isReceivingVideo.postValue(false)
@@ -1350,8 +1355,11 @@ class CurrentCallViewModel
 
     @WorkerThread
     private fun updateOutputAudioDevice(audioDevice: AudioDevice?) {
-        Log.i("$TAG Output audio device updated to [${audioDevice?.deviceName} (${audioDevice?.type})]")
-        isSpeakerEnabled.postValue(audioDevice?.type == AudioDevice.Type.Speaker)
+        if (!speakerExplicitlyEnabled) {
+            isSpeakerEnabled.postValue(false)
+        } else {
+            isSpeakerEnabled.postValue(audioDevice?.type == AudioDevice.Type.Speaker)
+        }
         isHeadsetEnabled.postValue(
             audioDevice?.type == AudioDevice.Type.Headphones || audioDevice?.type == AudioDevice.Type.Headset
         )
