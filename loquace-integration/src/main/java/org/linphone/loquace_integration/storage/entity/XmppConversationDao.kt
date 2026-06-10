@@ -15,7 +15,7 @@ interface XmppConversationDao {
     suspend fun upsert(conversation: XmppConversationEntity)
 
     @Query("DELETE FROM xmpp_conversations WHERE peerJid = :peerJid")
-    suspend fun delete(peerJid: String)
+    suspend fun deleteByPeerJid(peerJid: String)
 
     @Query("DELETE FROM xmpp_conversations")
     suspend fun deleteAll()

@@ -1083,6 +1083,8 @@
     <string name="confirm">Confirm</string>
     <string name="message_delete">Delete message</string>
     <string name="message_delete_confirmation">Are you sure you want to delete this message for everyone?</string>
+    <string name="delete_conversation_title">Remove Conversation</string>
+    <string name="delete_conversation_confirmation">Are you sure you want to remove this conversation from your active conversations?</string>
     <string name="drawer_incoming_calls_title">Incoming Calls</string>
     <string name="drawer_device_mobile">Mobile</string>
     <string name="drawer_device_browser">Browser</string>

@@ -49,6 +49,7 @@ import org.linphone.loquace_integration.network.ContactResponse
 import org.linphone.loquace_integration.network.LoquaceConfig
 import org.linphone.loquace_integration.network.LoquaceGroupsRepository
 import org.linphone.loquace_integration.storage.SessionManager
+import org.linphone.loquace_integration.xmpp.LoquaceXmppManager
 import org.linphone.ui.fileviewer.FileViewerActivity
 import org.linphone.ui.fileviewer.MediaViewerActivity
 import org.linphone.ui.main.MainActivity.Companion.ARGUMENTS_CONVERSATION_ID
@@ -480,6 +481,19 @@ class ConversationsListFragment : AbstractMainFragment() {
                 } catch (e: Exception) {
                     Log.e("$TAG Failed to navigate to conversation: ${e.message}")
                 }
+            }
+        }
+
+        xmppAdapter.conversationLongClickedEvent.observe(viewLifecycleOwner) {
+            it.consume { model ->
+                androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                    .setTitle(getString(R.string.delete_conversation_title))
+                    .setMessage(getString(R.string.delete_conversation_confirmation))
+                    .setPositiveButton(getString(R.string.delete)) { _, _ ->
+                        LoquaceXmppManager.deleteConversation(model.id)
+                    }
+                    .setNegativeButton(getString(R.string.cancel), null)
+                    .show()
             }
         }
 

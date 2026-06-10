@@ -497,6 +497,29 @@ object LoquaceXmppManager {
         }
     }
 
+    fun deleteConversation(peerJid: String) {
+        scope.launch {
+            // Remove from StateFlow
+            val currentList = _conversations.value.toMutableList()
+            currentList.removeAll { it.peerJid == peerJid }
+            _conversations.value = currentList
+
+            // Remove messages from memory
+            val currentMessages = _messages.value.toMutableMap()
+            currentMessages.remove(peerJid)
+            _messages.value = currentMessages
+
+            // Remove from DB
+            try {
+                val db = LoquaceDatabase.getInstance(appContext)
+                db.xmppConversationDao().deleteByPeerJid(peerJid)
+                Log.d(TAG, "Conversation deleted: $peerJid")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to delete conversation: ${e.message}")
+            }
+        }
+    }
+
     private fun getMucManager(): MultiUserChatManager? {
         val conn = connection ?: return null
         return MultiUserChatManager.getInstanceFor(conn)

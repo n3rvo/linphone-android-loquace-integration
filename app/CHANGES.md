@@ -32,6 +32,21 @@ val isVideo = if (isIncoming) {
 }
 ```
 
+### Change: Update caller Person icon in incoming call notification
+Replaced avatar with initials via `AvatarGenerator` using the Loquace
+resolved name, keeping the phone small icon on top clean:
+```kotlin
+Person.Builder()
+    .setName(person.name ?: LinphoneUtils.getDisplayName(remoteAddress))
+    .setIcon(
+        AvatarGenerator(context)
+            .setInitials(AppUtils.getInitials(person.name ?: LinphoneUtils.getDisplayName(remoteAddress)))
+            .buildIcon()
+    )
+    .setImportant(false)
+    .build()
+```
+
 ---
 
 ## `app/src/main/java/org/linphone/ui/call/viewmodel/CurrentCallViewModel.kt`
@@ -89,25 +104,11 @@ Added `fetchLoquaceNameForCall(address)` called from `updateCallAlert()`.
 ## `app/src/main/res/xml/network_security_config.xml` *(NEW)*
 
 ### Change: Add Mozilla CA bundle for TLS certificate validation
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<network-security-config>
-    <base-config>
-        <trust-anchors>
-            <certificates src="system"/>
-            <certificates src="@raw/mozilla_ca_bundle"/>
-        </trust-anchors>
-    </base-config>
-    <debug-overrides>
-        <trust-anchors>
-            <certificates src="user"/>
-        </trust-anchors>
-    </debug-overrides>
-</network-security-config>
-```
+
+---
 
 ## `app/src/main/res/raw/mozilla_ca_bundle.pem` *(NEW)*
-Mozilla CA bundle from https://curl.se/ca/cacert.pem for TLS validation.
+Mozilla CA bundle from https://curl.se/ca/cacert.pem
 
 ---
 
@@ -156,6 +157,7 @@ Mozilla CA bundle from https://curl.se/ca/cacert.pem for TLS validation.
 ### Change: Add XMPP chat tabs, adapter, conversation navigation and group creation
 ### Change: Wire up chat search bar
 ### Change: Replace `showContactPickerForGroup()` with `ParticipantPickerBottomSheet`
+### Change: Add conversation long press delete confirmation dialog
 
 ---
 
@@ -306,7 +308,6 @@ Mozilla CA bundle from https://curl.se/ca/cacert.pem for TLS validation.
 ## `app/src/main/res/layout/settings_network.xml`
 
 ### Change: Hide IPv6, hide push notifications toggle
-Push notifications always enabled — toggle hidden from UI.
 
 ---
 
@@ -339,16 +340,14 @@ Push notifications always enabled — toggle hidden from UI.
 ### Change: Update FileProvider authority
 ### Change: Remove duplicate FileProvider
 ### Change: Add network security config
-```xml
-android:networkSecurityConfig="@xml/network_security_config"
-```
 
 ---
 
 ## `app/src/main/res/values/strings.xml`
 
 ### Change: Add file_provider_loquace string and all other new strings
-### Change: Add `add` string resource for participant picker confirm button
+### Change: Add `add` string resource for participant picker
+### Change: Add delete conversation strings
 
 ---
 
@@ -432,15 +431,16 @@ android:networkSecurityConfig="@xml/network_security_config"
 2. ~~Search implementation for chat contacts and open conversations~~ ✅
 3. ~~Improve group chat participant picker (searchable + avatars + status borders)~~ ✅
 4. ~~Restyle of in-call screen~~ ✅
-5. Conversation long press → delete conversation *(flagged)*
+5. ~~Conversation long press → delete conversation~~ ✅
 6. Video upload optimization
 7. In-app media viewer
 8. Adding special rules for phone contacts calls and emergency calls
 9. Fix horizontal layout / remove landscape mode
 10. Implement translation / language selection
 11. Handle call conference UI/logic
-12. Add avatar to incoming call notification
+12. ~~Add avatar to incoming call notification~~ ✅
 13. ~~Fix default speaker on incoming calls~~ ✅
+14. Test audio codec g729 support
 
 ---
 
@@ -465,11 +465,14 @@ Entirely new module — no merge conflicts expected here.
     - `updateConversationDisplayName()` persists resolved name to StateFlow and DB
     - `loadConversations()` loads `displayName` from DB entity
     - `logout()` clears all XMPP state
+    - `deleteConversation()` removes from StateFlow, messages map and DB
 - `xmpp/XmppConversation.kt` *(MODIFIED)*:
     - Added `displayName: String? = null` field
 - `xmpp/XmppConnectionService.kt` — `specialUse` foreground service type
 - `xmpp/XmppMessage.kt`, `xmpp/XmppHttpUploadManager.kt`,
   `xmpp/AttachmentType.kt`
+- `storage/dao/XmppConversationDao.kt` *(MODIFIED)*:
+    - Added `deleteByPeerJid(peerJid: String)` query
 
 **Dependencies added to `loquace-integration`:**
 - `retrofit2:retrofit`, `retrofit2:converter-gson`
