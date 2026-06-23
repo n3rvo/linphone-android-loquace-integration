@@ -24,97 +24,58 @@ When merging from upstream `release/6.2`, recheck and reapply these changes.
 ## `app/src/main/java/org/linphone/notifications/NotificationsManager.kt`
 
 ### Change: Hide video answer button for incoming audio calls
-```kotlin
-val isVideo = if (isIncoming) {
-    false // FreeSWITCH always includes video in SDP, ignore it for incoming
-} else {
-    LinphoneUtils.isVideoEnabled(call)
-}
-```
-
 ### Change: Update caller Person icon in incoming call notification
 Replaced avatar with initials via `AvatarGenerator` using the Loquace
-resolved name, keeping the phone small icon on top clean:
-```kotlin
-Person.Builder()
-    .setName(person.name ?: LinphoneUtils.getDisplayName(remoteAddress))
-    .setIcon(
-        AvatarGenerator(context)
-            .setInitials(AppUtils.getInitials(person.name ?: LinphoneUtils.getDisplayName(remoteAddress)))
-            .buildIcon()
-    )
-    .setImportant(false)
-    .build()
-```
+resolved name, keeping the phone small icon on top clean.
 
 ---
 
 ## `app/src/main/java/org/linphone/ui/call/viewmodel/CurrentCallViewModel.kt`
 
 ### Change: Fetch Loquace contact info in configureCall()
-Fetches contact by SIP number using `/api/v2/contacts?phones=sipNumber`:
-- Updates `displayedName` with full name
-- Downloads and saves avatar to `filesDir/avatar_{id}.jpg`
-- Updates `model.picturePath` and reposts `contact` to trigger UI refresh
-
 ### Change: Force audio-only for incoming calls
-Added `videoExplicitlyEnabled` flag:
-- `false` at incoming call start
-- Set in `toggleVideo()` based on new direction
-- `updateVideoDirection()` returns early if `!videoExplicitlyEnabled`
-- `isReceivingVideo` and `isSendingVideo` forced to `false` at start
-- `onStateChanged()` forces `videoEnabled = false` for `Connected` + incoming
-
 ### Change: Fix default speaker on incoming calls
-Added `speakerExplicitlyEnabled` flag:
-- `false` at incoming call start in `configureCall()`
-- Set to `true`/`false` in `changeAudioOutputDevice()` when user toggles
-- `updateOutputAudioDevice()` only sets `isSpeakerEnabled = true` when flag is set
 
 ---
 
 ## `app/src/main/java/org/linphone/ui/main/viewmodel/MainViewModel.kt`
 
 ### Change: Fetch Loquace name for call alert topbar
-Added `fetchLoquaceNameForCall(address)` called from `updateCallAlert()`.
 
 ---
 
 ## `app/src/main/res/layout/call_active_fragment.xml`
-
-### Change: White background
-### Change: Update text and icon colors for white background
-
----
-
 ## `app/src/main/res/layout/call_incoming_fragment.xml`
-
-### Change: White background
-### Change: Update text and icon colors for white background
-
----
-
 ## `app/src/main/res/layout/call_outgoing_fragment.xml`
 
-### Change: White background
-### Change: Update text and icon colors for white background
+### Change: White background, updated text/icon colors
 
 ---
 
 ## `app/src/main/res/xml/network_security_config.xml` *(NEW)*
+## `app/src/main/res/raw/mozilla_ca_bundle.pem` *(NEW)*
 
 ### Change: Add Mozilla CA bundle for TLS certificate validation
-
----
-
-## `app/src/main/res/raw/mozilla_ca_bundle.pem` *(NEW)*
-Mozilla CA bundle from https://curl.se/ca/cacert.pem
 
 ---
 
 ## `app/src/main/java/org/linphone/ui/main/contacts/viewmodel/ContactViewModel.kt`
 
 ### Change: Add loquacePresence LiveData
+
+### Change: Intercept calls through Loquace `/api/v2/calls` endpoint
+Added `placeCallThroughApi(address: Address)` private helper:
+- Distinguishes SIP contacts (Loquace, `friend.nativeUri` empty) from
+  native device contacts (`friend.nativeUri` set) via `isNative` check
+- SIP contacts → `CallContactRequest(id = friend.refKey, number = number)`
+- Device contacts → `CallContactRequest(name = friend.name, number = number)`
+- Posts to `/api/v2/calls`, then builds final SIP address from
+  `response.contact.number` via `core.interpretUrl()` before calling
+  `coreContext.startAudioCall()`
+- `startAudioCall()` and the `listener.onClicked()` `START_AUDIO_CALL`
+  branch both updated to call `placeCallThroughApi()` instead of
+  `coreContext.startAudioCall()` directly
+- Video calls unaffected, still call `coreContext.startVideoCall()` directly
 
 ---
 
@@ -129,6 +90,13 @@ Mozilla CA bundle from https://curl.se/ca/cacert.pem
 ### Change: Pass presence to SharedMainViewModel on contact click
 ### Change: Populate presence map when loading contacts
 ### Change: Fix race condition between contact tabs
+### Change: Remove SIP address entry for Loquace contacts in loadMoreContacts()
+Removed `friend.addAddress()` call building `sip:{contact.account}` —
+only `friend.addPhoneNumber(phone.number)` is kept. This was creating a
+duplicate, non-callable "SIP address" entry alongside the correct
+callable phone number entry in the Contact Fragment's numbers list.
+XMPP JID info remains separately handled in
+`XmppConversationsListViewModel.loadContacts()` via `contact.chats`.
 
 ---
 
@@ -294,26 +262,11 @@ Mozilla CA bundle from https://curl.se/ca/cacert.pem
 ---
 
 ## `app/src/main/res/layout/settings_fragment.xml`
-
-### Change: Hide unwanted settings sections
-
----
-
 ## `app/src/main/res/layout/settings_calls.xml`
-
-### Change: Hide unwanted call settings
-
----
-
 ## `app/src/main/res/layout/settings_network.xml`
-
-### Change: Hide IPv6, hide push notifications toggle
-
----
-
 ## `app/src/main/res/layout/settings_advanced_fragment.xml`
 
-### Change: Hide unwanted advanced settings, add permissions section
+### Change: Hide unwanted settings sections, hide push notifications toggle
 
 ---
 
@@ -345,9 +298,7 @@ Mozilla CA bundle from https://curl.se/ca/cacert.pem
 
 ## `app/src/main/res/values/strings.xml`
 
-### Change: Add file_provider_loquace string and all other new strings
-### Change: Add `add` string resource for participant picker
-### Change: Add delete conversation strings
+### Change: Add all new string resources for Loquace features
 
 ---
 
@@ -378,14 +329,9 @@ Mozilla CA bundle from https://curl.se/ca/cacert.pem
 ---
 
 ## `assets/linphonerc_default`
-
-### Change: Remove sip.linphone.org references
-
----
-
 ## `assets/linphonerc_factory`
 
-### Change: Disable Linphone chat features
+### Change: Remove sip.linphone.org references, disable Linphone chat features
 
 ---
 
@@ -399,7 +345,13 @@ Mozilla CA bundle from https://curl.se/ca/cacert.pem
 ### `app/src/main/res/layout/loquace_permission_item.xml` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/settings/LoquacePermissionsAdapter.kt` *(NEW)*
 ### `app/src/main/res/layout/loquace_dialer_fragment.xml` *(NEW)*
-### `app/src/main/java/org/linphone/ui/main/dialer/viewmodel/LoquaceDialerViewModel.kt` *(NEW)*
+### `app/src/main/java/org/linphone/ui/main/dialer/viewmodel/LoquaceDialerViewModel.kt` *(MODIFIED)*
+
+### Change: Intercept calls through Loquace `/api/v2/calls` endpoint
+`onCallClicked()` now POSTs `{"contact":{"number": number}}`, builds
+final SIP address from `response.contact.number` via
+`core.interpretUrl()` before calling `coreContext.startAudioCall()`.
+
 ### `app/src/main/java/org/linphone/ui/main/dialer/fragment/LoquaceDialerFragment.kt` *(NEW)*
 ### `app/src/main/res/layout/loquace_chat_list_cell.xml` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/chat/model/XmppConversationModel.kt` *(NEW)*
@@ -434,13 +386,14 @@ Mozilla CA bundle from https://curl.se/ca/cacert.pem
 5. ~~Conversation long press → delete conversation~~ ✅
 6. Video upload optimization
 7. In-app media viewer
-8. Adding special rules for phone contacts calls and emergency calls
+8. Adding special rules for phone contacts calls and emergency calls *(in progress)*
 9. Fix horizontal layout / remove landscape mode
 10. Implement translation / language selection
 11. Handle call conference UI/logic
 12. ~~Add avatar to incoming call notification~~ ✅
 13. ~~Fix default speaker on incoming calls~~ ✅
 14. Test audio codec g729 support
+15. Set group chat avatars to custom icon
 
 ---
 
@@ -450,6 +403,10 @@ Entirely new module — no merge conflicts expected here.
 
 **Key files:**
 - `network/LoquaceLogoutManager.kt` *(MODIFIED)* — full logout flow
+- `network/CallsApi.kt` *(NEW)*:
+    - `CallsApi` interface with `placeCall()` POST to `LoquaceConfig.ENDPOINT_PLACE_CALL`
+    - `CallRequest`, `CallContactRequest` (id, name, number — all but number optional)
+    - `CallResponse`, `CallContactResponse` (failed, account, type, contact)
 - `storage/LoquaceDatabase.kt` *(MODIFIED)*:
     - Version bumped to 5
     - `MIGRATION_4_5` adds `displayName` column to `xmpp_conversations`

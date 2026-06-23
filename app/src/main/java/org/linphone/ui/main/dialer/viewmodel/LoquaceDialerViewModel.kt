@@ -2,8 +2,15 @@ package org.linphone.ui.main.dialer.viewmodel
 
 import androidx.annotation.UiThread
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.linphone.LinphoneApplication.Companion.coreContext
 import org.linphone.core.tools.Log
+import org.linphone.loquace_integration.network.CallContactRequest
+import org.linphone.loquace_integration.network.CallRequest
+import org.linphone.loquace_integration.network.RetrofitClient
+import org.linphone.loquace_integration.storage.SessionManager
 import org.linphone.ui.main.viewmodel.AbstractMainViewModel
 import org.linphone.utils.LinphoneUtils
 
@@ -47,17 +54,39 @@ constructor() : AbstractMainViewModel() {
         val number = numberInput.value.orEmpty()
         if (number.isEmpty()) return
 
-        coreContext.postOnCoreThread { core ->
-            val address = core.interpretUrl(
-                number,
-                LinphoneUtils.applyInternationalPrefix()
-            )
-            if (address != null) {
-                Log.i("$TAG Starting call to [${address.asStringUriOnly()}]")
-                coreContext.startAudioCall(address)
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val sessionManager = SessionManager(coreContext.context)
+                val domain = sessionManager.getDomain() ?: return@launch
+                val token = sessionManager.getToken() ?: return@launch
+                val userAgent = sessionManager.getUserAgent()
+
+                val api = RetrofitClient.createCallsApi(domain)
+                val request = CallRequest(contact = CallContactRequest(number = number))
+                val response = api.placeCall(token, userAgent, domain, request)
+
+                if (response.failed) {
+                    Log.e("$TAG Call request failed for number [$number]")
+                    return@launch
+                }
+
+                val finalNumber = response.contact.number
+                coreContext.postOnCoreThread { core ->
+                    val address = core.interpretUrl(
+                        finalNumber,
+                        LinphoneUtils.applyInternationalPrefix()
+                    )
+                    if (address != null) {
+                        Log.i("$TAG Starting call to [${address.asStringUriOnly()}]")
+                        coreContext.startAudioCall(address)
+                    } else {
+                        Log.e("$TAG Failed to parse [$finalNumber] as SIP address")
+                    }
+                }
+
                 numberInput.postValue("")
-            } else {
-                Log.e("$TAG Failed to parse [$number] as SIP address")
+            } catch (e: Exception) {
+                Log.e("$TAG Failed to place call: ${e.message}")
             }
         }
     }

@@ -11,6 +11,7 @@ object LoquaceConfig {
     const val ENDPOINT_PRESENCE      = "status/presence"
     const val ENDPOINT_CONTACTS = "contacts"
     const val ENDPOINT_CALLS = "calls?"
+    const val ENDPOINT_PLACE_CALL = "calls"
 
     // Contacts page size
     const val CONTACTS_PAGE_SIZE = 30

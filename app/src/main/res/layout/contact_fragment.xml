@@ -69,7 +69,7 @@
                 android:layout_height="0dp"
                 android:src="@drawable/pencil_simple"
                 android:contentDescription="@string/content_description_contact_edit"
-                android:visibility="@{viewModel.isStored &amp;&amp; !viewModel.isReadOnly ? View.VISIBLE : View.GONE}"
+                android:visibility="gone"
                 app:tint="?attr/color_main2_500"
                 app:layout_constraintBottom_toBottomOf="@id/invisible_title"
                 app:layout_constraintEnd_toEndOf="parent"

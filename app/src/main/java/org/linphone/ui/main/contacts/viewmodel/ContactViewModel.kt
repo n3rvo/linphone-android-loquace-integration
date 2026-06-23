@@ -24,6 +24,7 @@ import androidx.annotation.WorkerThread
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import java.io.File
 import java.util.Locale
 import kotlinx.coroutines.launch
@@ -150,7 +151,7 @@ class ContactViewModel
                     when (expectedAction) {
                         START_AUDIO_CALL -> {
                             Log.i("$TAG Audio calling SIP address [${address.asStringUriOnly()}]")
-                            coreContext.startAudioCall(address)
+                            placeCallThroughApi(address)
                         }
                         START_VIDEO_CALL -> {
                             Log.i("$TAG Video calling SIP address [${address.asStringUriOnly()}]")
@@ -168,7 +169,6 @@ class ContactViewModel
                 Log.w(
                     "$TAG Can't call SIP address [${address?.asStringUriOnly()}], it is disabled due to currently selected mode"
                 )
-                // TODO: Explain why user can't call that number
             }
         }
 
@@ -444,7 +444,7 @@ class ContactViewModel
                 Log.i(
                     "$TAG Only 1 SIP address or phone number found for contact [${friend.name}], starting audio call directly"
                 )
-                coreContext.startAudioCall(singleAvailableAddress)
+                placeCallThroughApi(singleAvailableAddress)
             } else {
                 expectedAction = START_AUDIO_CALL
                 val list = sipAddressesAndPhoneNumbers.value.orEmpty()
@@ -452,6 +452,58 @@ class ContactViewModel
                     "$TAG [${list.size}] numbers or addresses found for contact [${friend.name}], showing selection dialog"
                 )
                 showNumberOrAddressPickerDialogEvent.postValue(Event(true))
+            }
+        }
+    }
+
+    @WorkerThread
+    private fun placeCallThroughApi(address: Address) {
+        val number = address.username ?: return
+        val isNativeContact = !friend.nativeUri.isNullOrEmpty()
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val sessionManager = org.linphone.loquace_integration.storage.SessionManager(coreContext.context)
+                val domain = sessionManager.getDomain() ?: return@launch
+                val token = sessionManager.getToken() ?: return@launch
+                val userAgent = sessionManager.getUserAgent()
+
+                val contactRequest = if (isNativeContact) {
+                    org.linphone.loquace_integration.network.CallContactRequest(
+                        name = friend.name,
+                        number = number
+                    )
+                } else {
+                    org.linphone.loquace_integration.network.CallContactRequest(
+                        id = friend.refKey,
+                        number = number
+                    )
+                }
+
+                val api = org.linphone.loquace_integration.network.RetrofitClient.createCallsApi(domain)
+                val request = org.linphone.loquace_integration.network.CallRequest(contact = contactRequest)
+                val response = api.placeCall(token, userAgent, domain, request)
+
+                if (response.failed) {
+                    Log.e("$TAG Call request failed for contact [${friend.name}]")
+                    return@launch
+                }
+
+                val finalNumber = response.contact.number
+                coreContext.postOnCoreThread { core ->
+                    val finalAddress = core.interpretUrl(
+                        finalNumber,
+                        LinphoneUtils.applyInternationalPrefix()
+                    )
+                    if (finalAddress != null) {
+                        Log.i("$TAG Starting call to [${finalAddress.asStringUriOnly()}]")
+                        coreContext.startAudioCall(finalAddress)
+                    } else {
+                        Log.e("$TAG Failed to parse [$finalNumber] as SIP address")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("$TAG Failed to place call through API: ${e.message}")
             }
         }
     }

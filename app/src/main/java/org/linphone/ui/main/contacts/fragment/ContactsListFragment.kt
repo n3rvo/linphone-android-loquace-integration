@@ -615,10 +615,11 @@ class ContactsListFragment : AbstractMainFragment() {
                     } ?: "${contact.firstName} ${contact.lastName}".trim()
                     friend.refKey = contact.id
 
-                    if (!contact.account.isNullOrEmpty()) {
+                    // This was creating malformed SIP addresses
+                    /*if (!contact.account.isNullOrEmpty()) {
                         val address = Factory.instance().createAddress("sip:${contact.account}")
                         if (address != null) friend.addAddress(address)
-                    }
+                    }*/
 
                     contact.phones?.forEach { phone ->
                         friend.addPhoneNumber(phone.number)

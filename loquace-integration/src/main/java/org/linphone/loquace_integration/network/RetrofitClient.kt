@@ -32,4 +32,7 @@ object RetrofitClient {
 
     fun createChatsApi(domain: String): ChatsApi =
         buildRetrofit(domain).create(ChatsApi::class.java)
+
+    fun createCallsApi(domain: String): CallsApi =
+        buildRetrofit(domain).create(CallsApi::class.java)
 }
