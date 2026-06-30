@@ -148,6 +148,15 @@ class SettingsAdvancedFragment : GenericMainFragment() {
                         requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                     }
                 }
+            ),
+            PermissionItem(
+                name = getString(R.string.permission_call_phone),
+                isGranted = ContextCompat.checkSelfPermission(
+                    requireContext(), Manifest.permission.CALL_PHONE
+                ) == PackageManager.PERMISSION_GRANTED,
+                onClickRequest = {
+                    requestPermissionLauncher.launch(Manifest.permission.CALL_PHONE)
+                }
             )
         )
 

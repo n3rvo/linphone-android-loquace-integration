@@ -55,33 +55,41 @@ constructor() : GenericViewModel() {
                 val sessionManager = org.linphone.loquace_integration.storage.SessionManager(
                     org.linphone.LinphoneApplication.coreContext.context
                 )
-                val token = sessionManager.getToken() ?: return@launch
-                val domain = sessionManager.getDomain() ?: return@launch
+                val token = sessionManager.getToken()
+                val domain = sessionManager.getDomain()
                 val userAgent = sessionManager.getUserAgent()
 
-                val contact = org.linphone.loquace_integration.network.LoquaceGroupsRepository()
-                    .getContactByJid(domain, token, userAgent, jid)
+                if (token != null && domain != null) {
+                    val contact = org.linphone.loquace_integration.network.LoquaceGroupsRepository()
+                        .getContactByJid(domain, token, userAgent, jid)
 
-                if (contact != null) {
-                    friend.name = contact.fullName
-                        ?: "${contact.firstName} ${contact.lastName}".trim()
+                    if (contact != null) {
+                        friend.name = contact.fullName
+                            ?: "${contact.firstName} ${contact.lastName}".trim()
 
-                    loquacePresence.postValue(contact?.presence?.status)
+                        loquacePresence.postValue(contact.presence?.status)
 
-                    val avatarFile = java.io.File(
-                        org.linphone.LinphoneApplication.coreContext.context.filesDir,
-                        "avatar_${contact.id}.jpg"
-                    )
-                    if (!avatarFile.exists()) {
-                        val pictureUrl = contact.pictureUrl ?: return@launch
-                        val bytes = org.linphone.loquace_integration.network.LoquaceMediaDownloader
-                            .downloadBytes(url = pictureUrl, token = token, domain = domain)
-                        if (bytes != null) avatarFile.writeBytes(bytes)
+                        val avatarFile = java.io.File(
+                            org.linphone.LinphoneApplication.coreContext.context.filesDir,
+                            "avatar_${contact.id}.jpg"
+                        )
+                        if (!avatarFile.exists() && contact.pictureUrl != null) {
+                            val bytes = org.linphone.loquace_integration.network.LoquaceMediaDownloader
+                                .downloadBytes(url = contact.pictureUrl!!, token = token, domain = domain)
+                            if (bytes != null) avatarFile.writeBytes(bytes)
+                        }
+                        if (avatarFile.exists()) {
+                            friend.photo = org.linphone.utils.FileUtils
+                                .getProperFilePath(avatarFile.absolutePath)
+                        }
                     }
-                    if (avatarFile.exists()) {
-                        friend.photo = org.linphone.utils.FileUtils
-                            .getProperFilePath(avatarFile.absolutePath)
-                    }
+                }
+            } else {
+                val context = org.linphone.LinphoneApplication.coreContext.context
+                val iconPath = org.linphone.loquace_integration.utils.GroupIconUtils
+                    .getOrCreateGroupIconFile(context)
+                if (iconPath != null) {
+                    friend.photo = org.linphone.utils.FileUtils.getProperFilePath(iconPath)
                 }
             }
 

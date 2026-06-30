@@ -55,6 +55,14 @@ constructor(
 
             val model = coreContext.contactsManager.getContactAvatarModelForFriend(friend)
 
+            if (conversation.isGroup) {
+                val groupIconPath = org.linphone.loquace_integration.utils.GroupIconUtils
+                    .getOrCreateGroupIconFile(coreContext.context)
+                if (groupIconPath != null) {
+                    model.picturePath.postValue(FileUtils.getProperFilePath(groupIconPath))
+                }
+            }
+
             if (!conversation.isGroup) {
                 GlobalScope.launch(Dispatchers.IO) {
                     val sessionManager = SessionManager(coreContext.context)
@@ -76,6 +84,7 @@ constructor(
                     displayName.postValue(name)
                     LoquaceXmppManager.updateConversationDisplayName(conversation.peerJid, name)
                     friend.name = name
+                    model.update(null)
 
                     // Download avatar
                     val pictureUrl = contact.pictureUrl ?: return@launch

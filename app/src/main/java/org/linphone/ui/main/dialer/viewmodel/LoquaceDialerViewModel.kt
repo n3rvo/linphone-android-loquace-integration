@@ -11,6 +11,7 @@ import org.linphone.loquace_integration.network.CallContactRequest
 import org.linphone.loquace_integration.network.CallRequest
 import org.linphone.loquace_integration.network.RetrofitClient
 import org.linphone.loquace_integration.storage.SessionManager
+import org.linphone.loquace_integration.utils.EmergencyCallUtils
 import org.linphone.ui.main.viewmodel.AbstractMainViewModel
 import org.linphone.utils.LinphoneUtils
 
@@ -53,6 +54,13 @@ constructor() : AbstractMainViewModel() {
     fun onCallClicked() {
         val number = numberInput.value.orEmpty()
         if (number.isEmpty()) return
+
+        if (EmergencyCallUtils.isEmergencyNumber(coreContext.context, number)) {
+            Log.w("$TAG [$number] is an emergency number, placing GSM call instead of SIP")
+            EmergencyCallUtils.placeGsmCall(coreContext.context, number)
+            numberInput.value = ""
+            return
+        }
 
         viewModelScope.launch(Dispatchers.IO) {
             try {

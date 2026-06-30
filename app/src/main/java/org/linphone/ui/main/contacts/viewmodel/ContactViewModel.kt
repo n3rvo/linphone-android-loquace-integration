@@ -459,6 +459,15 @@ class ContactViewModel
     @WorkerThread
     private fun placeCallThroughApi(address: Address) {
         val number = address.username ?: return
+
+        if (org.linphone.loquace_integration.utils.EmergencyCallUtils.isEmergencyNumber(coreContext.context, number)) {
+            Log.w("$TAG [$number] is an emergency number, placing GSM call instead of SIP")
+            coreContext.postOnMainThread {
+                org.linphone.loquace_integration.utils.EmergencyCallUtils.placeGsmCall(coreContext.context, number)
+            }
+            return
+        }
+
         val isNativeContact = !friend.nativeUri.isNullOrEmpty()
 
         viewModelScope.launch(Dispatchers.IO) {

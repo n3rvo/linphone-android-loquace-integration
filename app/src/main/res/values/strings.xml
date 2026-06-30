@@ -1109,6 +1109,8 @@
     <string name="permission_read_contacts">Contacts</string>
     <string name="permission_bluetooth">Bluetooth</string>
     <string name="permission_post_notifications">Notifications</string>
+    <string name="permission_call_phone">Phone calls (required to dial emergency numbers directly)</string>
+    <string name="assistant_permissions_call_phone_title"><b>Phone calls:</b> Required to dial emergency numbers directly</string>
     <string name="about_app_description">Your business communication platform</string>
     <string name="about_privacy_subtitle">Read our privacy policy</string>
     <string name="about_based_on_linphone_title">Based on Linphone</string>
