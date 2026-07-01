@@ -22,6 +22,7 @@ package org.linphone.ui
 import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.content.res.Resources
 import android.net.Uri
@@ -91,6 +92,8 @@ open class GenericActivity : AppCompatActivity() {
                 }
             }
         }
+
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
 
         super.onCreate(savedInstanceState)
     }
