@@ -59,7 +59,8 @@
             app:layout_constraintTop_toTopOf="@id/push_notifications_switch"
             app:layout_constraintBottom_toBottomOf="@id/push_notifications_switch"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/push_notifications_switch"/>
+            app:layout_constraintEnd_toStartOf="@id/push_notifications_switch"
+            android:visibility="gone"/>
 
         <com.google.android.material.materialswitch.MaterialSwitch
             style="@style/material_switch_style"
@@ -70,7 +71,8 @@
             android:layout_marginEnd="16dp"
             android:enabled="false"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/wifi_only_switch"/>
+            app:layout_constraintTop_toBottomOf="@id/wifi_only_switch"
+            android:visibility="gone"/>
 
         <androidx.appcompat.widget.AppCompatTextView
             style="@style/settings_title_style"

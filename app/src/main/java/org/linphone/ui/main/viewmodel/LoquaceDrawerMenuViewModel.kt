@@ -15,9 +15,11 @@ import org.linphone.loquace_integration.storage.SessionManager
 import org.linphone.ui.GenericViewModel
 import org.linphone.utils.Event
 import android.content.Context
+import org.linphone.LinphoneApplication
 import org.linphone.loquace_integration.network.CallsResponse
 import org.linphone.loquace_integration.network.Device
 import org.linphone.loquace_integration.network.Inbound
+import androidx.core.content.edit
 
 class LoquaceDrawerMenuViewModel
 @UiThread
@@ -38,6 +40,8 @@ constructor() : GenericViewModel() {
     val phoneEnabled = MutableLiveData<Boolean>(false)
 
     val isLoading = MutableLiveData<Boolean>(false)
+
+    val languageChangedEvent = MutableLiveData<Event<String>>()
 
     val closeDrawerEvent: MutableLiveData<Event<Boolean>> by lazy {
         MutableLiveData()
@@ -149,5 +153,16 @@ constructor() : GenericViewModel() {
 
     fun logout() {
         logoutEvent.value = Event(true)
+    }
+
+    fun onLanguageClicked() {
+        // Remove navigation to settings, handle language toggle here instead
+    }
+
+    fun setLanguage(language: String) {
+        val context = LinphoneApplication.coreContext.context
+        context.getSharedPreferences("loquace_preferences", Context.MODE_PRIVATE)
+            .edit { putString("language", language) }
+        languageChangedEvent.postValue(Event(language))
     }
 }

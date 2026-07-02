@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="login_subtitle">Comunicazione aziendale</string>
+    <string name="login_server_address_label">Indirizzo Server</string>
+    <string name="login_server_address_hint">indirizzo server</string>
+    <string name="login_username_label">Utente</string>
+    <string name="login_username_hint">utente</string>
+    <string name="login_button">Accedi</string>
+    <string name="login_error_empty_fields">Compila tutti i campi</string>
+</resources>

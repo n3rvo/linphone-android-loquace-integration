@@ -22,9 +22,12 @@ package org.linphone
 import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Context
+import android.content.res.Configuration
+import android.os.Build
 import android.os.PowerManager
 import androidx.annotation.MainThread
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.disk.DiskCache
@@ -45,7 +48,9 @@ import org.linphone.core.LogLevel
 import org.linphone.core.VFS
 import org.linphone.core.tools.Log
 import org.linphone.loquace_integration.sip.LoquaceCoreProvider
+import org.linphone.loquace_integration.storage.SessionManager
 import org.linphone.loquace_integration.xmpp.LoquaceXmppManager
+import java.util.Locale
 
 @MainThread
 class LinphoneApplication : Application(), SingletonImageLoader.Factory {
@@ -63,6 +68,21 @@ class LinphoneApplication : Application(), SingletonImageLoader.Factory {
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
         super.onCreate()
         val context = applicationContext
+
+        // Apply saved language
+        val language = getSharedPreferences("loquace_preferences", Context.MODE_PRIVATE)
+            .getString("language", "en") ?: "en"
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val localeList = LocaleListCompat.forLanguageTags(language)
+            AppCompatDelegate.setApplicationLocales(localeList)
+        } else {
+            val locale = Locale(language)
+            Locale.setDefault(locale)
+            val config = Configuration(resources.configuration)
+            config.setLocale(locale)
+            resources.updateConfiguration(config, resources.displayMetrics)
+        }
 
         val powerManager = context.getSystemService(POWER_SERVICE) as PowerManager
         val wakeLock = powerManager.newWakeLock(

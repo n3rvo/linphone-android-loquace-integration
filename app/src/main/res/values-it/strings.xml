@@ -1,2 +1,180 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources></resources>
+
+<!DOCTYPE resources [
+    <!ENTITY appName "Loquace Mobile">
+]>
+
+<resources>
+    <string name="assistant_permissions_title">Concedi autorizzazioni</string>
+    <string name="assistant_permissions_skip_permissions">Fallo più tardi</string>
+    <string name="assistant_permissions_subtitle">Per utilizzare al meglio &appName;, ti chiediamo di concedere le seguenti autorizzazioni:</string>
+
+    <string name="search">Cerca</string>
+
+    <string name="assistant_permissions_read_contacts_title"><b>Lettura contatti:</b> Per visualizzare i contatti del tuo dispositivo.</string>
+    <string name="assistant_permissions_post_notifications_title"><b>Invia notifiche:</b> Per essere informato quando ricevi un messaggio o una chiamata.</string>
+    <string name="assistant_permissions_record_audio_title"><b>Registra audio:</b> Affiché il tuo interlocutore possa sentirti e per registrare messaggi vocali.</string>
+    <string name="assistant_permissions_access_camera_title"><b>Accesso fotocamera:</b> Per acquisire video durante le videochiamate e i messaggi video.</string>
+    <string name="assistant_permissions_call_phone_title"><b>Chiamate telefoniche:</b> Necessario per chiamare i numeri di emergenza direttamente</string>
+
+    <string name="bottom_navigation_contacts_label">Contatti</string>
+    <string name="bottom_navigation_calls_label">Storico chiamate</string>
+    <string name="bottom_navigation_conversations_label">Conversazioni</string>
+
+    <string name="drawer_menu_account_connection_status_connected">Connesso</string>
+    <string name="drawer_menu_account_connection_status_disconnected">Disconnesso</string>
+    <string name="drawer_menu_account_connection_status_refreshing">Aggiornamento in corso</string>
+    <string name="drawer_menu_account_connection_status_cleared">Disabilitato</string>
+    <string name="drawer_menu_account_connection_status_progress">Connessione in corso…</string>
+    <string name="drawer_menu_account_connection_status_failed">Errore</string>
+
+    <!-- Call related -->
+    <string name="call_outgoing">Chiamata in uscita</string>
+    <string name="call_audio_incoming">Chiamata in ingresso</string>
+    <string name="call_locally_ended">Hai terminato la chiamata</string>
+    <string name="call_remotely_ended">Il tuo interlocutore ha terminato la chiamata</string>
+    <string name="call_audio_incoming_for_account">Chiamata in entrata per %s</string>
+    <string name="call_transfer_current_call_title">Trasferisci %s a…</string>
+    <string name="call_transfer_active_calls_label">Chiamate in corso</string>
+    <string name="call_transfer_no_active_call_label">Nessun\'altra chiamata</string>
+    <string name="call_transfer_confirm_dialog_tittle">Conferma trasferimento chiamata</string>
+    <string name="call_transfer_confirm_dialog_message">Stai per trasferire la chiamata %1$s a %2$s.</string>
+
+    <string name="call_action_transfer">Trasferisci</string>
+    <string name="call_action_start_new_call">Nuova chiamata</string>
+    <string name="call_action_go_to_calls_list">Lista chiamata</string>
+    <string name="call_action_show_dialer">Tastiera</string>
+    <string name="call_action_show_messages">Messaggi</string>
+    <string name="call_action_pause_call">Pausa</string>
+    <string name="call_action_resume_call">Riprendi</string>
+    <string name="call_action_record_call">Registra</string>
+    <string name="call_action_hang_up">Riaggancia</string>
+    <string name="call_action_decline">Rifiuta</string>
+    <string name="call_action_answer">Rispondi</string>
+    <string name="call_action_change_layout">Layout</string>
+    <string name="call_state_outgoing_progress">In corso</string>
+    <string name="call_state_outgoing_ringing">Squillo in corso…</string>
+    <string name="call_state_incoming_received">In entrata</string>
+    <string name="call_state_connected">Attiva</string>
+    <string name="call_state_paused">In pausa</string>
+    <string name="call_state_paused_by_remote">In pausa dall\'interlocutore</string>
+    <string name="call_state_resuming">Ripresa in corso…</string>
+    <string name="call_state_ended">Terminata</string>
+    <string name="call_waiting_for_encryption_info">In attesa di cifratura…</string>
+    <string name="call_zrtp_end_to_end_encrypted">Cifratura end-to-end tramite ZRTP</string>
+    <string name="call_zrtp_point_to_point_encrypted">Cifratura punto-punto tramite ZRTP</string>
+    <string name="call_do_zrtp_sas_validation_again">Valida nuovamente il SAS ZRTP</string>
+    <string name="call_zrtp_sas_validation_required">Validazione richiesta</string>
+    <string name="call_srtp_point_to_point_encrypted">Cifratura punto-punto tramite SRTP</string>
+    <string name="call_not_encrypted">La chiamata non è cifrata</string>
+    <string name="calls_list_title">Lista chiamate</string>
+    <string name="call_is_being_recorded">La chiamata è in fase di registrazione</string>
+    <string name="call_remote_is_recording">%s sta registrando</string>
+    <string name="calls_count_label">%s chiamate</string>
+    <string name="calls_paused_count_label">%s chiamate in pausa</string>
+    <string name="calls_list_dialog_merge_into_conference_title">Unire tutte le chiamate in conferenza?</string>
+    <string name="calls_list_dialog_merge_into_conference_label">Crea conferenza</string>
+    <string name="call_audio_record_permission_not_granted_toast">Permesso di registrazione audio negato!</string>
+    <string name="call_camera_permission_not_granted_toast">Permesso fotocamera negato!</string>
+
+    <string name="settings_title">Impostazioni</string>
+    <string name="settings_calls_title">Chiamate</string>
+    <string name="settings_calls_echo_canceller_title">Usa software cancellatore eco</string>
+    <string name="settings_calls_echo_canceller_subtitle">Impedisce all\'interlocutore di sentire l\'eco se non è disponibile un hardware cancellatore eco</string>
+    <string name="settings_calls_calibrate_echo_canceller_title">Calibra cancellatore eco</string>
+    <string name="settings_calls_calibrate_echo_canceller_in_progress">in corso</string>
+    <string name="settings_calls_calibrate_echo_canceller_done_no_echo">nessun eco</string>
+    <string name="settings_calls_calibrate_echo_canceller_failed">fallito</string>
+    <string name="settings_calls_enable_video_title">Abilita video</string>
+    <string name="settings_calls_vibrate_while_ringing_title">Vibra durante le chiamate in entrata</string>
+    <string name="settings_calls_change_ringtone_title">Cambia suoneria</string>
+    <string name="settings_calls_change_ringtone_pick_title">Scegli suoneria</string>
+    <string name="settings_calls_change_ringtone_picker_unavailable_toast">Il selettore di suonerie non è disponibile!</string>
+    <string name="settings_network_title">Rete</string>
+    <string name="settings_network_use_wifi_only">Usa solo reti Wi-Fi</string>
+    <string name="settings_advanced_title">Impostazioni avanzate</string>
+    <string name="settings_advanced_start_at_boot_title">Avvia all\'accensione del dispositivo</string>
+    <string name="settings_advanced_keep_alive_service_title">Mantieni l\'app attiva tramite Servizio</string>
+    <string name="settings_advanced_go_to_android_app_settings_title">Impostazioni Android di &appName;</string>
+
+    <string name="conversation_text_field_hint">Di\' qualcosoa…</string>
+
+    <!-- Loquace Strings -->
+    <string name="contacts_tab_phone">Telefono</string>
+    <string name="contacts_tab_pbx">PBX</string>
+    <string name="contacts_tab_user">Utenti</string>
+    <string name="history_tab_all">Tutte</string>
+    <string name="history_tab_missed">Perse</string>
+    <string name="bottom_navigation_dialer_label">Tastiera</string>
+    <string name="chat_tab_chats">Chats</string>
+    <string name="chat_tab_contacts">Contatti</string>
+    <string name="chat_tab_groups">Gruppi</string>
+    <string name="attachment_picker_title">Allega</string>
+    <string name="attachment_picker_image">Foto</string>
+    <string name="attachment_picker_video">Video</string>
+    <string name="attachment_picker_file">Documento</string>
+    <string name="attachment_picker_camera_photo">Scatta foto</string>
+    <string name="attachment_picker_camera_video">Registra video</string>
+    <string name="voice_note_release_to_send">Rilascia per inviare</string>
+    <string name="voice_note_permission_denied">È necessario il permesso del microfono per registrare le note vocali</string>
+    <string name="group_name_hint">Nome del gruppo</string>
+    <string name="create_group_title">Crea grouppo</string>
+    <string name="add_participants_title">Aggiungi partecipanti</string>
+    <string name="add">Aggiungi</string>
+    <string name="cancel">Annulla</string>
+    <string name="create">Crea</string>
+    <string name="content_description_group_create">Crea nuovo gruppo</string>
+    <string name="group_member">Membro</string>
+    <string name="group_owner">Proprietario</string>
+    <string name="group_members">Membri</string>
+    <string name="group_add_member">Aggiungi membro</string>
+    <string name="group_remove_member">Rimuovi membro</string>
+    <string name="group_delete">Elimina gruppo</string>
+    <string name="group_delete_confirmation">Sei sicuro di voler eliminare questo grouppo? Questa azione non può essere annullata.</string>
+    <string name="delete">Elimina</string>
+    <string name="loading">Caricamento…</string>
+    <string name="group_remove_member_confirmation">Sei sicuro di voler rimuovere %1$s dal gruppo?</string>
+    <string name="message_edit">Modifica messaggio</string>
+    <string name="save">Salva</string>
+    <string name="message_cancel_confirmation">Sei sicuro di voler annullare questo messaggio? Apparirà come eliminato per tutti.</string>
+    <string name="confirm">Conferma</string>
+    <string name="message_delete">Elimina messaggio</string>
+    <string name="message_delete_confirmation">Sei sicuro di voler eliminare questo messaggio per tutti?</string>
+    <string name="delete_conversation_title">Rimuovi conversazione</string>
+    <string name="delete_conversation_confirmation">Sei sicuro di voler rimuovere questa conversazione dalle conversazioni attive?</string>
+    <string name="drawer_incoming_calls_title">Chiamate in ingresso</string>
+    <string name="drawer_device_mobile">Mobile</string>
+    <string name="drawer_device_browser">Browser</string>
+    <string name="drawer_device_phone">Telefono</string>
+    <string name="drawer_presence_title">Presenza</string>
+    <string name="drawer_presence_status_label">Stato</string>
+    <string name="drawer_presence_message_label">Messaggio di stato</string>
+    <string name="drawer_presence_message_hint">Aggiungi un messaggio di stato…</string>
+    <string name="drawer_status_online">Online</string>
+    <string name="drawer_status_away">Assente</string>
+    <string name="drawer_status_busy">Occupato</string>
+    <string name="drawer_status_offline">Offline</string>
+    <string name="drawer_about_title">Informazioni</string>
+    <string name="drawer_language_title">Lingua</string>
+    <string name="drawer_logout">Esci</string>
+    <string name="logout_confirmation_message">Sei sicuro di voler uscire?</string>
+    <string name="drawer_submit">Salva</string>
+    <string name="settings_network_push_notifications">Abilita notifiche push</string>
+    <string name="settings_advanced_permissions_title">Permessi</string>
+    <string name="permission_record_audio">Microfono</string>
+    <string name="permission_camera">Fotocamera</string>
+    <string name="permission_read_contacts">Contatti</string>
+    <string name="permission_bluetooth">Bluetooth</string>
+    <string name="permission_post_notifications">Notifiche</string>
+    <string name="permission_call_phone">Chiamate telefoniche</string>
+    <string name="about_app_description">La tua piattaforma di comunicazione aziendale</string>
+    <string name="about_privacy_subtitle">Leggi la nostra informativa sulla privacy</string>
+    <string name="about_based_on_linphone_title">Basato su Linphone</string>
+    <string name="about_based_on_linphone_subtitle">Questa app è costruita su Linphone, un progetto VoIP open-source</string>
+    <string name="about_gpl_license_title">Licenza GNU GPL v3</string>
+    <string name="about_gpl_license_subtitle">Questa app è distribuita sotto la Licenza Pubblica Generale GNU v3</string>
+    <string name="about_privacy_policy_url">https://www.loquace.it/informativa-privacy/</string>
+    <string name="about_linphone_url">https://www.linphone.org</string>
+    <string name="about_gpl_url">https://www.gnu.org/licenses/gpl-3.0.html</string>
+    <string name="notification_incoming_call_title">Chiamata in arrivo</string>
+</resources>

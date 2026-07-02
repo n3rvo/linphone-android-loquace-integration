@@ -146,7 +146,7 @@
                 android:layout_margin="16dp"
                 android:src="@drawable/numpad"
                 android:contentDescription="@string/content_description_show_numpad"
-                android:visibility="@{viewModel.isOutgoingEarlyMedia ? View.VISIBLE : View.GONE, default=gone}"
+                android:visibility="gone"
                 app:tint="@color/in_call_button_tint_color"
                 app:backgroundTint="@color/in_call_button_background_tint_color"
                 app:shapeAppearanceOverlay="@style/rounded"

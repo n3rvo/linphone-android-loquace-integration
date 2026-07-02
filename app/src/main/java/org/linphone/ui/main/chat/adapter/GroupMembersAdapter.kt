@@ -53,6 +53,9 @@ class GroupMembersAdapter(
         fun bind(participant: GroupParticipant) {
             binding.participant = participant
 
+            binding.roleBadge.text = binding.root.context.getString(R.string.group_member)
+            if (isOwner) binding.roleBadge.text = binding.root.context.getString(R.string.group_owner)
+
             // Clip avatar container to circle
             binding.avatarContainer.outlineProvider = object : android.view.ViewOutlineProvider() {
                 override fun getOutline(view: android.view.View, outline: android.graphics.Outline) {

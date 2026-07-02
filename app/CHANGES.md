@@ -9,6 +9,7 @@ When merging from upstream `release/6.2`, recheck and reapply these changes.
 
 ### Change: Initialize LoquaceCoreProvider after Core starts
 ### Change: App-wide block on Night Mode
+### Change: Apply saved language on app start
 
 ---
 
@@ -62,9 +63,6 @@ When merging from upstream `release/6.2`, recheck and reapply these changes.
 ### Change: Add loquacePresence LiveData
 ### Change: Intercept calls through Loquace `/api/v2/calls` endpoint
 ### Change: Emergency number check before API call interception
-`placeCallThroughApi()` checks `EmergencyCallUtils.isEmergencyNumber()`
-first — if true, places a GSM call via `EmergencyCallUtils.placeGsmCall()`
-and skips the Loquace API entirely.
 
 ---
 
@@ -123,43 +121,20 @@ and skips the Loquace API entirely.
 
 ### Change: Call updateConversationDisplayName after resolving display name
 ### Change: Set group chat avatar to custom icon
-For groups, sets `model.picturePath` to the cached
-`GroupIconUtils.getOrCreateGroupIconFile()` result immediately in `init`.
-
-### Change: Refresh avatar model after resolving 1-1 contact name
-Added `model.update(null)` call right after `friend.name = name` in the
-1-1 contact resolution coroutine — `ContactAvatarModel.update()`
-recomputes `initials`, `picturePath`, and `name` from the now-updated
-`friend.name`, fixing initials that were previously generated from the
-JID placeholder name and never refreshed once the real name arrived.
+### Change: Refresh avatar model after resolving 1-1 contact name via model.update(null)
 
 ---
 
 ## `app/src/main/java/org/linphone/ui/main/chat/viewmodel/XmppConversationViewModel.kt`
 
 ### Change: Fix early-return bug skipping avatar model posting
-Previously, `return@launch` inside the `if (contact != null)` block
-(triggered when `contact.pictureUrl` was null) skipped the
-`postOnCoreThread` block entirely, meaning `avatarModel` was never
-posted and the conversation header avatar stayed blank instead of
-falling back to initials. Replaced early returns with null-safe
-conditionals (`token != null && domain != null`,
-`contact.pictureUrl != null` as a condition rather than an early exit)
-so the avatar model is always built and posted regardless of whether
-a picture URL exists.
-
 ### Change: Set group chat avatar to custom icon in conversation header
-In the `else` (group) branch of `initialize()`, sets `friend.photo` to
-`GroupIconUtils.getOrCreateGroupIconFile()`'s cached path before building
-the avatar model, matching the same icon used in the chat list.
 
 ---
 
 ## `app/src/main/java/org/linphone/ui/main/chat/fragment/XmppGroupDetailsBottomSheet.kt`
 
 ### Change: Replace `showAddMemberDialog()` with `ParticipantPickerBottomSheet`
-Group details bottom sheet intentionally excluded from the custom group
-icon change — continues to show individual member avatars as before.
 
 ---
 
@@ -267,12 +242,25 @@ icon change — continues to show individual member avatars as before.
 ## `app/src/main/res/layout/main_drawer_menu.xml`
 
 ### Change: Replace Linphone drawer with Loquace custom drawer
+### Change: Add language accordion row with Spinner
 
 ---
 
 ## `app/src/main/java/org/linphone/ui/main/fragment/DrawerMenuFragment.kt`
 
 ### Change: Wire up Loquace drawer sections
+### Change: Add language accordion toggle and spinner
+### Change: Initialize language spinner from `loquace_preferences`
+### Change: Observe `languageChangedEvent` and call `applyLanguage()`
+
+---
+
+## `app/src/main/java/org/linphone/ui/main/viewmodel/LoquaceDrawerMenuViewModel.kt`
+
+### Change: Add `setLanguage()` and `languageChangedEvent`
+Reads/writes `language` from `loquace_preferences` via
+`LinphoneApplication.coreContext.context`, posts new language via
+`languageChangedEvent`.
 
 ---
 
@@ -327,6 +315,12 @@ icon change — continues to show individual member avatars as before.
 
 ---
 
+## `app/src/main/java/org/linphone/compatibility/GenericActivity.kt`
+
+### Change: Lock orientation to portrait
+
+---
+
 ## `app/src/main/AndroidManifest.xml`
 
 ### Change: Disable Auto Backup
@@ -339,13 +333,27 @@ icon change — continues to show individual member avatars as before.
 ### Change: Remove duplicate FileProvider
 ### Change: Add network security config
 ### Change: Add CALL_PHONE permission
+### Change: Add localeConfig reference
+
+---
+
+## `app/src/main/res/xml/locales_config.xml`
+
+### Change: Add Italian locale
 
 ---
 
 ## `app/src/main/res/values/strings.xml`
 
 ### Change: Add all new string resources for Loquace features
-### Change: Add permission_call_phone and assistant_permissions_call_phone_title
+
+---
+
+## `app/src/main/res/values-it/strings.xml` *(NEW)*
+
+### Change: Add Italian translations for all strings
+Note: `file_provider_loquace` intentionally excluded — provider
+authorities cannot vary by configuration.
 
 ---
 
@@ -393,10 +401,6 @@ icon change — continues to show individual member avatars as before.
 ### `app/src/main/java/org/linphone/ui/main/settings/LoquacePermissionsAdapter.kt` *(NEW)*
 ### `app/src/main/res/layout/loquace_dialer_fragment.xml` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/dialer/viewmodel/LoquaceDialerViewModel.kt` *(MODIFIED)*
-
-### Change: Intercept calls through Loquace `/api/v2/calls` endpoint
-### Change: Emergency number check before API call interception
-
 ### `app/src/main/java/org/linphone/ui/main/dialer/fragment/LoquaceDialerFragment.kt` *(NEW)*
 ### `app/src/main/res/layout/loquace_chat_list_cell.xml` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/chat/model/XmppConversationModel.kt` *(NEW)*
@@ -416,30 +420,40 @@ icon change — continues to show individual member avatars as before.
 ### `app/src/main/res/layout/loquace_participant_picker_cell.xml` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/chat/fragment/ParticipantPickerBottomSheet.kt` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/history/model/LoquaceCallLogModel.kt` *(NEW)*
-### `app/src/main/java/org/linphone/ui/main/viewmodel/LoquaceDrawerMenuViewModel.kt` *(NEW)*
+### `app/src/main/java/org/linphone/ui/main/viewmodel/LoquaceDrawerMenuViewModel.kt` *(MODIFIED)*
 ### `app/src/main/java/org/linphone/ui/main/help/fragment/LoquaceAboutFragment.kt` *(NEW)*
 ### `app/src/main/res/layout/loquace_about_fragment.xml` *(NEW)*
 ### `app/src/main/java/org/linphone/core/LoquaceFirebaseMessagingService.kt` *(NEW)*
 
 ---
 
-## Pending features (publication checklist)
+## Pre-beta checklist
 1. ~~Remove video call and chat button from SIP contact card + add status~~ ✅
 2. ~~Search implementation for chat contacts and open conversations~~ ✅
 3. ~~Improve group chat participant picker (searchable + avatars + status borders)~~ ✅
 4. ~~Restyle of in-call screen~~ ✅
 5. ~~Conversation long press → delete conversation~~ ✅
-6. Video upload optimization
-7. In-app media viewer
-8. ~~Adding special rules for phone contacts calls and emergency calls~~ ✅
-9. Fix horizontal layout / remove landscape mode
-10. Implement translation / language selection
-11. Handle call conference UI/logic
-12. ~~Add avatar to incoming call notification~~ ✅
-13. ~~Fix default speaker on incoming calls~~ ✅
-14. Test audio codec g729 support
-15. ~~Set group chat avatars to custom icon~~ ✅
-16. Fix chat timestamps
+6. ~~Adding special rules for phone contacts calls and emergency calls~~ ✅
+7. ~~Fix horizontal layout / remove landscape mode~~ ✅
+8. ~~Add avatar to incoming call notification~~ ✅
+9. ~~Fix default speaker on incoming calls~~ ✅
+10. ~~Set group chat avatars to custom icon~~ ✅
+11. ~~Implement translation / language selection~~ ✅
+12. Handle call conference UI/logic
+13. Test audio codec g729 support
+14. Fix chat timestamps
+15. Improve Incoming Calls menu toggle buttons design
+16. Remove group chat owner removal option from the group details bottom sheet
+17. Fix Service notifications and implement said setting
+18. Fix in-call actions
+
+---
+
+## Post-beta checklist
+1. Video upload optimization
+2. In-app media viewer
+3. Optimize first user contacts fetch
+4. Stop automatic chat contacts page fetch without scrolling down
 
 ---
 
@@ -448,51 +462,22 @@ icon change — continues to show individual member avatars as before.
 Entirely new module — no merge conflicts expected here.
 
 **Key files:**
-- `network/LoquaceLogoutManager.kt` *(MODIFIED)* — full logout flow
-- `network/CallsApi.kt` *(NEW)*:
-    - `CallsApi` interface with `placeCall()` POST to `LoquaceConfig.ENDPOINT_PLACE_CALL`
-    - `CallRequest`, `CallContactRequest` (id, name, number — all but number optional)
-    - `CallResponse`, `CallContactResponse` (failed, account, type, contact)
-- `utils/EmergencyCallUtils.kt` *(NEW)*:
-    - `isEmergencyNumber(context, number)` — uses `TelephonyManager.isEmergencyNumber()`
-      (API 29+) or `PhoneNumberUtils.isEmergencyNumber()` (legacy fallback)
-    - `placeGsmCall(context, number)` — targets the system default dialer
-      package via `TelecomManager.defaultDialerPackage` to skip the app
-      chooser dialog; falls back to untargeted intent if unavailable;
-      uses `ACTION_CALL` if `CALL_PHONE` permission granted, else
-      `ACTION_DIAL`
-- `utils/GroupIconUtils.kt` *(NEW)*:
-    - `getOrCreateGroupIconFile(context)` — renders `R.drawable.loquace_group_icon`
-      (white-filled vector, own copy in this module) onto a
-      `gray_main2_200`-colored circle background, caches result in
-      `context.cacheDir` plus an in-memory `cachedIconPath` to avoid
-      redundant renders within a session
-- `res/drawable/loquace_group_icon.xml` *(NEW)* — white-filled copy of
-  the `users_three` icon, owned by this module to avoid cross-module
-  resource ID resolution
-- `storage/LoquaceDatabase.kt` *(MODIFIED)*:
-    - Version bumped to 5
-    - `MIGRATION_4_5` adds `displayName` column to `xmpp_conversations`
-    - DB validity check, `needs_relogin` flag on corruption
-- `storage/entity/XmppConversationEntity.kt` *(MODIFIED)*:
-    - Added `displayName: String?` field
-- `storage/SessionManager.kt` — `clearSession()` clears all stored data
-- `sip/LoquaceSipConfigurator.kt` — push notifications always enabled
-- `ui/LoquaceLoginActivity.kt` *(MODIFIED)* — `OnBackPressedCallback`
-  calls `moveTaskToBack(true)`
-- `ui/activity_login.xml` — redesigned login screen
-- `xmpp/LoquaceXmppManager.kt` *(MODIFIED)*:
-    - `updateConversationDisplayName()` persists resolved name to StateFlow and DB
-    - `loadConversations()` loads `displayName` from DB entity
-    - `logout()` clears all XMPP state
-    - `deleteConversation()` removes from StateFlow, messages map and DB
-- `xmpp/XmppConversation.kt` *(MODIFIED)*:
-    - Added `displayName: String? = null` field
-- `xmpp/XmppConnectionService.kt` — `specialUse` foreground service type
-- `xmpp/XmppMessage.kt`, `xmpp/XmppHttpUploadManager.kt`,
-  `xmpp/AttachmentType.kt`
-- `storage/dao/XmppConversationDao.kt` *(MODIFIED)*:
-    - Added `deleteByPeerJid(peerJid: String)` query
+- `network/LoquaceLogoutManager.kt` *(MODIFIED)*
+- `network/CallsApi.kt` *(NEW)*
+- `utils/EmergencyCallUtils.kt` *(NEW)*
+- `utils/GroupIconUtils.kt` *(NEW)*
+- `res/drawable/loquace_group_icon.xml` *(NEW)*
+- `storage/LoquaceDatabase.kt` *(MODIFIED)*
+- `storage/entity/XmppConversationEntity.kt` *(MODIFIED)*
+- `storage/SessionManager.kt`
+- `sip/LoquaceSipConfigurator.kt`
+- `ui/LoquaceLoginActivity.kt` *(MODIFIED)*
+- `ui/activity_login.xml`
+- `xmpp/LoquaceXmppManager.kt` *(MODIFIED)*
+- `xmpp/XmppConversation.kt` *(MODIFIED)*
+- `xmpp/XmppConnectionService.kt`
+- `xmpp/XmppMessage.kt`, `xmpp/XmppHttpUploadManager.kt`, `xmpp/AttachmentType.kt`
+- `storage/dao/XmppConversationDao.kt` *(MODIFIED)*
 
 **Dependencies added to `loquace-integration`:**
 - `retrofit2:retrofit`, `retrofit2:converter-gson`
