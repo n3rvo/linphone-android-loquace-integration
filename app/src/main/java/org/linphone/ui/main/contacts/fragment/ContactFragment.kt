@@ -102,7 +102,15 @@ class ContactFragment : SlidingPaneChildFragment() {
         Log.i("$TAG Looking up for contact with ref key [$refKey]")
         viewModel.findContact(sharedViewModel.displayedFriend, refKey)
 
-        viewModel.loquacePresence.value = sharedViewModel.displayedContactPresence
+        val rawPresence = sharedViewModel.displayedContactPresence
+        viewModel.loquacePresence.value = rawPresence // keep raw for color adapter
+        viewModel.loquacePresenceLabel.value = when (rawPresence?.uppercase()) {
+            "ONLINE" -> getString(R.string.drawer_status_online)
+            "AWAY" -> getString(R.string.drawer_status_away)
+            "BUSY" -> getString(R.string.drawer_status_busy)
+            "OFFLINE" -> getString(R.string.drawer_status_offline)
+            else -> null
+        }
 
         binding.setBackClickListener {
             goBack()

@@ -9,7 +9,9 @@ import androidx.lifecycle.MutableLiveData
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import androidx.transition.Visibility
 import org.linphone.R
+import org.linphone.core.Participant
 import org.linphone.databinding.LoquaceGroupMemberCellBinding
 import org.linphone.loquace_integration.network.GroupParticipant
 import org.linphone.utils.Event
@@ -54,7 +56,16 @@ class GroupMembersAdapter(
             binding.participant = participant
 
             binding.roleBadge.text = binding.root.context.getString(R.string.group_member)
-            if (isOwner) binding.roleBadge.text = binding.root.context.getString(R.string.group_owner)
+            if (participant.role == "owner"){
+                binding.roleBadge.text = binding.root.context.getString(R.string.group_owner)
+                binding.removeButton.visibility = View.INVISIBLE
+                binding.removeButton.isClickable = false
+            } else {
+                if (isOwner) {
+                    binding.removeButton.visibility = View.VISIBLE
+                    binding.removeButton.isClickable = true
+                }
+            }
 
             // Clip avatar container to circle
             binding.avatarContainer.outlineProvider = object : android.view.ViewOutlineProvider() {

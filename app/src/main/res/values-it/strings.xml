@@ -9,6 +9,10 @@
     <string name="assistant_permissions_skip_permissions">Fallo più tardi</string>
     <string name="assistant_permissions_subtitle">Per utilizzare al meglio &appName;, ti chiediamo di concedere le seguenti autorizzazioni:</string>
 
+    <string name="phone_number">Numero di telefono</string>
+    <string name="sip_address">Indirizzo SIP</string>
+    <string name="today">Oggi</string>
+    <string name="yesterday">Ieri</string>
     <string name="search">Cerca</string>
 
     <string name="assistant_permissions_read_contacts_title"><b>Lettura contatti:</b> Per visualizzare i contatti del tuo dispositivo.</string>
@@ -17,6 +21,13 @@
     <string name="assistant_permissions_access_camera_title"><b>Accesso fotocamera:</b> Per acquisire video durante le videochiamate e i messaggi video.</string>
     <string name="assistant_permissions_call_phone_title"><b>Chiamate telefoniche:</b> Necessario per chiamare i numeri di emergenza direttamente</string>
 
+    <string name="settings_contacts_title">Contatti</string>
+    <string name="contact_call_action">Chiama</string>
+    <string name="contact_details_numbers_and_addresses_title">Numeri di telefono &amp; indirizzi SIP</string>
+    <string name="contact_editor_company">Azienda</string>
+    <string name="contact_editor_job_title">Qualifica</string>
+
+    <string name="generic_address_picker_contacts_list_title">Contatti</string>
     <string name="bottom_navigation_contacts_label">Contatti</string>
     <string name="bottom_navigation_calls_label">Storico chiamate</string>
     <string name="bottom_navigation_conversations_label">Conversazioni</string>

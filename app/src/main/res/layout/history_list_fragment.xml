@@ -136,7 +136,7 @@
                     android:textColor="@color/secondary_button_label_color"
                     android:gravity="center"
                     android:background="@drawable/secondary_button_background"
-                    android:visibility="@{viewModel.callLogs.empty &amp;&amp; viewModel.moreThanOneAccount ? View.VISIBLE : View.GONE}"
+                    android:visibility="gone"
                     app:layout_constraintTop_toBottomOf="@id/no_calls_label"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toStartOf="parent"/>

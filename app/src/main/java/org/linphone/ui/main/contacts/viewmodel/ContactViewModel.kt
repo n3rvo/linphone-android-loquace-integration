@@ -141,6 +141,8 @@ class ContactViewModel
         MutableLiveData()
     }
 
+    val loquacePresenceLabel: MutableLiveData<String?> = MutableLiveData(null)
+
     private var expectedAction: Int = START_AUDIO_CALL
     private val listener = object : ContactNumberOrAddressClickListener {
         @UiThread

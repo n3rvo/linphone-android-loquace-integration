@@ -294,7 +294,7 @@ class XmppConversationFragment : SlidingPaneChildFragment() {
             getString(R.string.attachment_picker_camera_video)
         )
         androidx.appcompat.app.AlertDialog.Builder(requireContext())
-            .setTitle("Attach")
+            .setTitle(R.string.attachment_picker_title)
             .setItems(options) { _, which ->
                 when (which) {
                     0 -> filePickerLauncher.launch("image/*")
