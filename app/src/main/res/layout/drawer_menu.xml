@@ -129,7 +129,7 @@
                         android:layout_marginStart="10dp"
                         android:layout_marginEnd="10dp"
                         android:paddingTop="8dp"
-                        android:paddingEnd="8dp"
+                        android:paddingEnd="5dp"
                         android:paddingBottom="8dp"
                         android:paddingStart="5dp"
                         android:text="@string/drawer_incoming_calls_title"
@@ -163,7 +163,7 @@
                             <ImageView
                                 android:layout_width="20dp"
                                 android:layout_height="20dp"
-                                android:src="@drawable/cell_signal_full"
+                                android:src="@drawable/device_mobile_camera"
                                 android:contentDescription="@null"
                                 android:layout_marginEnd="8dp"
                                 app:tint="?attr/color_main2_500"/>
@@ -181,7 +181,9 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:theme="@style/LoquaceSwitch"
-                                android:checked="@{loquaceViewModel.mobileEnabled}"/>
+                                android:checked="@{loquaceViewModel.mobileEnabled}"
+                                app:trackTint="@drawable/switch_track_tint"
+                                app:thumbTint="@drawable/switch_thumb_tint"/>
                         </LinearLayout>
 
                         <!-- Browser -->
@@ -213,7 +215,9 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:theme="@style/LoquaceSwitch"
-                                android:checked="@{loquaceViewModel.browserEnabled}"/>
+                                android:checked="@{loquaceViewModel.browserEnabled}"
+                                app:trackTint="@drawable/switch_track_tint"
+                                app:thumbTint="@drawable/switch_thumb_tint"/>
                         </LinearLayout>
 
                         <!-- Phone -->
@@ -245,7 +249,9 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:theme="@style/LoquaceSwitch"
-                                android:checked="@{loquaceViewModel.phoneEnabled}"/>
+                                android:checked="@{loquaceViewModel.phoneEnabled}"
+                                app:trackTint="@drawable/switch_track_tint"
+                                app:thumbTint="@drawable/switch_thumb_tint"/>
                         </LinearLayout>
 
                         <androidx.appcompat.widget.AppCompatTextView
@@ -373,7 +379,6 @@
                         android:text="@string/settings_title"
                         android:textSize="15sp"
                         android:drawableStart="@drawable/gear"
-                        android:drawableEnd="@drawable/caret_right"
                         android:drawablePadding="8dp"
                         android:background="@drawable/squircle_transparent_button_background"
                         app:drawableTint="?attr/color_main2_500"/>
@@ -390,7 +395,6 @@
                         android:text="@string/drawer_about_title"
                         android:textSize="15sp"
                         android:drawableStart="@drawable/info"
-                        android:drawableEnd="@drawable/caret_right"
                         android:drawablePadding="8dp"
                         android:background="@drawable/squircle_transparent_button_background"
                         app:drawableTint="?attr/color_main2_500"/>

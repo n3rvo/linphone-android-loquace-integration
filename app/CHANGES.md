@@ -60,7 +60,7 @@ When merging from upstream `release/6.2`, recheck and reapply these changes.
 
 ## `app/src/main/java/org/linphone/ui/main/contacts/viewmodel/ContactViewModel.kt`
 
-### Change: Add loquacePresence LiveData and loquacePresenceLabel LiveData
+### Change: Add loquacePresence and loquacePresenceLabel LiveData
 ### Change: Intercept calls through Loquace `/api/v2/calls` endpoint
 ### Change: Emergency number check before API call interception
 
@@ -123,8 +123,8 @@ When merging from upstream `release/6.2`, recheck and reapply these changes.
 ### Change: Set group chat avatar to custom icon
 ### Change: Refresh avatar model after resolving 1-1 contact name via model.update(null)
 ### Change: Fix chat list timestamp display
-`formatDateTime()` now converts milliseconds to seconds before passing
-to `TimestampUtils` since Linphone utilities expect seconds:
+`formatDateTime()` converts milliseconds to seconds before passing to
+`TimestampUtils`:
 ```kotlin
 val timestampInSeconds = if (timestamp > 10_000_000_000L) timestamp / 1000L else timestamp
 ```
@@ -155,6 +155,8 @@ val timestampInSeconds = if (timestamp > 10_000_000_000L) timestamp / 1000L else
 ## `app/src/main/res/drawable/presence_ring_away.xml` *(NEW)*
 ## `app/src/main/res/drawable/presence_ring_busy.xml` *(NEW)*
 ## `app/src/main/res/drawable/presence_ring_offline.xml` *(NEW)*
+## `app/src/main/res/drawable/switch_thumb_tint.xml` *(NEW)*
+## `app/src/main/res/drawable/switch_track_tint.xml` *(NEW)*
 
 ---
 
@@ -249,6 +251,23 @@ val timestampInSeconds = if (timestamp > 10_000_000_000L) timestamp / 1000L else
 
 ### Change: Replace Linphone drawer with Loquace custom drawer
 ### Change: Add language accordion row with Spinner
+### Change: Apply LoquaceSwitch style with thumb and track tint selectors
+to all SwitchMaterial toggles in Incoming Calls section
+
+---
+
+## `app/src/main/res/values/styles.xml`
+
+### Change: Add LoquaceSwitch style
+```xml
+<style name="LoquaceSwitch" parent="Widget.MaterialComponents.CompoundButton.Switch">
+    <item name="colorPrimary">?attr/color_main1_500</item>
+    <item name="colorSwitchThumbNormal">?attr/color_main2_200</item>
+    <item name="android:colorForeground">?attr/color_main2_200</item>
+    <item name="thumbTint">@drawable/switch_thumb_tint</item>
+    <item name="trackTint">@drawable/switch_track_tint</item>
+</style>
+```
 
 ---
 
@@ -425,37 +444,6 @@ Note: `file_provider_loquace` intentionally excluded.
 ### `app/src/main/java/org/linphone/ui/main/help/fragment/LoquaceAboutFragment.kt` *(NEW)*
 ### `app/src/main/res/layout/loquace_about_fragment.xml` *(NEW)*
 ### `app/src/main/java/org/linphone/core/LoquaceFirebaseMessagingService.kt` *(NEW)*
-
----
-
-## Pre-beta checklist
-1. ~~Remove video call and chat button from SIP contact card + add status~~ ✅
-2. ~~Search implementation for chat contacts and open conversations~~ ✅
-3. ~~Improve group chat participant picker (searchable + avatars + status borders)~~ ✅
-4. ~~Restyle of in-call screen~~ ✅
-5. ~~Conversation long press → delete conversation~~ ✅
-6. ~~Adding special rules for phone contacts calls and emergency calls~~ ✅
-7. ~~Fix horizontal layout / remove landscape mode~~ ✅
-8. ~~Add avatar to incoming call notification~~ ✅
-9. ~~Fix default speaker on incoming calls~~ ✅
-10. ~~Set group chat avatars to custom icon~~ ✅
-11. ~~Implement translation / language selection~~ ✅
-12. ~~Fix chat timestamps~~ ✅
-13. Improve Incoming Calls menu toggle buttons design
-14. ~~Remove group chat owner removal option from the group details bottom sheet~~ ✅
-15. Fix Service notifications and implement said setting
-16. Fix in-call actions
-17. Handle call conference UI/logic
-18. Test transport change on the fly
-19. Test audio codec g729 support
-
----
-
-## Post-beta checklist
-1. Video upload optimization
-2. In-app media viewer
-3. Optimize first user contacts fetch
-4. Stop automatic chat contacts page fetch without scrolling down
 
 ---
 
