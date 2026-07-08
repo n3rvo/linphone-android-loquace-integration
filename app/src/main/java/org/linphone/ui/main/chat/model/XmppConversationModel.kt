@@ -138,12 +138,14 @@ constructor(
 
     private fun formatDateTime(timestamp: Long): String {
         if (timestamp == 0L) return ""
-        return if (TimestampUtils.isToday(timestamp)) {
-            TimestampUtils.timeToString(timestamp)
-        } else if (TimestampUtils.isYesterday(timestamp)) {
+        // TimestampUtils expects seconds, convert from milliseconds
+        val timestampInSeconds = if (timestamp > 10_000_000_000L) timestamp / 1000L else timestamp
+        return if (TimestampUtils.isToday(timestampInSeconds)) {
+            TimestampUtils.timeToString(timestampInSeconds)
+        } else if (TimestampUtils.isYesterday(timestampInSeconds)) {
             AppUtils.getString(R.string.yesterday)
         } else {
-            TimestampUtils.toString(timestamp, onlyDate = true, shortDate = true, hideYear = true)
+            TimestampUtils.toString(timestampInSeconds, onlyDate = true, shortDate = true, hideYear = true)
         }
     }
 }

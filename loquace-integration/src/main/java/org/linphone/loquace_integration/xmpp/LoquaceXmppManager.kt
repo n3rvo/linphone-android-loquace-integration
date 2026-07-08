@@ -650,9 +650,14 @@ object LoquaceXmppManager {
 
             val myJid = conn.user.asEntityBareJidIfPossible()?.toString() ?: ""
 
-            val rawMessages = result.messages.mapNotNull { message ->
+            val rawMessages = result.mamResultExtensions.mapNotNull { mamResult ->
+                val forwarded = mamResult.forwarded
+                val message = forwarded.forwardedStanza as? org.jivesoftware.smack.packet.Message
+                    ?: return@mapNotNull null
+
                 val body = message.body ?: return@mapNotNull null
                 if (body.isEmpty()) return@mapNotNull null
+
                 val fromJid = message.from?.asEntityBareJidIfPossible()?.toString() ?: return@mapNotNull null
                 val toJid = if (isGroup) peerJid else {
                     message.to?.asEntityBareJidIfPossible()?.toString() ?: return@mapNotNull null
@@ -666,10 +671,7 @@ object LoquaceXmppManager {
                     fromJid.substringBefore("/") == myJid.substringBefore("/")
                 }
 
-                val timestamp = message.getExtension<org.jivesoftware.smackx.delay.packet.DelayInformation>(
-                    org.jivesoftware.smackx.delay.packet.DelayInformation.ELEMENT,
-                    org.jivesoftware.smackx.delay.packet.DelayInformation.NAMESPACE
-                )?.stamp?.time ?: System.currentTimeMillis()
+                val timestamp = forwarded.delayInformation?.stamp?.time ?: System.currentTimeMillis()
 
                 val retractExtension = message.extensions.find {
                     it.namespace == "urn:xmpp:message-retract:1" && it.elementName == "retract"

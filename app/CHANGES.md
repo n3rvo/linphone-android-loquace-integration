@@ -60,7 +60,7 @@ When merging from upstream `release/6.2`, recheck and reapply these changes.
 
 ## `app/src/main/java/org/linphone/ui/main/contacts/viewmodel/ContactViewModel.kt`
 
-### Change: Add loquacePresence LiveData
+### Change: Add loquacePresence LiveData and loquacePresenceLabel LiveData
 ### Change: Intercept calls through Loquace `/api/v2/calls` endpoint
 ### Change: Emergency number check before API call interception
 
@@ -83,14 +83,14 @@ When merging from upstream `release/6.2`, recheck and reapply these changes.
 
 ## `app/src/main/java/org/linphone/ui/main/contacts/fragment/ContactFragment.kt`
 
-### Change: Set loquacePresence from SharedMainViewModel
+### Change: Set loquacePresence and loquacePresenceLabel from SharedMainViewModel
 
 ---
 
 ## `app/src/main/res/layout/contact_fragment.xml`
 
 ### Change: Hide video call and chat buttons permanently
-### Change: Update status text to use Loquace presence with color binding adapter
+### Change: Update status text to use loquacePresenceLabel with loquacePresenceTextColor adapter
 
 ---
 
@@ -122,6 +122,12 @@ When merging from upstream `release/6.2`, recheck and reapply these changes.
 ### Change: Call updateConversationDisplayName after resolving display name
 ### Change: Set group chat avatar to custom icon
 ### Change: Refresh avatar model after resolving 1-1 contact name via model.update(null)
+### Change: Fix chat list timestamp display
+`formatDateTime()` now converts milliseconds to seconds before passing
+to `TimestampUtils` since Linphone utilities expect seconds:
+```kotlin
+val timestampInSeconds = if (timestamp > 10_000_000_000L) timestamp / 1000L else timestamp
+```
 
 ---
 
@@ -250,7 +256,6 @@ When merging from upstream `release/6.2`, recheck and reapply these changes.
 
 ### Change: Wire up Loquace drawer sections
 ### Change: Add language accordion toggle and spinner
-### Change: Initialize language spinner from `loquace_preferences`
 ### Change: Observe `languageChangedEvent` and call `applyLanguage()`
 
 ---
@@ -258,9 +263,6 @@ When merging from upstream `release/6.2`, recheck and reapply these changes.
 ## `app/src/main/java/org/linphone/ui/main/viewmodel/LoquaceDrawerMenuViewModel.kt`
 
 ### Change: Add `setLanguage()` and `languageChangedEvent`
-Reads/writes `language` from `loquace_preferences` via
-`LinphoneApplication.coreContext.context`, posts new language via
-`languageChangedEvent`.
 
 ---
 
@@ -352,8 +354,7 @@ Reads/writes `language` from `loquace_preferences` via
 ## `app/src/main/res/values-it/strings.xml` *(NEW)*
 
 ### Change: Add Italian translations for all strings
-Note: `file_provider_loquace` intentionally excluded — provider
-authorities cannot vary by configuration.
+Note: `file_provider_loquace` intentionally excluded.
 
 ---
 
@@ -439,13 +440,14 @@ authorities cannot vary by configuration.
 9. ~~Fix default speaker on incoming calls~~ ✅
 10. ~~Set group chat avatars to custom icon~~ ✅
 11. ~~Implement translation / language selection~~ ✅
-12. Handle call conference UI/logic
-13. Test audio codec g729 support
-14. Fix chat timestamps
-15. Improve Incoming Calls menu toggle buttons design
-16. Remove group chat owner removal option from the group details bottom sheet
-17. Fix Service notifications and implement said setting
-18. Fix in-call actions
+12. ~~Fix chat timestamps~~ ✅
+13. Improve Incoming Calls menu toggle buttons design
+14. ~~Remove group chat owner removal option from the group details bottom sheet~~ ✅
+15. Fix Service notifications and implement said setting
+16. Fix in-call actions
+17. Handle call conference UI/logic
+18. Test transport change on the fly
+19. Test audio codec g729 support
 
 ---
 
@@ -470,10 +472,13 @@ Entirely new module — no merge conflicts expected here.
 - `storage/LoquaceDatabase.kt` *(MODIFIED)*
 - `storage/entity/XmppConversationEntity.kt` *(MODIFIED)*
 - `storage/SessionManager.kt`
-- `sip/LoquaceSipConfigurator.kt`
+- `sip/LoquaceSipConfigurator.kt` *(MODIFIED)* — remove G.729 test code before release
 - `ui/LoquaceLoginActivity.kt` *(MODIFIED)*
 - `ui/activity_login.xml`
-- `xmpp/LoquaceXmppManager.kt` *(MODIFIED)*
+- `xmpp/LoquaceXmppManager.kt` *(MODIFIED)*:
+    - MAM history fetch switched from `result.messages` to
+      `result.mamResultExtensions` to correctly read
+      `forwarded.delayInformation?.stamp?.time` for message timestamps
 - `xmpp/XmppConversation.kt` *(MODIFIED)*
 - `xmpp/XmppConnectionService.kt`
 - `xmpp/XmppMessage.kt`, `xmpp/XmppHttpUploadManager.kt`, `xmpp/AttachmentType.kt`
