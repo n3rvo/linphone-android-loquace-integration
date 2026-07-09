@@ -149,13 +149,24 @@ class PermissionsFragment : GenericFragment() {
         leaving = true
 
         if (requireActivity().intent.getBooleanExtra(AssistantActivity.SKIP_LANDING_EXTRA, false)) {
-            Log.w(
-                "$TAG We were asked to leave assistant if at least an account is already configured"
-            )
             coreContext.postOnCoreThread { core ->
                 if (core.accountList.isNotEmpty()) {
+                    // Check if notification permission was granted
+                    val notificationGranted = ContextCompat.checkSelfPermission(
+                        requireContext(),
+                        Manifest.permission.POST_NOTIFICATIONS
+                    ) == PackageManager.PERMISSION_GRANTED
+
+                    if (notificationGranted) {
+                        core.config.setBool("app", "keep_service_alive", true)
+                        coreContext.startKeepAliveService()
+                        Log.i("$TAG Notification permission granted, keep alive service started")
+                    } else {
+                        core.config.setBool("app", "keep_service_alive", false)
+                        Log.w("$TAG Notification permission not granted, keep alive service disabled")
+                    }
+
                     coreContext.postOnMainThread {
-                        Log.w("$TAG At least one account was found, leaving assistant")
                         try {
                             requireActivity().finish()
                         } catch (ise: IllegalStateException) {
@@ -164,7 +175,6 @@ class PermissionsFragment : GenericFragment() {
                     }
                 } else {
                     coreContext.postOnMainThread {
-                        Log.w("$TAG No account was found, going to landing fragment")
                         try {
                             goToLoginFragment()
                         } catch (ise: IllegalStateException) {

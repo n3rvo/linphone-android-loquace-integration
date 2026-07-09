@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.google.firebase.messaging.RemoteMessage
 import org.json.JSONObject
+import org.linphone.LinphoneApplication.Companion.coreContext
 import org.linphone.core.tools.AndroidPlatformHelper
 import org.linphone.core.tools.compatibility.DeviceUtils
 import org.linphone.ui.main.MainActivity
@@ -28,6 +29,7 @@ class LoquaceFirebaseMessagingService : org.linphone.core.tools.firebase.Firebas
         val subject = data["subject"]
 
         Log.d(TAG, "Push received! Data: $data")
+        Log.d(TAG, "Push received with keepAlive service running: ${coreContext.core.config.getBool("app", "keep_service_alive", false)}")
 
         when {
             !callId.isNullOrEmpty() -> {

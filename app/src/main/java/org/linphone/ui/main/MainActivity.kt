@@ -79,8 +79,10 @@ import org.linphone.utils.FileUtils
 import org.linphone.utils.LinphoneUtils
 import androidx.core.content.edit
 import org.linphone.loquace_integration.network.LoquaceLogoutManager
+import org.linphone.loquace_integration.storage.SessionManager
 import org.linphone.loquace_integration.ui.LoquaceLoginActivity
 import org.linphone.loquace_integration.xmpp.LoquaceXmppManager
+import org.linphone.loquace_integration.xmpp.XmppConnectionService
 import org.linphone.ui.assistant.AssistantActivity
 
 @UiThread
@@ -478,12 +480,9 @@ class MainActivity : GenericActivity() {
 
     override fun onStart() {
         super.onStart()
-        // App coming to foreground - reconnect XMPP
-        val sessionManager = org.linphone.loquace_integration.storage.SessionManager(this)
+        val sessionManager = SessionManager(this)
         if (sessionManager.getToken() != null) {
-            Log.i("$TAG App coming to foreground, reconnecting XMPP")
-            val serviceIntent = Intent(this, org.linphone.loquace_integration.xmpp.XmppConnectionService::class.java)
-            startForegroundService(serviceIntent)
+            startService(Intent(this, XmppConnectionService::class.java))
         }
     }
 

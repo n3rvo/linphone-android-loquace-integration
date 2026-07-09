@@ -223,11 +223,7 @@
 
         <service
             android:name="org.linphone.loquace_integration.xmpp.XmppConnectionService"
-            android:foregroundServiceType="specialUse"
             android:exported="false">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Needed to maintain XMPP connection for chat messages."/>
         </service>
 
         <!--<service
