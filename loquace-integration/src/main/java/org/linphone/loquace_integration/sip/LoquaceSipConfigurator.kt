@@ -1,10 +1,12 @@
 package org.linphone.loquace_integration.sip
 
+import android.content.Context
 import android.util.Log
 import org.linphone.core.Core
 import org.linphone.core.Factory
 import org.linphone.core.TransportType
 import org.linphone.loquace_integration.storage.entity.SipAccountEntity
+import androidx.core.content.edit
 
 object LoquaceSipConfigurator {
 
@@ -49,6 +51,20 @@ object LoquaceSipConfigurator {
         params.pushNotificationAllowed = true
         params.remotePushNotificationAllowed = true
         Log.d(TAG, "Push notifications enabled for SIP account")
+
+        // Apply pending FCM token BEFORE registering account
+        val pendingToken = context.getSharedPreferences("loquace_flags", Context.MODE_PRIVATE)
+            .getString("pending_fcm_token", null)
+        if (pendingToken != null) {
+            try {
+                org.linphone.core.tools.AndroidPlatformHelper.instance()?.setPushToken(pendingToken)
+                Log.d(TAG, "Applied pending FCM token before registration: $pendingToken")
+                context.getSharedPreferences("loquace_flags", Context.MODE_PRIVATE)
+                    .edit { remove("pending_fcm_token") }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to apply pending FCM token: ${e.message}")
+            }
+        }
 
         // Create and add account
         val account = core.createAccount(params)

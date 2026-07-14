@@ -1,6 +1,7 @@
 package org.linphone.core
 
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -10,6 +11,7 @@ import org.linphone.LinphoneApplication.Companion.coreContext
 import org.linphone.core.tools.AndroidPlatformHelper
 import org.linphone.core.tools.compatibility.DeviceUtils
 import org.linphone.ui.main.MainActivity
+import androidx.core.content.edit
 
 
 class LoquaceFirebaseMessagingService : org.linphone.core.tools.firebase.FirebaseMessaging() {
@@ -19,7 +21,15 @@ class LoquaceFirebaseMessagingService : org.linphone.core.tools.firebase.Firebas
     }
 
     override fun onNewToken(token: String) {
-        Log.d(TAG, "New FCM token: $token")
+        Log.d("LoquaceSip", "New FCM token: $token")
+        applicationContext.getSharedPreferences("loquace_flags", Context.MODE_PRIVATE)
+            .edit { putString("pending_fcm_token", token) }
+
+        // Verify it was stored
+        val stored = applicationContext.getSharedPreferences("loquace_flags", Context.MODE_PRIVATE)
+            .getString("pending_fcm_token", null)
+        Log.d("LoquaceSip", "Token stored successfully: ${stored != null}, value: $stored")
+
         super.onNewToken(token)
     }
 
@@ -28,12 +38,19 @@ class LoquaceFirebaseMessagingService : org.linphone.core.tools.firebase.Firebas
         val callId = data["call-id"] ?: ""
         val subject = data["subject"]
 
-        Log.d(TAG, "Push received! Data: $data")
+        Log.d("LoquaceSip", "Push received! Data: $data")
         Log.d(TAG, "Push received with keepAlive service running: ${coreContext.core.config.getBool("app", "keep_service_alive", false)}")
 
         when {
             !callId.isNullOrEmpty() -> {
-                Log.d(TAG, "SIP push with call-id: $callId")
+                Log.d("LoquaceSip", "SIP push with call-id: $callId")
+                // Force re-registration to ensure FreeSWITCH has current contact
+                try {
+                    coreContext.core.defaultAccount?.refreshRegister()
+                    Log.d("LoquaceSip", "Refreshed SIP registration on push received")
+                } catch (e: Exception) {
+                    Log.e("LoquaceSip", "Failed to refresh registration: ${e.message}")
+                }
                 super.onMessageReceived(message)
             }
             subject == "chat" -> {
@@ -41,7 +58,7 @@ class LoquaceFirebaseMessagingService : org.linphone.core.tools.firebase.Firebas
                 showChatNotification(data)
             }
             else -> {
-                Log.d(TAG, "SIP call push detected, forwarding to Linphone")
+                Log.d("LoquaceSip", "SIP call push detected, forwarding to Linphone")
                 super.onMessageReceived(message)
             }
         }

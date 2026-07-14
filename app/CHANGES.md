@@ -19,6 +19,7 @@ When merging from upstream `release/6.2`, recheck and reapply these changes.
 ### Change: Add session check in onResume
 ### Change: Add XMPP reconnection on app foreground/background
 ### Change: Check for DB corruption flag on startup
+### Change: Use startService instead of startForegroundService for XmppConnectionService
 
 ---
 
@@ -123,11 +124,6 @@ When merging from upstream `release/6.2`, recheck and reapply these changes.
 ### Change: Set group chat avatar to custom icon
 ### Change: Refresh avatar model after resolving 1-1 contact name via model.update(null)
 ### Change: Fix chat list timestamp display
-`formatDateTime()` converts milliseconds to seconds before passing to
-`TimestampUtils`:
-```kotlin
-val timestampInSeconds = if (timestamp > 10_000_000_000L) timestamp / 1000L else timestamp
-```
 
 ---
 
@@ -252,22 +248,12 @@ val timestampInSeconds = if (timestamp > 10_000_000_000L) timestamp / 1000L else
 ### Change: Replace Linphone drawer with Loquace custom drawer
 ### Change: Add language accordion row with Spinner
 ### Change: Apply LoquaceSwitch style with thumb and track tint selectors
-to all SwitchMaterial toggles in Incoming Calls section
 
 ---
 
 ## `app/src/main/res/values/styles.xml`
 
 ### Change: Add LoquaceSwitch style
-```xml
-<style name="LoquaceSwitch" parent="Widget.MaterialComponents.CompoundButton.Switch">
-    <item name="colorPrimary">?attr/color_main1_500</item>
-    <item name="colorSwitchThumbNormal">?attr/color_main2_200</item>
-    <item name="android:colorForeground">?attr/color_main2_200</item>
-    <item name="thumbTint">@drawable/switch_thumb_tint</item>
-    <item name="trackTint">@drawable/switch_track_tint</item>
-</style>
-```
 
 ---
 
@@ -309,6 +295,7 @@ to all SwitchMaterial toggles in Incoming Calls section
 ## `app/src/main/java/org/linphone/core/CorePreferences.kt`
 
 ### Change: Default `disableCallRecordings` to `true`
+### Change: Default `keepServiceAlive` to `true`
 
 ---
 
@@ -336,6 +323,15 @@ to all SwitchMaterial toggles in Incoming Calls section
 
 ---
 
+## `app/src/main/java/org/linphone/ui/assistant/fragment/PermissionsFragment.kt`
+
+### Change: Set keep_service_alive based on notification permission grant status
+After permissions are granted/skipped, sets `keep_service_alive = true`
+if `POST_NOTIFICATIONS` was granted, `false` otherwise, then calls
+`coreContext.startKeepAliveService()`.
+
+---
+
 ## `app/src/main/java/org/linphone/compatibility/GenericActivity.kt`
 
 ### Change: Lock orientation to portrait
@@ -347,7 +343,7 @@ to all SwitchMaterial toggles in Incoming Calls section
 ### Change: Disable Auto Backup
 ### Change: Re-enable predictive back gesture
 ### Change: Lock app to portrait orientation
-### Change: Register XMPP foreground service as specialUse
+### Change: Register XMPP foreground service as specialUse — REMOVED
 ### Change: Replace Linphone's Firebase service with Loquace's
 ### Change: Update LoquaceLoginActivity declaration
 ### Change: Update FileProvider authority
@@ -443,7 +439,15 @@ Note: `file_provider_loquace` intentionally excluded.
 ### `app/src/main/java/org/linphone/ui/main/viewmodel/LoquaceDrawerMenuViewModel.kt` *(MODIFIED)*
 ### `app/src/main/java/org/linphone/ui/main/help/fragment/LoquaceAboutFragment.kt` *(NEW)*
 ### `app/src/main/res/layout/loquace_about_fragment.xml` *(NEW)*
-### `app/src/main/java/org/linphone/core/LoquaceFirebaseMessagingService.kt` *(NEW)*
+### `app/src/main/java/org/linphone/core/LoquaceFirebaseMessagingService.kt` *(MODIFIED)*
+
+**Key changes to `LoquaceFirebaseMessagingService`:**
+- `onNewToken()` stores token in `loquace_flags` SharedPreferences as
+  `pending_fcm_token` for use when core isn't ready yet
+- `onMessageReceived()` SIP call-id branch now calls
+  `core.defaultAccount?.refreshRegister()` before
+  `super.onMessageReceived()` to ensure FreeSWITCH has the current
+  contact address before routing the SIP INVITE
 
 ---
 
@@ -460,15 +464,20 @@ Entirely new module — no merge conflicts expected here.
 - `storage/LoquaceDatabase.kt` *(MODIFIED)*
 - `storage/entity/XmppConversationEntity.kt` *(MODIFIED)*
 - `storage/SessionManager.kt`
-- `sip/LoquaceSipConfigurator.kt` *(MODIFIED)* — remove G.729 test code before release
+- `sip/LoquaceSipConfigurator.kt` *(MODIFIED)*:
+    - Removed G.729 test codec code
+    - Added pending FCM token application before `core.addAccount()` to
+      ensure first SIP REGISTER contains the correct push token
 - `ui/LoquaceLoginActivity.kt` *(MODIFIED)*
 - `ui/activity_login.xml`
 - `xmpp/LoquaceXmppManager.kt` *(MODIFIED)*:
     - MAM history fetch switched from `result.messages` to
-      `result.mamResultExtensions` to correctly read
-      `forwarded.delayInformation?.stamp?.time` for message timestamps
+      `result.mamResultExtensions`
 - `xmpp/XmppConversation.kt` *(MODIFIED)*
-- `xmpp/XmppConnectionService.kt`
+- `xmpp/XmppConnectionService.kt` *(MODIFIED)*:
+    - Removed foreground service requirement
+    - Changed to regular background service
+    - Changed `START_STICKY` to `START_NOT_STICKY`
 - `xmpp/XmppMessage.kt`, `xmpp/XmppHttpUploadManager.kt`, `xmpp/AttachmentType.kt`
 - `storage/dao/XmppConversationDao.kt` *(MODIFIED)*
 
