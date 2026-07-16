@@ -167,8 +167,8 @@ class TelecomCallControlCallback(
         }
 
         if (isVideo && corePreferences.routeAudioToSpeakerWhenVideoIsEnabled) {
-            Log.i("$TAG Answering video call, routing audio to speaker")
-            AudioUtils.routeAudioToSpeaker(call)
+            //Log.i("$TAG Answering video call, routing audio to speaker")
+            //AudioUtils.routeAudioToSpeaker(call)
         }
     }
 

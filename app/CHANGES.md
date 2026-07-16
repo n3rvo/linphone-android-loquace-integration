@@ -35,6 +35,20 @@ When merging from upstream `release/6.2`, recheck and reapply these changes.
 ### Change: Fetch Loquace contact info in configureCall()
 ### Change: Force audio-only for incoming calls
 ### Change: Fix default speaker on incoming calls
+### Change: Fix speaker button unresponsive after answering from notification
+Set `speakerExplicitlyEnabled` in `AudioDeviceModel.onSelected` lambda
+for all device types so the flag is always correct regardless of how
+audio device is selected.
+
+---
+
+## `app/src/main/java/org/linphone/telecom/TelecomCallControlCallback.kt`
+
+### Change: Comment out video call audio routing to speaker
+Linphone's Telecom integration was detecting FreeSWITCH's video SDP
+and automatically routing audio to speaker on answer. Commented out
+the method that routes to speaker for video calls since we handle
+audio routing ourselves via `speakerExplicitlyEnabled`.
 
 ---
 
@@ -326,9 +340,6 @@ When merging from upstream `release/6.2`, recheck and reapply these changes.
 ## `app/src/main/java/org/linphone/ui/assistant/fragment/PermissionsFragment.kt`
 
 ### Change: Set keep_service_alive based on notification permission grant status
-After permissions are granted/skipped, sets `keep_service_alive = true`
-if `POST_NOTIFICATIONS` was granted, `false` otherwise, then calls
-`coreContext.startKeepAliveService()`.
 
 ---
 
@@ -343,7 +354,7 @@ if `POST_NOTIFICATIONS` was granted, `false` otherwise, then calls
 ### Change: Disable Auto Backup
 ### Change: Re-enable predictive back gesture
 ### Change: Lock app to portrait orientation
-### Change: Register XMPP foreground service as specialUse — REMOVED
+### Change: Remove XMPP foreground service specialUse declaration
 ### Change: Replace Linphone's Firebase service with Loquace's
 ### Change: Update LoquaceLoginActivity declaration
 ### Change: Update FileProvider authority
@@ -442,12 +453,9 @@ Note: `file_provider_loquace` intentionally excluded.
 ### `app/src/main/java/org/linphone/core/LoquaceFirebaseMessagingService.kt` *(MODIFIED)*
 
 **Key changes to `LoquaceFirebaseMessagingService`:**
-- `onNewToken()` stores token in `loquace_flags` SharedPreferences as
-  `pending_fcm_token` for use when core isn't ready yet
-- `onMessageReceived()` SIP call-id branch now calls
-  `core.defaultAccount?.refreshRegister()` before
-  `super.onMessageReceived()` to ensure FreeSWITCH has the current
-  contact address before routing the SIP INVITE
+- `onNewToken()` stores token in `loquace_flags` SharedPreferences
+- `onMessageReceived()` calls `core.defaultAccount?.refreshRegister()`
+  before `super.onMessageReceived()` for SIP call pushes
 
 ---
 
@@ -465,14 +473,11 @@ Entirely new module — no merge conflicts expected here.
 - `storage/entity/XmppConversationEntity.kt` *(MODIFIED)*
 - `storage/SessionManager.kt`
 - `sip/LoquaceSipConfigurator.kt` *(MODIFIED)*:
-    - Removed G.729 test codec code
-    - Added pending FCM token application before `core.addAccount()` to
-      ensure first SIP REGISTER contains the correct push token
+    - Applies pending FCM token before `core.addAccount()`
 - `ui/LoquaceLoginActivity.kt` *(MODIFIED)*
 - `ui/activity_login.xml`
 - `xmpp/LoquaceXmppManager.kt` *(MODIFIED)*:
-    - MAM history fetch switched from `result.messages` to
-      `result.mamResultExtensions`
+    - MAM history fetch switched to `result.mamResultExtensions`
 - `xmpp/XmppConversation.kt` *(MODIFIED)*
 - `xmpp/XmppConnectionService.kt` *(MODIFIED)*:
     - Removed foreground service requirement
