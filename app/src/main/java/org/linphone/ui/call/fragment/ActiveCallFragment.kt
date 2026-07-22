@@ -189,19 +189,19 @@ class ActiveCallFragment : GenericCallFragment() {
         }
 
         binding.setTransferCallClickListener {
-            if (findNavController().currentDestination?.id == R.id.activeCallFragment) {
-                val action =
-                    ActiveCallFragmentDirections.actionActiveCallFragmentToTransferCallFragment()
-                findNavController().navigate(action)
-            }
+            LoquaceCallContactPickerBottomSheet(skipApiCall = true) { address ->
+                coreContext.postOnCoreThread {
+                    callViewModel.blindTransferCallTo(address)
+                }
+            }.show(parentFragmentManager, "CallContactPicker")
         }
 
         binding.setNewCallClickListener {
-            if (findNavController().currentDestination?.id == R.id.activeCallFragment) {
-                val action =
-                    ActiveCallFragmentDirections.actionActiveCallFragmentToNewCallFragment()
-                findNavController().navigate(action)
-            }
+            LoquaceCallContactPickerBottomSheet(skipApiCall = false) { address ->
+                coreContext.postOnCoreThread {
+                    coreContext.startAudioCall(address)
+                }
+            }.show(parentFragmentManager, "CallContactPicker")
         }
 
         binding.setCallsListClickListener {
