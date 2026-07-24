@@ -180,7 +180,7 @@ class LoquaceCallContactPickerBottomSheet(
                 }
             }
         }
-        contactsListViewModel?.searchFilter?.value = query
+        contactsListViewModel?.applyFilter(query)
     }
 
     private fun resetAndLoad(type: String, query: String) {
@@ -194,7 +194,10 @@ class LoquaceCallContactPickerBottomSheet(
         if (isLoadingMore || !hasMoreContacts) return
         isLoadingMore = true
 
-        coreContext.postOnMainThread { binding.fetchInProgress.visibility = View.VISIBLE }
+        // Only show loader for pagination, not initial load
+        if (currentOffset > 0) {
+            binding.fetchInProgress.visibility = View.VISIBLE
+        }
 
         val calledForTab = currentTab
 
@@ -214,6 +217,7 @@ class LoquaceCallContactPickerBottomSheet(
 
             if (currentTab != calledForTab) {
                 isLoadingMore = false
+                binding.fetchInProgress.visibility = View.GONE
                 return@launch
             }
 
@@ -265,11 +269,10 @@ class LoquaceCallContactPickerBottomSheet(
                     adapter.submitList(existing)
                     currentOffset += contacts.size
                     isLoadingMore = false
+                    binding.fetchInProgress.visibility = View.GONE
                 }
             }
         }
-
-        binding.fetchInProgress.visibility = View.GONE
     }
 
     private fun handleContactSelected(model: ContactAvatarModel) {
