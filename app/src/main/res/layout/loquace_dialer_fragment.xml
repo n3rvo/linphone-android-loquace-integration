@@ -53,19 +53,22 @@
                     style="@style/default_text_style"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="32dp"
-                    android:layout_marginEnd="32dp"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginEnd="16dp"
                     android:layout_marginTop="32dp"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
                     android:background="@drawable/shape_squircle_gray_100_background"
                     android:text="@{viewModel.numberInput}"
                     android:textSize="32sp"
                     android:gravity="center"
-                    android:minHeight="48dp"
+                    android:minHeight="@dimen/call_button_size"
                     android:textColor="?attr/color_main2_800"
                     app:layout_constraintTop_toTopOf="parent"
                     app:layout_constraintBottom_toTopOf="@id/dialpad_grid"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent"/>
+                    app:layout_constraintEnd_toStartOf="@id/backspace_button"
+                    app:layout_constraintHorizontal_bias="0.0"/>
 
                 <androidx.gridlayout.widget.GridLayout
                     android:id="@+id/dialpad_grid"
@@ -73,6 +76,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="16dp"
                     android:layout_marginEnd="16dp"
+                    app:useDefaultMargins="true"
                     app:columnCount="3"
                     app:rowCount="4"
                     app:layout_constraintStart_toStartOf="parent"
@@ -87,7 +91,7 @@
                         android:text="1"
                         android:textSize="24sp"
                         android:onClick="@{() -> viewModel.onDigitClicked(`1`)}"
-                        android:background="@drawable/squircle_transparent_button_background"
+                        android:background="@drawable/shape_squircle_gray_100_background"
                         app:layout_columnWeight="1" />
 
                     <androidx.appcompat.widget.AppCompatButton
@@ -96,7 +100,7 @@
                         android:text="2"
                         android:textSize="24sp"
                         android:onClick="@{() -> viewModel.onDigitClicked(`2`)}"
-                        android:background="@drawable/squircle_transparent_button_background"
+                        android:background="@drawable/shape_squircle_gray_100_background"
                         app:layout_columnWeight="1" />
 
                     <androidx.appcompat.widget.AppCompatButton
@@ -105,7 +109,7 @@
                         android:text="3"
                         android:textSize="24sp"
                         android:onClick="@{() -> viewModel.onDigitClicked(`3`)}"
-                        android:background="@drawable/squircle_transparent_button_background"
+                        android:background="@drawable/shape_squircle_gray_100_background"
                         app:layout_columnWeight="1" />
 
                     <androidx.appcompat.widget.AppCompatButton
@@ -114,7 +118,7 @@
                         android:text="4"
                         android:textSize="24sp"
                         android:onClick="@{() -> viewModel.onDigitClicked(`4`)}"
-                        android:background="@drawable/squircle_transparent_button_background"
+                        android:background="@drawable/shape_squircle_gray_100_background"
                         app:layout_columnWeight="1" />
 
                     <androidx.appcompat.widget.AppCompatButton
@@ -123,7 +127,7 @@
                         android:text="5"
                         android:textSize="24sp"
                         android:onClick="@{() -> viewModel.onDigitClicked(`5`)}"
-                        android:background="@drawable/squircle_transparent_button_background"
+                        android:background="@drawable/shape_squircle_gray_100_background"
                         app:layout_columnWeight="1" />
 
                     <androidx.appcompat.widget.AppCompatButton
@@ -132,7 +136,7 @@
                         android:text="6"
                         android:textSize="24sp"
                         android:onClick="@{() -> viewModel.onDigitClicked(`6`)}"
-                        android:background="@drawable/squircle_transparent_button_background"
+                        android:background="@drawable/shape_squircle_gray_100_background"
                         app:layout_columnWeight="1" />
 
                     <androidx.appcompat.widget.AppCompatButton
@@ -141,7 +145,7 @@
                         android:text="7"
                         android:textSize="24sp"
                         android:onClick="@{() -> viewModel.onDigitClicked(`7`)}"
-                        android:background="@drawable/squircle_transparent_button_background"
+                        android:background="@drawable/shape_squircle_gray_100_background"
                         app:layout_columnWeight="1" />
 
                     <androidx.appcompat.widget.AppCompatButton
@@ -150,7 +154,7 @@
                         android:text="8"
                         android:textSize="24sp"
                         android:onClick="@{() -> viewModel.onDigitClicked(`8`)}"
-                        android:background="@drawable/squircle_transparent_button_background"
+                        android:background="@drawable/shape_squircle_gray_100_background"
                         app:layout_columnWeight="1" />
 
                     <androidx.appcompat.widget.AppCompatButton
@@ -159,7 +163,7 @@
                         android:text="9"
                         android:textSize="24sp"
                         android:onClick="@{() -> viewModel.onDigitClicked(`9`)}"
-                        android:background="@drawable/squircle_transparent_button_background"
+                        android:background="@drawable/shape_squircle_gray_100_background"
                         app:layout_columnWeight="1" />
 
                     <androidx.appcompat.widget.AppCompatButton
@@ -168,7 +172,7 @@
                         android:text="*"
                         android:textSize="24sp"
                         android:onClick="@{() -> viewModel.onDigitClicked(`*`)}"
-                        android:background="@drawable/squircle_transparent_button_background"
+                        android:background="@drawable/shape_squircle_gray_100_background"
                         app:layout_columnWeight="1" />
 
                     <androidx.appcompat.widget.AppCompatButton
@@ -178,7 +182,7 @@
                         android:textSize="24sp"
                         android:onClick="@{() -> viewModel.onDigitClicked(`0`)}"
                         android:onLongClick="@{() -> viewModel.onZeroLongClicked()}"
-                        android:background="@drawable/squircle_transparent_button_background"
+                        android:background="@drawable/shape_squircle_gray_100_background"
                         app:layout_columnWeight="1" />
 
                     <androidx.appcompat.widget.AppCompatButton
@@ -187,7 +191,7 @@
                         android:text="#"
                         android:textSize="24sp"
                         android:onClick="@{() -> viewModel.onDigitClicked(`#`)}"
-                        android:background="@drawable/squircle_transparent_button_background"
+                        android:background="@drawable/shape_squircle_gray_100_background"
                         app:layout_columnWeight="1" />
 
                 </androidx.gridlayout.widget.GridLayout>
@@ -196,7 +200,7 @@
                     android:id="@+id/call_button"
                     android:layout_width="200dp"
                     android:layout_height="@dimen/call_button_size"
-                    android:layout_marginStart="103dp"
+                    android:layout_marginStart="16dp"
                     android:layout_marginEnd="16dp"
                     android:layout_marginBottom="32dp"
                     android:padding="15dp"
@@ -206,7 +210,7 @@
                     android:onClick="@{() -> viewModel.onCallClicked()}"
                     app:tint="@color/bc_white"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintEnd_toStartOf="@id/backspace_button"
+                    app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/dialpad_grid"/>
 
@@ -214,7 +218,7 @@
                     android:id="@+id/backspace_button"
                     android:layout_width="@dimen/call_button_size"
                     android:layout_height="@dimen/call_button_size"
-                    android:layout_marginEnd="32dp"
+                    android:layout_marginEnd="16dp"
                     android:padding="15dp"
                     android:src="@drawable/backspace_fill"
                     android:background="@drawable/in_call_numpad_button_background"
@@ -223,8 +227,8 @@
                     android:onLongClick="@{() -> viewModel.onBackspaceLongClicked()}"
                     app:tint="@color/bc_white"
                     app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintTop_toTopOf="@id/call_button"
-                    app:layout_constraintBottom_toBottomOf="@id/call_button"/>
+                    app:layout_constraintTop_toTopOf="@id/number_display"
+                    app:layout_constraintBottom_toBottomOf="@id/number_display"/>
 
             </androidx.constraintlayout.widget.ConstraintLayout>
 
