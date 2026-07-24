@@ -20,6 +20,10 @@ When merging from upstream `release/6.2`, recheck and reapply these changes.
 ### Change: Add XMPP reconnection on app foreground/background
 ### Change: Check for DB corruption flag on startup
 ### Change: Use startService instead of startForegroundService for XmppConnectionService
+### Change: Check and update SIP transport on app start
+`onStart()` now calls `LoquaceSipConfigurator.checkAndUpdateTransportIfNeeded()`
+to fetch latest settings from API and update Linphone Core's account params
+if the transport has changed since last login.
 
 ---
 
@@ -36,19 +40,20 @@ When merging from upstream `release/6.2`, recheck and reapply these changes.
 ### Change: Force audio-only for incoming calls
 ### Change: Fix default speaker on incoming calls
 ### Change: Fix speaker button unresponsive after answering from notification
-Set `speakerExplicitlyEnabled` in `AudioDeviceModel.onSelected` lambda
-for all device types so the flag is always correct regardless of how
-audio device is selected.
 
 ---
 
 ## `app/src/main/java/org/linphone/telecom/TelecomCallControlCallback.kt`
 
 ### Change: Comment out video call audio routing to speaker
-Linphone's Telecom integration was detecting FreeSWITCH's video SDP
-and automatically routing audio to speaker on answer. Commented out
-the method that routes to speaker for video calls since we handle
-audio routing ourselves via `speakerExplicitlyEnabled`.
+
+---
+
+## `app/src/main/java/org/linphone/ui/call/fragment/ActiveCallFragment.kt`
+
+### Change: Replace new call and transfer navigation with LoquaceCallContactPickerBottomSheet
+- `setNewCallClickListener` → shows picker with `skipApiCall=false`, calls `coreContext.startAudioCall(address)`
+- `setTransferCallClickListener` → shows picker with `skipApiCall=true`, calls `callViewModel.blindTransferCallTo(address)`
 
 ---
 
@@ -446,6 +451,17 @@ Note: `file_provider_loquace` intentionally excluded.
 ### `app/src/main/res/layout/loquace_participant_picker_bottom_sheet.xml` *(NEW)*
 ### `app/src/main/res/layout/loquace_participant_picker_cell.xml` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/chat/fragment/ParticipantPickerBottomSheet.kt` *(NEW)*
+### `app/src/main/java/org/linphone/ui/call/fragment/LoquaceCallContactPickerBottomSheet.kt` *(NEW)*
+
+**LoquaceCallContactPickerBottomSheet features:**
+- Three tabs: Device (via ContactsListViewModel), PBX and Users (via Loquace API)
+- Search bar with 300ms debounce — Device tab uses `applyFilter()`, Loquace tabs use server-side search
+- Paginated loading with infinite scroll for Loquace tabs
+- Loader only shown during pagination (not initial load)
+- `skipApiCall` parameter — `false` for new call (goes through `/api/v2/calls`), `true` for transfer (builds SIP address directly)
+- Avatars and presence loaded per contact
+
+### `app/src/main/res/layout/loquace_call_contact_picker.xml` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/history/model/LoquaceCallLogModel.kt` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/viewmodel/LoquaceDrawerMenuViewModel.kt` *(MODIFIED)*
 ### `app/src/main/java/org/linphone/ui/main/help/fragment/LoquaceAboutFragment.kt` *(NEW)*
@@ -453,9 +469,41 @@ Note: `file_provider_loquace` intentionally excluded.
 ### `app/src/main/java/org/linphone/core/LoquaceFirebaseMessagingService.kt` *(MODIFIED)*
 
 **Key changes to `LoquaceFirebaseMessagingService`:**
-- `onNewToken()` stores token in `loquace_flags` SharedPreferences
-- `onMessageReceived()` calls `core.defaultAccount?.refreshRegister()`
-  before `super.onMessageReceived()` for SIP call pushes
+- `onNewToken()` stores token in `loquace_flags` as `pending_fcm_token`
+- `onMessageReceived()` calls `core.defaultAccount?.refreshRegister()` before `super.onMessageReceived()` for SIP call pushes
+
+---
+
+## Pre-beta checklist
+1. ~~Remove video call and chat button from SIP contact card + add status~~ ✅
+2. ~~Search implementation for chat contacts and open conversations~~ ✅
+3. ~~Improve group chat participant picker (searchable + avatars + status borders)~~ ✅
+4. ~~Restyle of in-call screen~~ ✅
+5. ~~Conversation long press → delete conversation~~ ✅
+6. ~~Adding special rules for phone contacts calls and emergency calls~~ ✅
+7. ~~Fix horizontal layout / remove landscape mode~~ ✅
+8. ~~Add avatar to incoming call notification~~ ✅
+9. ~~Fix default speaker on incoming calls~~ ✅
+10. ~~Set group chat avatars to custom icon~~ ✅
+11. ~~Implement translation / language selection~~ ✅
+12. ~~Fix chat timestamps~~ ✅
+13. ~~Improve Incoming Calls menu toggle buttons design~~ ✅
+14. ~~Remove group chat owner removal option from the group details bottom sheet~~ ✅
+15. ~~Fix Service notifications and implement said setting~~ ✅
+16. ~~Fix in-call actions~~ ✅
+17. ~~Handle call conference UI/logic~~ ✅
+18. ~~Test transport change on the fly~~ ✅
+19. Test audio codec g729 support
+20. Set full name, loquace account and phone icon status to the drawer menu
+21. Target SDK 36
+
+---
+
+## Post-beta checklist
+1. Video upload optimization
+2. In-app media viewer
+3. Optimize first user contacts fetch
+4. Stop automatic chat contacts page fetch without scrolling down
 
 ---
 
@@ -474,6 +522,9 @@ Entirely new module — no merge conflicts expected here.
 - `storage/SessionManager.kt`
 - `sip/LoquaceSipConfigurator.kt` *(MODIFIED)*:
     - Applies pending FCM token before `core.addAccount()`
+    - Added `checkAndUpdateTransportIfNeeded()` — fetches latest settings
+      from API on app start and updates Linphone Core account params if
+      transport has changed
 - `ui/LoquaceLoginActivity.kt` *(MODIFIED)*
 - `ui/activity_login.xml`
 - `xmpp/LoquaceXmppManager.kt` *(MODIFIED)*:

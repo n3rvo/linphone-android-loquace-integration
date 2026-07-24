@@ -480,9 +480,17 @@ class MainActivity : GenericActivity() {
 
     override fun onStart() {
         super.onStart()
-        val sessionManager = SessionManager(this)
+        val sessionManager = org.linphone.loquace_integration.storage.SessionManager(this)
         if (sessionManager.getToken() != null) {
-            startService(Intent(this, XmppConnectionService::class.java))
+            startService(Intent(this, org.linphone.loquace_integration.xmpp.XmppConnectionService::class.java))
+            lifecycleScope.launch(Dispatchers.IO) {
+                coreContext.postOnCoreThread { core ->
+                    kotlinx.coroutines.runBlocking {
+                        org.linphone.loquace_integration.sip.LoquaceSipConfigurator
+                            .checkAndUpdateTransportIfNeeded(core, applicationContext)
+                    }
+                }
+            }
         }
     }
 

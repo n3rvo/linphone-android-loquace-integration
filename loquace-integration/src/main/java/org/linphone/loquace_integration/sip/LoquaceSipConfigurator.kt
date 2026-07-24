@@ -7,6 +7,9 @@ import org.linphone.core.Factory
 import org.linphone.core.TransportType
 import org.linphone.loquace_integration.storage.entity.SipAccountEntity
 import androidx.core.content.edit
+import org.linphone.loquace_integration.network.SettingsRepository
+import org.linphone.loquace_integration.storage.LoquaceDatabase
+import org.linphone.loquace_integration.storage.SessionManager
 
 object LoquaceSipConfigurator {
 
@@ -106,6 +109,36 @@ object LoquaceSipConfigurator {
                 Log.w(TAG, "Unknown transport '$transport', falling back to TCP")
                 TransportType.Tcp
             }
+        }
+    }
+
+    suspend fun checkAndUpdateTransportIfNeeded(core: Core, context: android.content.Context) {
+        try {
+            val db = LoquaceDatabase.getInstance(context)
+            val sessionManager = SessionManager(context)
+            val domain = sessionManager.getDomain() ?: return
+            val token = sessionManager.getToken() ?: return
+            val userAgent = sessionManager.getUserAgent()
+
+            val settingsRepository = SettingsRepository(db)
+            settingsRepository.fetchAndStore(domain, token, userAgent, sessionManager)
+
+            val updatedSip = db.sipAccountDao().get() ?: return
+            val account = core.defaultAccount ?: return
+            val currentTransport = account.params.serverAddress?.transport
+            val newTransport = parseTransport(updatedSip.transport)
+
+            if (currentTransport != newTransport) {
+                Log.d(TAG, "Transport changed from $currentTransport to $newTransport, updating")
+                val params = account.params.clone()
+                val newServerAddress = account.params.serverAddress?.clone()
+                newServerAddress?.transport = newTransport
+                params.serverAddress = newServerAddress
+                account.params = params
+                account.refreshRegister()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to check transport: ${e.message}")
         }
     }
 }
