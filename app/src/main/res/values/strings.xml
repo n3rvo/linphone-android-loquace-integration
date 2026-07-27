@@ -1124,4 +1124,10 @@
     <string name="about_gpl_url" translatable="false">https://www.gnu.org/licenses/gpl-3.0.html</string>
     <string name="notification_incoming_call_title">Incoming call</string>
     <string name="file_provider_loquace" translatable="false">it.nems.loquacemobile.provider</string>
+    <string name="presence_submit_confirm">Update your presence status?</string>
+    <string name="calls_submit_confirm">Update your call settings?</string>
+    <string name="presence_submit_success">Presence updated successfully</string>
+    <string name="presence_submit_error">Failed to update presence</string>
+    <string name="calls_submit_success">Call settings updated successfully</string>
+    <string name="calls_submit_error">Failed to update call settings</string>
 </resources>

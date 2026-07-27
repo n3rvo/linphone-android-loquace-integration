@@ -29,6 +29,7 @@ import android.view.inputmethod.EditorInfo
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.IdRes
 import androidx.annotation.UiThread
+import androidx.core.content.ContextCompat
 import androidx.core.view.doOnPreDraw
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.NavDirections
@@ -249,6 +250,15 @@ abstract class AbstractMainFragment : GenericMainFragment() {
             topBarBinding.avatar?.root
                         ?.findViewById<android.widget.ImageView>(R.id.presence_ring)
                 ?.setLoquacePresenceRing(status)
+        }
+        // Phone icon color
+        loquaceViewModel.mobileEnabledForIcon.observe(viewLifecycleOwner) { enabled ->
+            val color = when (enabled) {
+                null -> ContextCompat.getColor(requireContext(), R.color.gray_main2_400)
+                true -> ContextCompat.getColor(requireContext(), R.color.green_success_500)
+                false -> ContextCompat.getColor(requireContext(), R.color.red_danger_500)
+            }
+            topBarBinding.phoneIcon?.setColorFilter(color)
         }
     }
 

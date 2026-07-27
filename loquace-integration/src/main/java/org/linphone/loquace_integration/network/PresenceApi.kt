@@ -19,5 +19,5 @@ interface PresenceApi {
         @Header(LoquaceConfig.HEADER_USER_AGENT) userAgent: String,
         @Header(LoquaceConfig.HEADER_TENANT)     tenant: String,
         @Body                                    body: Map<String, String>
-    ): PresenceResponse
+    ): Unit
 }

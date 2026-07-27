@@ -39,8 +39,13 @@ constructor() : GenericViewModel() {
 
     // Incoming calls devices
     val mobileEnabled = MutableLiveData<Boolean>(false)
+    val mobileEnabledForIcon = MutableLiveData<Boolean?>(null) // starts gray
     val browserEnabled = MutableLiveData<Boolean>(false)
     val phoneEnabled = MutableLiveData<Boolean>(false)
+
+    // POST APIs Responses
+    val presenceSubmitResultEvent = MutableLiveData<Event<Boolean>>()
+    val callsSubmitResultEvent = MutableLiveData<Event<Boolean>>()
 
     val isLoading = MutableLiveData<Boolean>(false)
 
@@ -84,13 +89,17 @@ constructor() : GenericViewModel() {
                         val calls = settingsApi.getCallsSettings(token, userAgent, domain)
                         for (device in calls.inbound.devices) {
                             when (device.type) {
-                                "mobile" -> mobileEnabled.postValue(device.enabled)
+                                "mobile" -> {
+                                    mobileEnabled.postValue(device.enabled) // for the toggle switch
+                                    mobileEnabledForIcon.postValue(device.enabled) // for the icon
+                                }
                                 "browser" -> browserEnabled.postValue(device.enabled)
                                 "phone" -> phoneEnabled.postValue(device.enabled)
                             }
                         }
                         Log.d(TAG, "Calls settings fetched")
                     } catch (e: Exception) {
+                        mobileEnabledForIcon.postValue(null) // back to gray
                         Log.e(TAG, "Failed to fetch calls settings: ${e.message}")
                     }
                 }
@@ -119,9 +128,10 @@ constructor() : GenericViewModel() {
                         "message" to (presenceMessage.value ?: "")
                     )
                 )
-                Log.d(TAG, "Presence submitted: status=${presenceStatus.value}, message=${presenceMessage.value}")
+                presenceSubmitResultEvent.postValue(Event(true))
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to submit presence: ${e.message}")
+                presenceSubmitResultEvent.postValue(Event(false))
             }
         }
     }
@@ -147,18 +157,14 @@ constructor() : GenericViewModel() {
                     tenant    = domain,
                     body      = CallsResponse(inbound = Inbound(devices = devices))
                 )
-                Log.d(TAG, "Calls settings submitted")
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to submit calls settings: ${e.message}")
-            }
-        }
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                // ... existing API call ...
-                Log.d(TAG, "Calls settings submitted")
+                mobileEnabledForIcon.postValue(mobileEnabled.value)
                 callsSettingsSubmittedEvent.postValue(Event(true))
+                callsSubmitResultEvent.postValue(Event(true))
+                Log.d(TAG, "Calls settings submitted")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to submit calls settings: ${e.message}")
+                mobileEnabledForIcon.postValue(null) // back to gray on error
+                callsSubmitResultEvent.postValue(Event(false))
             }
         }
     }

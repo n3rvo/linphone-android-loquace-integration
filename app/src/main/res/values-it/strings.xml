@@ -188,4 +188,13 @@
     <string name="about_linphone_url">https://www.linphone.org</string>
     <string name="about_gpl_url">https://www.gnu.org/licenses/gpl-3.0.html</string>
     <string name="notification_incoming_call_title">Chiamata in arrivo</string>
+    <string name="presence_submit_confirm">Aggiornare lo stato di presenza?</string>
+    <string name="calls_submit_confirm">Aggiornare le impostazioni delle chiamate?</string>
+    <string name="presence_submit_success">Presenza aggiornata con successo</string>
+    <string name="presence_submit_error">Errore durante l\'aggiornamento della presenza</string>
+    <string name="calls_submit_success">Impostazioni chiamate aggiornate con successo</string>
+    <string name="calls_submit_error">Errore durante l\'aggiornamento delle impostazioni chiamate</string>
+
+    😄
+
 </resources>

@@ -216,6 +216,19 @@ When merging from upstream `release/6.2`, recheck and reapply these changes.
 
 ### Change: Add dialer navigation, initViews overload, tab selection state
 ### Change: Add presence ring update for top bar avatar
+### Change: Observe `mobileEnabledForIcon` from `LoquaceDrawerMenuViewModel` in
+`observePresenceForTopBar()` and update `topBarBinding.phoneIcon` color:
+- `null` → gray (no data fetched yet or fetch failed)
+- `true` → green (mobile toggle enabled)
+- `false` → red (mobile toggle disabled)
+
+---
+
+## `app/src/main/res/layout/main_activity_top_bar.xml`
+
+### Change: Add phone icon between title and search_toggle
+Phone icon shows mobile toggle state via color; not tappable, visual indicator only.
+`title` end constraint updated to point to `phone_icon`.
 
 ---
 
@@ -272,8 +285,11 @@ When merging from upstream `release/6.2`, recheck and reapply these changes.
 - Avatar with presence ring (reuses contact_avatar.xml with AccountModel)
 - Full name from `loquaceViewModel.presenceName`
 - SIP account (`username@domain`) from `loquaceViewModel.sipAccount`
-- SIP number and registration status on same line
-- Phone icon with color reflecting mobile toggle state after server confirmation
+- SIP number and registration status on same line in horizontal LinearLayout
+- Phone icon on far right reflecting mobile toggle state:
+    - Green = mobile toggle enabled (after server confirmation)
+    - Red = mobile toggle disabled (after server confirmation)
+    - Gray = no data fetched yet, fetch failed, or no internet
 
 ---
 
@@ -292,19 +308,26 @@ When merging from upstream `release/6.2`, recheck and reapply these changes.
 ### Change: Set account model from `viewModel.accounts` observer
 ### Change: Update presence ring via `binding.loquaceAccountCell.avatar.presenceRing`
 ### Change: Register `ConnectivityManager.NetworkCallback` for real-time network changes
-Unregistered in `onDestroyView()` to avoid memory leaks.
-### Change: Phone icon color updated only after `callsSettingsSubmittedEvent` fires
-(confirmed server state) or when network connectivity changes.
+### Change: Phone icon color updated via `mobileEnabledForIcon` observer and
+`callsSettingsSubmittedEvent` (confirmed server state)
+### Change: Confirmation dialog before submitting presence and calls settings
+### Change: Toast notification on success/error for both presence and calls settings posts
 
 ---
 
 ## `app/src/main/java/org/linphone/ui/main/viewmodel/LoquaceDrawerMenuViewModel.kt`
 
-### Change: Add `sipAccount`, `sipNumber`, `isNetworkAvailable` LiveData
+### Change: Add `sipAccount`, `sipNumber` LiveData
+### Change: Add `mobileEnabledForIcon: MutableLiveData<Boolean?>` — nullable:
+- `null` = gray (no data/fetch failed)
+- `true` = green (mobile enabled, confirmed by server)
+- `false` = red (mobile disabled, confirmed by server)
+  Set after successful fetch and after successful `submitCallsSettings()`.
+  Reset to `null` on fetch/submit failure.
 ### Change: Add `setSipInfo()` to set SIP info from DrawerMenuFragment
-### Change: Add `callsSettingsSubmittedEvent` — fired after successful calls settings submission
+### Change: Add `callsSettingsSubmittedEvent` and `callsSubmitResultEvent`
+### Change: Add `presenceSubmitResultEvent`
 ### Change: Add `setLanguage()` and `languageChangedEvent`
-### Change: Remove `updatePhoneIconColor()` — now handled in DrawerMenuFragment
 
 ---
 
@@ -397,6 +420,7 @@ Unregistered in `onDestroyView()` to avoid memory leaks.
 ## `app/src/main/res/values/strings.xml`
 
 ### Change: Add all new string resources for Loquace features
+### Change: Add presence/calls submit confirmation and result strings
 
 ---
 
@@ -520,6 +544,9 @@ Entirely new module — no merge conflicts expected here.
 **Key files:**
 - `network/LoquaceLogoutManager.kt` *(MODIFIED)*
 - `network/CallsApi.kt` *(NEW)*
+- `network/PresenceApi.kt` *(MODIFIED)*:
+    - `updatePresence()` return type changed from response object to `Unit`
+      to handle 204 No Content responses correctly
 - `utils/EmergencyCallUtils.kt` *(NEW)*
 - `utils/GroupIconUtils.kt` *(NEW)*
 - `res/drawable/loquace_group_icon.xml` *(NEW)*
@@ -528,19 +555,13 @@ Entirely new module — no merge conflicts expected here.
 - `storage/SessionManager.kt`
 - `sip/LoquaceSipConfigurator.kt` *(MODIFIED)*:
     - Applies pending FCM token before `core.addAccount()`
-    - `checkAndUpdateTransportIfNeeded()` — fetches latest settings and
-      updates Linphone Core account params if transport changed
-    - `getSipInfo()` — returns `Pair<username, domain>` from DB without
-      exposing Room to the `app` module
+    - `checkAndUpdateTransportIfNeeded()`
+    - `getSipInfo()` — returns `Pair<username, domain>` from DB
 - `ui/LoquaceLoginActivity.kt` *(MODIFIED)*
 - `ui/activity_login.xml`
-- `xmpp/LoquaceXmppManager.kt` *(MODIFIED)*:
-    - MAM history fetch switched to `result.mamResultExtensions`
+- `xmpp/LoquaceXmppManager.kt` *(MODIFIED)*
 - `xmpp/XmppConversation.kt` *(MODIFIED)*
-- `xmpp/XmppConnectionService.kt` *(MODIFIED)*:
-    - Removed foreground service requirement
-    - Changed to regular background service
-    - Changed `START_STICKY` to `START_NOT_STICKY`
+- `xmpp/XmppConnectionService.kt` *(MODIFIED)*
 - `xmpp/XmppMessage.kt`, `xmpp/XmppHttpUploadManager.kt`, `xmpp/AttachmentType.kt`
 - `storage/dao/XmppConversationDao.kt` *(MODIFIED)*
 

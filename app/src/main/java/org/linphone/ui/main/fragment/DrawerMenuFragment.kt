@@ -106,22 +106,36 @@ class DrawerMenuFragment : GenericMainFragment() {
         connectivityManager?.registerDefaultNetworkCallback(networkCallback!!)
 
         fun updatePhoneIcon() {
-            val isConnected = loquaceViewModel.isNetworkAvailable.value ?: true
-            val isEnabled = loquaceViewModel.mobileEnabled.value ?: false
-            val color = when {
-                !isConnected -> ContextCompat.getColor(requireContext(), R.color.gray_main2_400)
-                isEnabled -> ContextCompat.getColor(requireContext(), R.color.green_success_500)
-                else -> ContextCompat.getColor(requireContext(), R.color.red_danger_500)
+            val enabled = loquaceViewModel.mobileEnabledForIcon.value
+            val color = when (enabled) {
+                null -> ContextCompat.getColor(requireContext(), R.color.gray_main2_400)
+                true -> ContextCompat.getColor(requireContext(), R.color.green_success_500)
+                false -> ContextCompat.getColor(requireContext(), R.color.red_danger_500)
             }
             binding.loquaceAccountCell.phoneStatusIcon.setColorFilter(color)
         }
 
-        // Only update icon after successful server submission
+        loquaceViewModel.mobileEnabledForIcon.observe(viewLifecycleOwner) { updatePhoneIcon() }
         loquaceViewModel.callsSettingsSubmittedEvent.observe(viewLifecycleOwner) {
             it.consume { updatePhoneIcon() }
         }
-        // Keep isNetworkAvailable observer for connectivity changes
         loquaceViewModel.isNetworkAvailable.observe(viewLifecycleOwner) { updatePhoneIcon() }
+
+        loquaceViewModel.presenceSubmitResultEvent.observe(viewLifecycleOwner) {
+            it.consume { success ->
+                val message = if (success) getString(R.string.presence_submit_success)
+                else getString(R.string.presence_submit_error)
+                android.widget.Toast.makeText(requireContext(), message, android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        loquaceViewModel.callsSubmitResultEvent.observe(viewLifecycleOwner) {
+            it.consume { success ->
+                val message = if (success) getString(R.string.calls_submit_success)
+                else getString(R.string.calls_submit_error)
+                android.widget.Toast.makeText(requireContext(), message, android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
 
         viewModel.accounts.observe(viewLifecycleOwner) { accounts ->
             accounts.firstOrNull()?.let { account ->
@@ -266,13 +280,18 @@ class DrawerMenuFragment : GenericMainFragment() {
             binding.presenceMessageInput.setText(message)
         }
 
-        // Submit presence
         binding.submitPresenceButton.setOnClickListener {
-            val selectedStatus = statusOptions[binding.presenceStatusSpinner.selectedItemPosition]
-            val message = binding.presenceMessageInput.text?.toString() ?: ""
-            loquaceViewModel.presenceStatus.value = selectedStatus
-            loquaceViewModel.presenceMessage.value = message
-            loquaceViewModel.submitPresence(requireContext())
+            androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setMessage(getString(R.string.presence_submit_confirm))
+                .setPositiveButton(getString(R.string.confirm)) { _, _ ->
+                    val selectedStatus = statusOptions[binding.presenceStatusSpinner.selectedItemPosition]
+                    val message = binding.presenceMessageInput.text?.toString() ?: ""
+                    loquaceViewModel.presenceStatus.value = selectedStatus
+                    loquaceViewModel.presenceMessage.value = message
+                    loquaceViewModel.submitPresence(requireContext())
+                }
+                .setNegativeButton(getString(R.string.cancel), null)
+                .show()
         }
 
         loquaceViewModel.presenceStatus.observe(viewLifecycleOwner) { status ->
@@ -294,9 +313,14 @@ class DrawerMenuFragment : GenericMainFragment() {
             loquaceViewModel.phoneEnabled.value = isChecked
         }
 
-        // Submit calls
         binding.submitCallsButton.setOnClickListener {
-            loquaceViewModel.submitCallsSettings(requireContext())
+            androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setMessage(getString(R.string.calls_submit_confirm))
+                .setPositiveButton(getString(R.string.confirm)) { _, _ ->
+                    loquaceViewModel.submitCallsSettings(requireContext())
+                }
+                .setNegativeButton(getString(R.string.cancel), null)
+                .show()
         }
 
         // Language spinner set up
