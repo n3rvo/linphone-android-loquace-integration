@@ -7,10 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.linphone.core.tools.Log
-import org.linphone.loquace_integration.network.LoquaceGroupsRepository
 import org.linphone.loquace_integration.network.RetrofitClient
-import org.linphone.loquace_integration.network.SettingsApi
-import org.linphone.loquace_integration.network.LoquaceConfig
 import org.linphone.loquace_integration.storage.SessionManager
 import org.linphone.ui.GenericViewModel
 import org.linphone.utils.Event
@@ -33,6 +30,12 @@ constructor() : GenericViewModel() {
     val presenceStatus = MutableLiveData<String>("ONLINE")
     val presenceMessage = MutableLiveData<String>("")
     val presenceName = MutableLiveData<String>("")
+
+    // Account Info
+    val sipAccount = MutableLiveData<String>("")
+    val sipNumber = MutableLiveData<String>("")
+    val isNetworkAvailable = MutableLiveData<Boolean>(true)
+    val callsSettingsSubmittedEvent = MutableLiveData<Event<Boolean>>()
 
     // Incoming calls devices
     val mobileEnabled = MutableLiveData<Boolean>(false)
@@ -149,6 +152,15 @@ constructor() : GenericViewModel() {
                 Log.e(TAG, "Failed to submit calls settings: ${e.message}")
             }
         }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // ... existing API call ...
+                Log.d(TAG, "Calls settings submitted")
+                callsSettingsSubmittedEvent.postValue(Event(true))
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to submit calls settings: ${e.message}")
+            }
+        }
     }
 
     fun logout() {
@@ -164,5 +176,10 @@ constructor() : GenericViewModel() {
         context.getSharedPreferences("loquace_preferences", Context.MODE_PRIVATE)
             .edit { putString("language", language) }
         languageChangedEvent.postValue(Event(language))
+    }
+
+    fun setSipInfo(username: String, domain: String) {
+        sipNumber.postValue(username)
+        sipAccount.postValue("$username@$domain")
     }
 }

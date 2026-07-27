@@ -21,9 +21,6 @@ When merging from upstream `release/6.2`, recheck and reapply these changes.
 ### Change: Check for DB corruption flag on startup
 ### Change: Use startService instead of startForegroundService for XmppConnectionService
 ### Change: Check and update SIP transport on app start
-`onStart()` now calls `LoquaceSipConfigurator.checkAndUpdateTransportIfNeeded()`
-to fetch latest settings from API and update Linphone Core's account params
-if the transport has changed since last login.
 
 ---
 
@@ -52,8 +49,6 @@ if the transport has changed since last login.
 ## `app/src/main/java/org/linphone/ui/call/fragment/ActiveCallFragment.kt`
 
 ### Change: Replace new call and transfer navigation with LoquaceCallContactPickerBottomSheet
-- `setNewCallClickListener` → shows picker with `skipApiCall=false`, calls `coreContext.startAudioCall(address)`
-- `setTransferCallClickListener` → shows picker with `skipApiCall=true`, calls `callViewModel.blindTransferCallTo(address)`
 
 ---
 
@@ -265,8 +260,20 @@ if the transport has changed since last login.
 ## `app/src/main/res/layout/main_drawer_menu.xml`
 
 ### Change: Replace Linphone drawer with Loquace custom drawer
+### Change: Replace accounts_scroll with loquace_account_cell include
 ### Change: Add language accordion row with Spinner
 ### Change: Apply LoquaceSwitch style with thumb and track tint selectors
+
+---
+
+## `app/src/main/res/layout/loquace_account_cell.xml` *(NEW)*
+
+### Change: Custom account cell showing:
+- Avatar with presence ring (reuses contact_avatar.xml with AccountModel)
+- Full name from `loquaceViewModel.presenceName`
+- SIP account (`username@domain`) from `loquaceViewModel.sipAccount`
+- SIP number and registration status on same line
+- Phone icon with color reflecting mobile toggle state after server confirmation
 
 ---
 
@@ -281,12 +288,23 @@ if the transport has changed since last login.
 ### Change: Wire up Loquace drawer sections
 ### Change: Add language accordion toggle and spinner
 ### Change: Observe `languageChangedEvent` and call `applyLanguage()`
+### Change: Load SIP info via `LoquaceSipConfigurator.getSipInfo()`
+### Change: Set account model from `viewModel.accounts` observer
+### Change: Update presence ring via `binding.loquaceAccountCell.avatar.presenceRing`
+### Change: Register `ConnectivityManager.NetworkCallback` for real-time network changes
+Unregistered in `onDestroyView()` to avoid memory leaks.
+### Change: Phone icon color updated only after `callsSettingsSubmittedEvent` fires
+(confirmed server state) or when network connectivity changes.
 
 ---
 
 ## `app/src/main/java/org/linphone/ui/main/viewmodel/LoquaceDrawerMenuViewModel.kt`
 
+### Change: Add `sipAccount`, `sipNumber`, `isNetworkAvailable` LiveData
+### Change: Add `setSipInfo()` to set SIP info from DrawerMenuFragment
+### Change: Add `callsSettingsSubmittedEvent` — fired after successful calls settings submission
 ### Change: Add `setLanguage()` and `languageChangedEvent`
+### Change: Remove `updatePhoneIconColor()` — now handled in DrawerMenuFragment
 
 ---
 
@@ -452,25 +470,13 @@ Note: `file_provider_loquace` intentionally excluded.
 ### `app/src/main/res/layout/loquace_participant_picker_cell.xml` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/chat/fragment/ParticipantPickerBottomSheet.kt` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/call/fragment/LoquaceCallContactPickerBottomSheet.kt` *(NEW)*
-
-**LoquaceCallContactPickerBottomSheet features:**
-- Three tabs: Device (via ContactsListViewModel), PBX and Users (via Loquace API)
-- Search bar with 300ms debounce — Device tab uses `applyFilter()`, Loquace tabs use server-side search
-- Paginated loading with infinite scroll for Loquace tabs
-- Loader only shown during pagination (not initial load)
-- `skipApiCall` parameter — `false` for new call (goes through `/api/v2/calls`), `true` for transfer (builds SIP address directly)
-- Avatars and presence loaded per contact
-
 ### `app/src/main/res/layout/loquace_call_contact_picker.xml` *(NEW)*
+### `app/src/main/res/layout/loquace_account_cell.xml` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/history/model/LoquaceCallLogModel.kt` *(NEW)*
 ### `app/src/main/java/org/linphone/ui/main/viewmodel/LoquaceDrawerMenuViewModel.kt` *(MODIFIED)*
 ### `app/src/main/java/org/linphone/ui/main/help/fragment/LoquaceAboutFragment.kt` *(NEW)*
 ### `app/src/main/res/layout/loquace_about_fragment.xml` *(NEW)*
 ### `app/src/main/java/org/linphone/core/LoquaceFirebaseMessagingService.kt` *(MODIFIED)*
-
-**Key changes to `LoquaceFirebaseMessagingService`:**
-- `onNewToken()` stores token in `loquace_flags` as `pending_fcm_token`
-- `onMessageReceived()` calls `core.defaultAccount?.refreshRegister()` before `super.onMessageReceived()` for SIP call pushes
 
 ---
 
@@ -494,8 +500,8 @@ Note: `file_provider_loquace` intentionally excluded.
 17. ~~Handle call conference UI/logic~~ ✅
 18. ~~Test transport change on the fly~~ ✅
 19. Test audio codec g729 support
-20. Set full name, loquace account and phone icon status to the drawer menu
-21. Target SDK 36
+20. ~~Set full name, loquace account and phone icon status to the drawer menu~~ ✅
+21. Test app installation on top of old version
 
 ---
 
@@ -522,9 +528,10 @@ Entirely new module — no merge conflicts expected here.
 - `storage/SessionManager.kt`
 - `sip/LoquaceSipConfigurator.kt` *(MODIFIED)*:
     - Applies pending FCM token before `core.addAccount()`
-    - Added `checkAndUpdateTransportIfNeeded()` — fetches latest settings
-      from API on app start and updates Linphone Core account params if
-      transport has changed
+    - `checkAndUpdateTransportIfNeeded()` — fetches latest settings and
+      updates Linphone Core account params if transport changed
+    - `getSipInfo()` — returns `Pair<username, domain>` from DB without
+      exposing Room to the `app` module
 - `ui/LoquaceLoginActivity.kt` *(MODIFIED)*
 - `ui/activity_login.xml`
 - `xmpp/LoquaceXmppManager.kt` *(MODIFIED)*:

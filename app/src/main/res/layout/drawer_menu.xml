@@ -77,33 +77,24 @@
                 app:layout_constraintEnd_toEndOf="parent"/>
 
             <!-- Account list - same as original Linphone -->
-            <ScrollView
-                android:id="@+id/accounts_scroll"
+            <include
+                android:id="@+id/loquace_account_cell"
+                layout="@layout/loquace_account_cell"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="15dp"
-                android:layout_marginBottom="8dp"
+                app:loquaceViewModel="@{loquaceViewModel}"
                 app:layout_constraintTop_toBottomOf="@id/close_drawer"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent">
+                app:layout_constraintEnd_toEndOf="parent"/>
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    entries="@{viewModel.accounts}"
-                    layout="@{@layout/account_list_cell}">
-
-                </LinearLayout>
-
-            </ScrollView>
 
             <ScrollView
                 android:layout_width="0dp"
                 android:layout_height="0dp"
                 android:layout_marginTop="8dp"
                 android:fillViewport="true"
-                app:layout_constraintTop_toBottomOf="@id/accounts_scroll"
+                app:layout_constraintTop_toBottomOf="@id/loquace_account_cell"
                 app:layout_constraintBottom_toTopOf="@id/separator_logout"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent">

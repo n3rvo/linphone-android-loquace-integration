@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:bind="http://schemas.android.com/tools">
+
+    <data>
+        <import type="android.view.View"/>
+        <import type="org.linphone.core.RegistrationState"/>
+        <variable
+            name="model"
+            type="org.linphone.ui.main.model.AccountModel"/>
+        <variable
+            name="loquaceViewModel"
+            type="org.linphone.ui.main.viewmodel.LoquaceDrawerMenuViewModel"/>
+    </data>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="10dp">
+
+        <!-- Avatar with presence ring — same as account_list_cell -->
+        <include
+            android:id="@+id/avatar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            layout="@layout/contact_avatar"
+            bind:model="@{model}"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"/>
+
+        <!-- Full name -->
+        <androidx.appcompat.widget.AppCompatTextView
+            style="@style/default_text_style_700"
+            android:id="@+id/account_full_name"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="8dp"
+            android:textSize="14sp"
+            android:textColor="?attr/color_main2_900"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@{loquaceViewModel.presenceName}"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toEndOf="@id/avatar"
+            app:layout_constraintEnd_toStartOf="@id/phone_status_icon"/>
+
+        <!-- SIP account -->
+        <androidx.appcompat.widget.AppCompatTextView
+            style="@style/default_text_style_300"
+            android:id="@+id/account_sip_account"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="8dp"
+            android:textSize="11sp"
+            android:textColor="?attr/color_main2_500"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@{loquaceViewModel.sipAccount}"
+            app:layout_constraintTop_toBottomOf="@id/account_full_name"
+            app:layout_constraintStart_toEndOf="@id/avatar"
+            app:layout_constraintEnd_toStartOf="@id/phone_status_icon"/>
+
+        <LinearLayout
+            android:id="@+id/sip_number_row"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="8dp"
+            app:layout_constraintTop_toBottomOf="@id/account_sip_account"
+            app:layout_constraintStart_toEndOf="@id/avatar"
+            app:layout_constraintEnd_toStartOf="@id/phone_status_icon"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <androidx.appcompat.widget.AppCompatTextView
+                style="@style/default_text_style_300"
+                android:id="@+id/account_sip_number"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="11sp"
+                android:textColor="?attr/color_main2_500"
+                android:text="@{loquaceViewModel.sipNumber}"/>
+
+            <androidx.appcompat.widget.AppCompatTextView
+                style="@style/default_text_style_300"
+                android:id="@+id/register_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:background="@drawable/shape_squircle_main2_200_background"
+                android:text="@{model.registrationStateLabel}"
+                android:textColor="@{model.registrationState == RegistrationState.Ok ? @color/success_500 : model.registrationState == RegistrationState.Failed ? @color/danger_500 : @color/main2_500}"
+                android:textSize="11sp"/>
+
+        </LinearLayout>
+
+        <!-- Phone status icon -->
+        <ImageView
+            android:id="@+id/phone_status_icon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/phone"
+            android:contentDescription="@null"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"/>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</layout>

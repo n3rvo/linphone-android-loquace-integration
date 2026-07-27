@@ -65,6 +65,9 @@ class DrawerMenuFragment : GenericMainFragment() {
 
     private lateinit var viewModel: DrawerMenuViewModel
 
+    private var networkCallback: android.net.ConnectivityManager.NetworkCallback? = null
+    private var connectivityManager: android.net.ConnectivityManager? = null
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -90,6 +93,42 @@ class DrawerMenuFragment : GenericMainFragment() {
         // Fetch data when drawer opens
         loquaceViewModel.fetchData(requireContext())
 
+        // Check network connectivity first
+        connectivityManager = requireContext().getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+        networkCallback = object : android.net.ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: android.net.Network) {
+                loquaceViewModel.isNetworkAvailable.postValue(true)
+            }
+            override fun onLost(network: android.net.Network) {
+                loquaceViewModel.isNetworkAvailable.postValue(false)
+            }
+        }
+        connectivityManager?.registerDefaultNetworkCallback(networkCallback!!)
+
+        fun updatePhoneIcon() {
+            val isConnected = loquaceViewModel.isNetworkAvailable.value ?: true
+            val isEnabled = loquaceViewModel.mobileEnabled.value ?: false
+            val color = when {
+                !isConnected -> ContextCompat.getColor(requireContext(), R.color.gray_main2_400)
+                isEnabled -> ContextCompat.getColor(requireContext(), R.color.green_success_500)
+                else -> ContextCompat.getColor(requireContext(), R.color.red_danger_500)
+            }
+            binding.loquaceAccountCell.phoneStatusIcon.setColorFilter(color)
+        }
+
+        // Only update icon after successful server submission
+        loquaceViewModel.callsSettingsSubmittedEvent.observe(viewLifecycleOwner) {
+            it.consume { updatePhoneIcon() }
+        }
+        // Keep isNetworkAvailable observer for connectivity changes
+        loquaceViewModel.isNetworkAvailable.observe(viewLifecycleOwner) { updatePhoneIcon() }
+
+        viewModel.accounts.observe(viewLifecycleOwner) { accounts ->
+            accounts.firstOrNull()?.let { account ->
+                binding.loquaceAccountCell.model = account
+            }
+        }
+
         // Close button
         viewModel.closeDrawerEvent.observe(viewLifecycleOwner) {
             it.consume {
@@ -114,6 +153,16 @@ class DrawerMenuFragment : GenericMainFragment() {
                     viewModel.updateAccountsList()
                 } else {
                     viewModel.refreshAccountsNotificationsCount()
+                }
+            }
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            val sipInfo = org.linphone.loquace_integration.sip.LoquaceSipConfigurator
+                .getSipInfo(requireContext())
+            if (sipInfo != null) {
+                withContext(Dispatchers.Main) {
+                    loquaceViewModel.setSipInfo(sipInfo.first, sipInfo.second)
                 }
             }
         }
@@ -231,11 +280,7 @@ class DrawerMenuFragment : GenericMainFragment() {
             if (index >= 0) binding.presenceStatusSpinner.setSelection(index)
 
             // Update drawer account avatar ring
-            val accountsLinearLayout = binding.accountsScroll
-                .getChildAt(0) as? android.widget.LinearLayout ?: return@observe
-            val firstAccount = accountsLinearLayout.getChildAt(0) ?: return@observe
-            firstAccount.findViewById<android.widget.ImageView>(R.id.presence_ring)
-                ?.setLoquacePresenceRing(status)
+            binding.loquaceAccountCell.avatar.presenceRing.setLoquacePresenceRing(status)
         }
 
         // Calls switches - just update ViewModel, don't submit yet
@@ -337,5 +382,10 @@ class DrawerMenuFragment : GenericMainFragment() {
             activity.resources.updateConfiguration(config, activity.resources.displayMetrics)
             activity.recreate()
         }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        networkCallback?.let { connectivityManager?.unregisterNetworkCallback(it) }
     }
 }
