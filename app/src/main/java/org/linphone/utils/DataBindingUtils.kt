@@ -296,6 +296,16 @@ fun AppCompatTextView.font(type: NotoSansFont) {
     }
 }
 
+@BindingAdapter("phoneMobileStatus")
+fun ImageView.setPhoneMobileStatus(enabled: Boolean?) {
+    val color = when {
+        enabled == null -> ContextCompat.getColor(context, R.color.gray_main2_400)
+        enabled -> ContextCompat.getColor(context, R.color.green_success_500)
+        else -> ContextCompat.getColor(context, R.color.red_danger_500)
+    }
+    setColorFilter(color)
+}
+
 @UiThread
 @BindingAdapter("presenceIcon")
 fun ImageView.setPresenceIcon(presence: ConsolidatedPresence?) {

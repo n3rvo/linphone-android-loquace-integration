@@ -141,4 +141,15 @@ object LoquaceSipConfigurator {
             Log.e(TAG, "Failed to check transport: ${e.message}")
         }
     }
+
+    suspend fun getSipInfo(context: android.content.Context): Pair<String, String>? {
+        return try {
+            val db = LoquaceDatabase.getInstance(context)
+            val sip = db.sipAccountDao().get() ?: return null
+            Pair(sip.username, sip.domain)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get SIP info: ${e.message}")
+            null
+        }
+    }
 }
