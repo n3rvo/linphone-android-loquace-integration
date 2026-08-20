@@ -338,6 +338,7 @@ class XmppConversationFragment : SlidingPaneChildFragment() {
         val attachmentType = mimeTypeToAttachmentType(mimeType)
 
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            LoquaceXmppManager.waitForConnection()
             LoquaceXmppManager.uploadAndSendFile(
                 toJid          = peerJid,
                 file           = file,
@@ -358,6 +359,7 @@ class XmppConversationFragment : SlidingPaneChildFragment() {
                 val attachmentType = mimeTypeToAttachmentType(mimeType)
 
                 launch(Dispatchers.IO) {
+                    LoquaceXmppManager.waitForConnection()
                     LoquaceXmppManager.uploadAndSendFile(
                         toJid          = peerJid,
                         file           = file,

@@ -300,31 +300,63 @@ class XmppMessagesAdapter : ListAdapter<XmppMessage, RecyclerView.ViewHolder>(Di
                         voicePlayButton.setImageResource(R.drawable.play_fill)
                     } else {
                         mediaPlayer?.release()
-                        mediaPlayer = MediaPlayer().apply {
-                            if (!message.localPath.isNullOrEmpty() && File(message.localPath!!).exists()) {
-                                setDataSource(message.localPath!!)
-                            } else {
-                                setDataSource(url)
-                            }
-                            setOnPreparedListener { player ->
-                                player.start()
-                                voicePlayButton?.setImageResource(R.drawable.pause_fill)
-                                voiceSeekbar?.max = player.duration
 
-                                CoroutineScope(Dispatchers.Main).launch {
-                                    while (player.isPlaying) {
-                                        voiceSeekbar?.progress = player.currentPosition
-                                        kotlinx.coroutines.delay(100)
+                        CoroutineScope(Dispatchers.IO).launch {
+                            val localPath = if (!message.localPath.isNullOrEmpty() && File(message.localPath!!).exists()) {
+                                message.localPath!!
+                            } else {
+                                // Download using authenticated downloader
+                                val sessionManager = SessionManager(voicePlayButton.context)
+                                val token = sessionManager.getToken() ?: return@launch
+                                val domain = sessionManager.getDomain() ?: return@launch
+                                val attachmentUrl = message.attachmentUrl ?: return@launch
+
+                                val bytes = LoquaceMediaDownloader.downloadBytes(attachmentUrl, token, domain)
+                                    ?: run {
+                                        println("LOQUACE Voice download failed")
+                                        return@launch
                                     }
-                                    voicePlayButton?.setImageResource(R.drawable.play_fill)
-                                    voiceSeekbar?.progress = 0
+
+                                println("LOQUACE Voice downloaded ${bytes.size} bytes")
+
+                                // Write to cache file
+                                val ext = attachmentUrl.substringAfterLast(".").substringBefore("?").ifEmpty { "mp3" }
+                                val cacheFile = File(voicePlayButton.context.cacheDir, "voice_${message.id}.$ext")
+                                cacheFile.writeBytes(bytes)
+                                println("LOQUACE Voice cached at ${cacheFile.absolutePath}, exists=${cacheFile.exists()}, size=${cacheFile.length()}")
+
+                                cacheFile.absolutePath
+                            }
+
+                            withContext(Dispatchers.Main) {
+                                mediaPlayer = MediaPlayer().apply {
+                                    setDataSource(localPath)
+                                    setOnPreparedListener { player ->
+                                        player.start()
+                                        voicePlayButton?.setImageResource(R.drawable.pause_fill)
+                                        voiceSeekbar?.max = player.duration
+
+                                        CoroutineScope(Dispatchers.Main).launch {
+                                            while (player.isPlaying) {
+                                                voiceSeekbar?.progress = player.currentPosition
+                                                kotlinx.coroutines.delay(100)
+                                            }
+                                            voicePlayButton?.setImageResource(R.drawable.play_fill)
+                                            voiceSeekbar?.progress = 0
+                                        }
+                                    }
+                                    setOnCompletionListener {
+                                        voicePlayButton?.setImageResource(R.drawable.play_fill)
+                                        voiceSeekbar?.progress = 0
+                                    }
+                                    setOnErrorListener { _, what, extra ->
+                                        println("LOQUACE MediaPlayer error: what=$what extra=$extra")
+                                        voicePlayButton?.setImageResource(R.drawable.play_fill)
+                                        true
+                                    }
+                                    prepareAsync()
                                 }
                             }
-                            setOnCompletionListener {
-                                voicePlayButton?.setImageResource(R.drawable.play_fill)
-                                voiceSeekbar?.progress = 0
-                            }
-                            prepareAsync()
                         }
                     }
                 }

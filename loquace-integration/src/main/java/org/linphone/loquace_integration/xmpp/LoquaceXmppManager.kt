@@ -388,9 +388,18 @@ object LoquaceXmppManager {
         val currentList = _conversations.value.toMutableList()
         val existing = currentList.find { it.peerJid == peerJid }
 
+        val lastMessagePreview = when {
+            message.isVoiceNote -> "🎤 Voice message"
+            message.isImage -> "📷 Image"
+            message.isVideo -> "🎥 Video"
+            message.attachmentType != AttachmentType.NONE -> "📎 ${message.attachmentName ?: "Attachment"}"
+            else -> message.body
+        }
+        println("LOQUACE updateConversation: peerJid=$peerJid isVoiceNote=${message.isVoiceNote} body='${message.body}' preview='$lastMessagePreview'")
+
         val updatedConversation = if (existing != null) {
             existing.copy(
-                lastMessage   = message.body,
+                lastMessage   = lastMessagePreview,
                 lastTimestamp = message.timestamp,
                 unreadCount   = if (message.isOutgoing) existing.unreadCount
                 else existing.unreadCount + 1
@@ -398,7 +407,7 @@ object LoquaceXmppManager {
         } else {
             XmppConversation(
                 peerJid       = peerJid,
-                lastMessage   = message.body,
+                lastMessage   = lastMessagePreview,
                 lastTimestamp = message.timestamp,
                 unreadCount   = if (message.isOutgoing) 0 else 1,
                 isGroup       = joinedRooms.containsKey(peerJid)
@@ -419,7 +428,7 @@ object LoquaceXmppManager {
             db.xmppConversationDao().upsert(
                 XmppConversationEntity(
                     peerJid       = updatedConversation.peerJid,
-                    lastMessage   = updatedConversation.lastMessage,
+                    lastMessage   = lastMessagePreview,
                     lastTimestamp = updatedConversation.lastTimestamp,
                     unreadCount   = updatedConversation.unreadCount,
                     isGroup       = updatedConversation.isGroup
@@ -487,8 +496,16 @@ object LoquaceXmppManager {
             val currentConvList = _conversations.value.toMutableList()
             val existingConv = currentConvList.find { it.peerJid == peerJid }
             if (existingConv != null) {
+                val lastMessagePreview = when {
+                    updatedMessage.isVoiceNote -> "🎤 Voice message"
+                    updatedMessage.isImage -> "📷 Image"
+                    updatedMessage.isVideo -> "🎥 Video"
+                    updatedMessage.attachmentType != AttachmentType.NONE -> "📎 ${updatedMessage.attachmentName ?: "Attachment"}"
+                    else -> updatedMessage.body
+                }
+
                 val updated = existingConv.copy(
-                    lastMessage   = updatedMessage.attachmentName ?: updatedMessage.body,
+                    lastMessage   = lastMessagePreview,
                     lastTimestamp = updatedMessage.timestamp
                 )
                 currentConvList[currentConvList.indexOf(existingConv)] = updated
@@ -888,5 +905,14 @@ object LoquaceXmppManager {
                 Log.e(TAG, "Failed to update display name: ${e.message}")
             }
         }
+    }
+
+    suspend fun waitForConnection(timeoutMs: Long = 5000): Boolean {
+        val start = System.currentTimeMillis()
+        while (!isConnected()) {
+            if (System.currentTimeMillis() - start > timeoutMs) return false
+            kotlinx.coroutines.delay(200)
+        }
+        return true
     }
 }
